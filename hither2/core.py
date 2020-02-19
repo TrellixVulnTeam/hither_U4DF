@@ -1,4 +1,4 @@
-from typing import Dict, Union
+from typing import Dict, Union, Any
 import os
 import sys
 import random
@@ -15,6 +15,7 @@ from ._util import _random_string, _docker_form_of_container_string
 _global_config = ETConf(
     defaults=dict(
         container=None,
+        job_handler=None
         # cache=None,
         # cache_failing=None,
         # rerun_failing=None,
@@ -30,7 +31,8 @@ _global_config = ETConf(
 )
 
 def set_config(
-        container: Union[str, None]=None,
+        container: Union[str, bool, None]=None,
+        job_handler: Any=None,
         # cache: Union[str, dict, None]=None,
         # cache_failing: Union[bool, None]=None,
         # rerun_failing: Union[bool, None]=None,
@@ -45,6 +47,7 @@ def set_config(
 ) -> None:
     _global_config.set_config(
         container=container,
+        job_handler=job_handler
         # cache=cache,
         # force_run=force_run,
         # cache_failing=cache_failing,
@@ -60,7 +63,8 @@ def set_config(
 
 class config:
     def __init__(self,
-        container: Union[str, None]=None,
+        container: Union[str, bool, None]=None,
+        job_handler: Any=None
         # cache: Union[str, dict, None]=None,
         # cache_failing: Union[bool, None]=None,
         # rerun_failing: Union[bool, None]=None,
@@ -75,6 +79,7 @@ class config:
     ):
         self._config = dict(
             container=container,
+            job_handler=job_handler
             # cache=cache,
             # cache_failing=cache_failing,
             # rerun_failing=rerun_failing,
@@ -119,7 +124,7 @@ class _JobManager:
             job: Job = self._queued_jobs[id]
             if self._job_is_ready_to_run(job):
                 del self._queued_jobs[id]
-                if _some_jobs_have_errors(job._kwargs):
+                if _some_jobs_have_status(job._kwargs, ['error']):
                     job._status = 'error'
                     job._exception = Exception('Exception in argument.')
                     return
@@ -128,22 +133,33 @@ class _JobManager:
                 job._status = 'running'
                 job._job_handler.handle_job(job)
 
-        # Check which running jobs are finished
+        # Check which running jobs are finished and iterate job handlers of running jobs
         running_job_ids = list(self._running_jobs.keys())
         for id in running_job_ids:
             job: Job = self._running_jobs[id]
-            if job._status != 'running':
+            if job._status == 'running':
+                # Note: we effectively iterate the same job handler potentially many times here -- I think that's okay but not 100% sure.
+                job._job_handler.iterate()
+            else:
                 del self._running_jobs[id]
+    
+    def wait(self):
+        while True:
+            self.iterate()
+            if self._queued_jobs == {} and self._running_jobs == {}:
+                return
+            time.sleep(0.02)
     
     def _job_is_ready_to_run(self, job):
         assert job._status == 'queued'
-        if _some_jobs_are_still_queued(job._kwargs):
+        if _some_jobs_have_status(job._kwargs, ['pending', 'queued', 'running', 'error']):
             return False
         return True
 
 _global_job_manager = _JobManager()
 
 def container(container):
+    assert container.startswith('docker://'), f"Container string {container} must begin with docker://"
     def wrap(f):
         setattr(f, '_hither_container', container)
         return f
@@ -163,6 +179,7 @@ def local_modules(local_modules):
 
 def function(name, version):
     def wrap(f):
+        assert f.__name__ == name, f"Name does not match function name: {name} <> {f.__name__}"
         def run(**kwargs):
             if '_label' in kwargs:
                 label = kwargs['_label']
@@ -175,7 +192,10 @@ def function(name, version):
                 container = _global_config.get('container')
             else:
                 container=None
-            job = Job(f=f, kwargs=kwargs, job_manager=_global_job_manager, job_handler=_global_job_handler, container=container, label=label)
+            job_handler = _global_config.get('job_handler')
+            if job_handler is None:
+                job_handler = _global_job_handler
+            job = Job(f=f, kwargs=kwargs, job_manager=_global_job_manager, job_handler=job_handler, container=container, label=label)
             _global_job_manager.queue_job(job)
             return job
         setattr(f, 'run', run)
@@ -212,16 +232,19 @@ class Job:
                 raise self._exception
             elif self._status == 'queued':
                 pass
+            elif self._status == 'running':
+                pass
             else:
                 raise Exception(f'Unexpected status: {self._status}')
             self._job_manager.iterate()
-            time.sleep(1)
+            time.sleep(0.02)
     def result(self):
         if self._status == 'finished':
             return self._result
+        raise Exception('Cannot get result of job that is not yet finished.')
     def _execute(self):
         if self._container is not None:
-            job_serialized = self._serialize()
+            job_serialized = self._serialize(generate_code=True)
             success, result, runtime_info = _run_serialized_job_in_container(job_serialized)
             if success:
                 self._result = result
@@ -237,21 +260,45 @@ class Job:
             except Exception as e:
                 self._status = 'error'
                 self._exception = e
-    def _serialize(self):
+    def _serialize(self, generate_code):
         function_name = getattr(self._f, '_hither_name')
         function_version = getattr(self._f, '_hither_version')
         additional_files = getattr(self._f, '_hither_additional_files', [])
         local_modules = getattr(self._f, '_hither_local_modules', [])
+        if generate_code:
+            code = _generate_source_code_for_function(self._f, name=function_name, additional_files=additional_files, local_modules=local_modules)
+            function = None
+        else:
+            code = None
+            function = self._f
         x = dict(
             function_name=function_name,
             function_version=function_version,
             label=self._label,
-            code=_generate_source_code_for_function(self._f, name=function_name, additional_files=additional_files, local_modules=local_modules),
+            code=code,
+            function=function,
             kwargs=self._kwargs,
             container=self._container
         )
         x = _serialize_item(x)
         return x
+    
+    @staticmethod
+    def _deserialize(serialized_job, job_manager=None):
+        if serialized_job['function'] is None:
+            raise Exception('Cannot deserialize job without function.')
+        j = serialized_job
+        return Job(
+            f=j['function'],
+            kwargs=_deserialize_item(j['kwargs']),
+            job_manager=job_manager,
+            job_handler=None,
+            container=j['container'],
+            label=j['label']
+        )
+
+def _deserialize_job(serialized_job):
+    return Job._deserialize(serialized_job)
 
 def _serialize_item(x):
     if isinstance(x, np.ndarray):
@@ -272,10 +319,9 @@ def _serialize_item(x):
             ret[key] = _serialize_item(val)
         return ret
     elif type(x) == list:
-        ret = []
-        for i, val in enumerate(x):
-            ret.append(_serialize_item(val))
-        return ret
+        return [_serialize_item(val) for val in x]
+    elif type(x) == tuple:
+        return tuple([_serialize_item(val) for val in x])
     else:
         return x
 
@@ -289,38 +335,27 @@ def _deserialize_item(x):
             ret[key] = _deserialize_item(val)
         return ret
     elif type(x) == list:
-        ret = []
-        for i, val in enumerate(x):
-            ret.append(_deserialize_item(val))
-        return ret
+        return [_deserialize_item(val) for val in x]
+    elif type(x) == tuple:
+        return tuple([_deserialize_item(val) for val in x])
     else:
         return x
 
-def _some_jobs_are_still_queued(x):
+def _some_jobs_have_status(x, status_list):
     if isinstance(x, Job):
-        if x._status == 'queued':
+        if x._status in status_list:
             return True
     elif type(x) == dict:
         for v in x.values():
-            if _some_jobs_are_still_queued(v):
+            if _some_jobs_have_status(v, status_list):
                 return True
     elif type(x) == list:
         for v in x:
-            if _some_jobs_are_still_queued(v):
+            if _some_jobs_have_status(v, status_list):
                 return True
-    return False
-
-def _some_jobs_have_errors(x):
-    if isinstance(x, Job):
-        if x._status == 'error':
-            return True
-    elif type(x) == dict:
-        for v in x.values():
-            if _some_jobs_are_still_queued(v):
-                return True
-    elif type(x) == list:
+    elif type(x) == tuple:
         for v in x:
-            if _some_jobs_are_still_queued(v):
+            if _some_jobs_have_status(v, status_list):
                 return True
     return False
 
@@ -333,10 +368,9 @@ def _resolve_job_values(x):
             ret[k] = _resolve_job_values(v)
         return ret
     elif type(x) == list:
-        ret = []
-        for v in x:
-            ret.append(_resolve_job_values(v))
-        return ret
+        return [_resolve_job_values(v) for v in x]
+    elif type(x) == tuple:
+        return tuple([_resolve_job_values(v) for v in x])
     else:
         return x
 

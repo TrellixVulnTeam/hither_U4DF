@@ -50,7 +50,7 @@ def _run_serialized_job_in_container(job_serialized):
             import json
             import traceback
             from hither2 import ConsoleCapture
-            from hither2 import _deserialize_item
+            from hither2 import _deserialize_item, _serialize_item
 
             def main():
                 kwargs = json.loads('{kwargs_json}')
@@ -67,7 +67,7 @@ def _run_serialized_job_in_container(job_serialized):
                 
                 runtime_info = cc.runtime_info()
                 result = dict(
-                    retval=retval,
+                    retval=_serialize_item(retval),
                     success=success,
                     runtime_info=runtime_info
                 )
@@ -152,6 +152,7 @@ def _run_serialized_job_in_container(job_serialized):
             docker_container_name = _random_string(8) + '_' + name
             # May not want to use -t below as it has the potential to mess up line feeds in the parent process!
             if (sys.platform == "win32"):
+                ## This win32 section needs to be updated!
                 winpath_ = lambda a : '/' + a.replace('\\','/').replace(':','')
                 container_ = _docker_form_of_container_string(container)
                 temp_path_ = winpath_(temp_path)
@@ -210,16 +211,14 @@ def _run_serialized_job_in_container(job_serialized):
             obj = json.load(f)
         retval = obj['retval']
         runtime_info = obj['runtime_info']
-        status = obj['status']
-        runtime_info['status'] = status
+        success = obj['success']
 
         if did_timeout:
             runtime_info['timed_out'] = True
-            obj['status'] = 'error'
+            success = False
         else:
             runtime_info['timed_out'] = False
 
-        success = (status == 'finished')
         return success, retval, runtime_info
 
 def _write_python_code_to_directory(dirname: str, code: dict) -> None:
