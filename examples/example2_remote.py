@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import os
 import numpy as np
 import hither2 as hi
 import time
@@ -22,19 +23,14 @@ def addone(x):
     return x + 1
 
 @hi.function('addem', '0.1.0')
+@hi.container('docker://jupyter/scipy-notebook:latest')
 def addem(x):
     return np.sum(x)
 
 def main():
-    with hi.config(container=True):
-        val1 = sumsqr.run(x=np.array([1,2,3]))
-    val2 = addone.run(x=val1)
-    val3 = addem.run(x=[val1, val2])
-    print(val3.wait())
-    print(val1.wait(), val2.wait(), val3.wait())
-
-    with hi.config(job_handler=hi.ParallelJobHandler(num_workers=8), container=False):
-        delay = 1
+    mongo_url = os.getenv('MONGO_URL', 'mongodb://localhost:27017')
+    with hi.config(job_handler=hi.RemoteJobHandler(mongo_url=mongo_url, database='hither2', compute_resource_id='resource1'), container=True):
+        delay = 15
         val1 = sumsqr_with_delay.run(x=np.array([1]), delay=delay)
         val2 = sumsqr_with_delay.run(x=np.array([1,2]), delay=delay)
         val3 = sumsqr_with_delay.run(x=np.array([1,2,3]), delay=delay)
@@ -44,7 +40,6 @@ def main():
         assert val2.wait() == 5
         assert val3.wait() == 14
         assert val4.wait() == 20
-
 
 if __name__ == '__main__':
     main()

@@ -14,7 +14,7 @@ class ParallelJobHandler:
     def handle_job(self, job):
         import kachery as ka
         pipe_to_parent, pipe_to_child = multiprocessing.Pipe()
-        serialized_job = job._serialize(generate_code=False)
+        serialized_job = job._serialize(generate_code=(job._container is not None))
         process = multiprocessing.Process(target=_pjh_run_job, args=(pipe_to_parent, serialized_job, ka.get_config()))
         self._processes.append(dict(
             job=job,
@@ -22,6 +22,16 @@ class ParallelJobHandler:
             pipe_to_child=pipe_to_child,
             pjh_status='pending'
         ))
+    
+    def cancel_job(self, job_id):
+        for p in self._processes:
+            if p['job']._job_id == job_id:
+                if p['pjh_status'] == 'running':
+                    pp = p['process']
+                    print(f'Terminating process.')
+                    pp.terminate()
+                    pp.join()
+                p['pjh_status'] = 'canceled'
     
     def iterate(self):
         if self._halted:

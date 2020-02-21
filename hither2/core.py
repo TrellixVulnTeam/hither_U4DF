@@ -116,8 +116,8 @@ class _JobManager:
         for id in queued_job_ids:
             job: Job = self._queued_jobs[id]
             if job._container is not None:
-                # TODO: check whether we are even going to run this locally
-                _prepare_container(job._container)
+                if not getattr(job._job_handler, 'is_remote', False):
+                    _prepare_container(job._container)
 
         # Check which queued jobs are ready to run
         for id in queued_job_ids:
@@ -213,8 +213,11 @@ class DefaultJobHandler:
 _global_job_handler = DefaultJobHandler()
 
 class Job:
-    def __init__(self, *, f, kwargs, job_manager, job_handler, container, label):
+    def __init__(self, *, f, kwargs, job_manager, job_handler, container, label, code=None, function_name=None, function_version=None):
         self._f = f
+        self._code = code
+        self._function_name = function_name
+        self._function_version = function_version
         self._label = label
         self._kwargs = kwargs
         self._job_id = _random_string(15)
@@ -225,6 +228,11 @@ class Job:
         self._job_handler = job_handler
         self._job_manager = job_manager
         self._container = container
+
+        if self._function_name is None:
+            self._function_name = getattr(self._f, '_hither_name')
+        if self._function_version is None:
+            self._function_version = getattr(self._f, '_hither_version')
     def wait(self):
         while True:
             if self._status == 'finished':
@@ -255,6 +263,8 @@ class Job:
                 self._exception = Exception('Problem running function in container.')
                 self._status = 'error'
         else:
+            if self._f is None:
+                raise Exception('Cannot execute job outside of container when function is not available')
             try:
                 ret = self._f(**self._kwargs)
                 self._result = ret
@@ -263,23 +273,30 @@ class Job:
                 self._status = 'error'
                 self._exception = e
     def _serialize(self, generate_code):
-        function_name = getattr(self._f, '_hither_name')
-        function_version = getattr(self._f, '_hither_version')
-        additional_files = getattr(self._f, '_hither_additional_files', [])
-        local_modules = getattr(self._f, '_hither_local_modules', [])
+        function_name = self._function_name
+        function_version = self._function_version
         if generate_code:
-            code = _generate_source_code_for_function(self._f, name=function_name, additional_files=additional_files, local_modules=local_modules)
+            if self._code is not None:
+                code = self._code
+            else:
+                if self._f is None:
+                    raise Exception('Cannot serialize function with generate_code=True when function and code are both not available')
+                additional_files = getattr(self._f, '_hither_additional_files', [])
+                local_modules = getattr(self._f, '_hither_local_modules', [])
+                code = _generate_source_code_for_function(self._f, name=function_name, additional_files=additional_files, local_modules=local_modules)
             function = None
         else:
+            if self._f is None:
+                raise Exception('Cannot serialize function with generate_code=False when function is not available')
             code = None
             function = self._f
         x = dict(
+            function=function,
+            code=code,
             function_name=function_name,
             function_version=function_version,
             label=self._label,
-            code=code,
-            function=function,
-            kwargs=self._kwargs,
+            kwargs=_serialize_item(self._kwargs),
             container=self._container
         )
         x = _serialize_item(x)
@@ -287,16 +304,17 @@ class Job:
     
     @staticmethod
     def _deserialize(serialized_job, job_manager=None):
-        if serialized_job['function'] is None:
-            raise Exception('Cannot deserialize job without function.')
         j = serialized_job
         return Job(
             f=j['function'],
+            code=j['code'],
+            function_name=j['function_name'],
+            function_version=j['function_version'],
+            label=j['label'],
             kwargs=_deserialize_item(j['kwargs']),
-            job_manager=job_manager,
-            job_handler=None,
             container=j['container'],
-            label=j['label']
+            job_manager=job_manager,
+            job_handler=None
         )
 
 def _deserialize_job(serialized_job):
