@@ -40,5 +40,9 @@
 		"KACHERY_STORAGE_DIR": "${localEnv:KACHERY_STORAGE_DIR}"
 	},
 
-	"runArgs": ["--env-file", ".devcontainer/devcontainer.env"]
+	"runArgs": ["--env-file", ".devcontainer/devcontainer.env"],
+
+	"experimentalFeatures": {
+		"customContainers": true
+	}
 }
