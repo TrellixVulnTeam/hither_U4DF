@@ -26,14 +26,26 @@ def addem(x):
     return np.sum(x)
 
 def main():
-    with hi.config(container=True):
-        val1 = sumsqr.run(x=np.array([1,2,3]))
-    val2 = addone.run(x=val1)
-    val3 = addem.run(x=[val1, val2])
-    print(val3.wait())
-    print(val1.wait(), val2.wait(), val3.wait())
+    # with hi.config(container=True):
+    #     val1 = sumsqr.run(x=np.array([1,2,3]))
+    # val2 = addone.run(x=val1)
+    # val3 = addem.run(x=[val1, val2])
+    # print(val3.wait())
+    # print(val1.wait(), val2.wait(), val3.wait())
 
-    with hi.config(job_handler=hi.ParallelJobHandler(num_workers=8), container=False):
+    # with hi.config(job_handler=hi.ParallelJobHandler(num_workers=8), container=False):
+    #     val1 = sumsqr_with_delay.run(x=np.array([1]), delay=1)
+    #     val2 = sumsqr_with_delay.run(x=np.array([1,2]), delay=1)
+    #     val3 = sumsqr_with_delay.run(x=np.array([1,2,3]), delay=1)
+    #     val4 = addem.run(x=[val1, val2, val3])
+    #     print(val1.wait(), val2.wait(), val3.wait(), val4.wait())
+    #     assert val1.wait() == 1
+    #     assert val2.wait() == 5
+    #     assert val3.wait() == 14
+    #     assert val4.wait() == 20
+
+    mongo_url = 'mongodb://localhost:27017'
+    with hi.config(job_handler=hi.RemoteJobHandler(mongo_url=mongo_url, database='hither2', compute_resource_id='resource1'), container=False):
         val1 = sumsqr_with_delay.run(x=np.array([1]), delay=1)
         val2 = sumsqr_with_delay.run(x=np.array([1,2]), delay=1)
         val3 = sumsqr_with_delay.run(x=np.array([1,2,3]), delay=1)

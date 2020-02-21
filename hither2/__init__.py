@@ -7,3 +7,5 @@ from ._consolecapture import ConsoleCapture
 from .core import _deserialize_item, _serialize_item
 from .core import _deserialize_job
 from .paralleljobhandler import ParallelJobHandler
+from .remotejobhandler import RemoteJobHandler
+from .computeresource import ComputeResource

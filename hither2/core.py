@@ -217,9 +217,10 @@ class Job:
         self._f = f
         self._label = label
         self._kwargs = kwargs
-        self._job_id = _random_string(5)
+        self._job_id = _random_string(15)
         self._status = 'pending'
         self._result = None
+        self._runtime_info = None
         self._exception = Exception()
         self._job_handler = job_handler
         self._job_manager = job_manager
@@ -246,6 +247,7 @@ class Job:
         if self._container is not None:
             job_serialized = self._serialize(generate_code=True)
             success, result, runtime_info = _run_serialized_job_in_container(job_serialized)
+            self._runtime_info = runtime_info
             if success:
                 self._result = result
                 self._status = 'finished'
