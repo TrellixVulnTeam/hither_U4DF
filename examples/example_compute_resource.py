@@ -5,8 +5,9 @@ import hither2 as hi
 
 def main():
     mongo_url = os.getenv('MONGO_URL', 'mongodb://localhost:27017')
+    db = hi.Database(mongo_url=mongo_url, database='hither2')
     jh = hi.ParallelJobHandler(num_workers=8)
-    CR = hi.ComputeResource(mongo_url=mongo_url, database='hither2', compute_resource_id='resource1', job_handler=jh)
+    CR = hi.ComputeResource(database=db, compute_resource_id='resource1', job_handler=jh)
     CR.clear()
     CR.run()
 

@@ -9,3 +9,6 @@ from .core import _deserialize_job
 from .paralleljobhandler import ParallelJobHandler
 from .remotejobhandler import RemoteJobHandler
 from .computeresource import ComputeResource
+from .database import Database
+from .jobcache import JobCache
+from .file import File

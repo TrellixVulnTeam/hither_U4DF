@@ -11,11 +11,14 @@ from ._temporarydirectory import TemporaryDirectory
 from ._generate_source_code_for_function import _generate_source_code_for_function
 from ._run_serialized_job_in_container import _run_serialized_job_in_container
 from ._util import _random_string, _docker_form_of_container_string
+from .jobcache import JobCache
+from .file import File
 
 _global_config = ETConf(
     defaults=dict(
         container=None,
-        job_handler=None
+        job_handler=None,
+        job_cache=None
         # cache=None,
         # cache_failing=None,
         # rerun_failing=None,
@@ -33,6 +36,7 @@ _global_config = ETConf(
 def set_config(
         container: Union[str, bool, None]=None,
         job_handler: Any=None,
+        job_cache: Union[JobCache, None]=None
         # cache: Union[str, dict, None]=None,
         # cache_failing: Union[bool, None]=None,
         # rerun_failing: Union[bool, None]=None,
@@ -47,7 +51,8 @@ def set_config(
 ) -> None:
     _global_config.set_config(
         container=container,
-        job_handler=job_handler
+        job_handler=job_handler,
+        job_cache=job_cache
         # cache=cache,
         # force_run=force_run,
         # cache_failing=cache_failing,
@@ -64,7 +69,8 @@ def set_config(
 class config:
     def __init__(self,
         container: Union[str, bool, None]=None,
-        job_handler: Any=None
+        job_handler: Any=None,
+        job_cache: Union[JobCache, None]=None
         # cache: Union[str, dict, None]=None,
         # cache_failing: Union[bool, None]=None,
         # rerun_failing: Union[bool, None]=None,
@@ -79,7 +85,8 @@ class config:
     ):
         self._config = dict(
             container=container,
-            job_handler=job_handler
+            job_handler=job_handler,
+            job_cache=job_cache
             # cache=cache,
             # cache_failing=cache_failing,
             # rerun_failing=rerun_failing,
@@ -127,11 +134,15 @@ class _JobManager:
                 if _some_jobs_have_status(job._kwargs, ['error']):
                     job._status = 'error'
                     job._exception = Exception('Exception in argument.')
-                    return
-                self._running_jobs[id] = job
-                job._kwargs = _resolve_job_values(job._kwargs)
-                job._status = 'running'
-                job._job_handler.handle_job(job)
+                else:
+                    self._running_jobs[id] = job
+                    job._kwargs = _resolve_job_values(job._kwargs)
+                    if job._job_cache is not None:
+                        job._job_cache.check_job(job)
+                    if job._status == 'queued':
+                        # still queued even after checking the cache
+                        job._status = 'running'
+                        job._job_handler.handle_job(job)
 
         # Check which running jobs are finished and iterate job handlers of running jobs
         running_job_ids = list(self._running_jobs.keys())
@@ -140,7 +151,9 @@ class _JobManager:
             if job._status == 'running':
                 # Note: we effectively iterate the same job handler potentially many times here -- I think that's okay but not 100% sure.
                 job._job_handler.iterate()
-            else:
+            if job._status in ['error', 'finished']:
+                if job._job_cache is not None:
+                    job._job_cache.cache_job_result(job)
                 del self._running_jobs[id]
     
     def wait(self):
@@ -185,7 +198,7 @@ def function(name, version):
                 label = kwargs['_label']
                 del kwargs['_label']
             else:
-                label = None
+                label = name
             if _global_config.get('container') is True:
                 container = getattr(f, '_hither_container', None)
             elif _global_config.get('container') is not None and _global_config.get('container') is not False:
@@ -193,9 +206,10 @@ def function(name, version):
             else:
                 container=None
             job_handler = _global_config.get('job_handler')
+            job_cache = _global_config.get('job_cache')
             if job_handler is None:
                 job_handler = _global_job_handler
-            job = Job(f=f, kwargs=kwargs, job_manager=_global_job_manager, job_handler=job_handler, container=container, label=label)
+            job = Job(f=f, kwargs=kwargs, job_manager=_global_job_manager, job_handler=job_handler, job_cache=job_cache, container=container, label=label)
             _global_job_manager.queue_job(job)
             return job
         setattr(f, 'run', run)
@@ -213,7 +227,7 @@ class DefaultJobHandler:
 _global_job_handler = DefaultJobHandler()
 
 class Job:
-    def __init__(self, *, f, kwargs, job_manager, job_handler, container, label, code=None, function_name=None, function_version=None):
+    def __init__(self, *, f, kwargs, job_manager, job_handler, job_cache, container, label, code=None, function_name=None, function_version=None):
         self._f = f
         self._code = code
         self._function_name = function_name
@@ -221,13 +235,16 @@ class Job:
         self._label = label
         self._kwargs = kwargs
         self._job_id = _random_string(15)
+        self._container = container
+
         self._status = 'pending'
         self._result = None
         self._runtime_info = None
         self._exception = Exception()
+
         self._job_handler = job_handler
         self._job_manager = job_manager
-        self._container = container
+        self._job_cache = job_cache
 
         if self._function_name is None:
             self._function_name = getattr(self._f, '_hither_name')
@@ -235,6 +252,7 @@ class Job:
             self._function_version = getattr(self._f, '_hither_version')
     def wait(self):
         while True:
+            self._job_manager.iterate()
             if self._status == 'finished':
                 return self._result
             elif self._status == 'error':
@@ -245,7 +263,6 @@ class Job:
                 pass
             else:
                 raise Exception(f'Unexpected status: {self._status}')
-            self._job_manager.iterate()
             time.sleep(0.02)
     def result(self):
         if self._status == 'finished':
@@ -266,7 +283,8 @@ class Job:
             if self._f is None:
                 raise Exception('Cannot execute job outside of container when function is not available')
             try:
-                ret = self._f(**self._kwargs)
+                kwargs2 = _resolve_files_in_item(self._kwargs)
+                ret = self._f(**kwargs2)
                 self._result = ret
                 self._status = 'finished'
             except Exception as e:
@@ -314,7 +332,8 @@ class Job:
             kwargs=_deserialize_item(j['kwargs']),
             container=j['container'],
             job_manager=job_manager,
-            job_handler=None
+            job_handler=None,
+            job_cache=None
         )
 
 def _deserialize_job(serialized_job):
@@ -329,6 +348,8 @@ def _serialize_item(x):
             _type='npy',
             sha1=sha1
         )
+    elif isinstance(x, File):
+        return x.serialize()
     elif isinstance(x, np.integer):
         return int(x)
     elif isinstance(x, np.floating):
@@ -350,6 +371,8 @@ def _deserialize_item(x):
         if '_type' in x and x['_type'] == 'npy' and 'sha1' in x:
             sha1 = x['sha1']
             return ka.load_npy(f'sha1://{sha1}/file.npy')
+        if File.can_deserialize(x):
+            return File.deserialize(x)
         ret = dict()
         for key, val in x.items():
             ret[key] = _deserialize_item(val)
@@ -358,6 +381,23 @@ def _deserialize_item(x):
         return [_deserialize_item(val) for val in x]
     elif type(x) == tuple:
         return tuple([_deserialize_item(val) for val in x])
+    else:
+        return x
+
+def _resolve_files_in_item(x):
+    if isinstance(x, File):
+        path = ka.load_file(x._sha1_path)
+        assert path is not None, f'Unable to load file: {x._sha1_path}'
+        return path
+    elif type(x) == dict:
+        ret = dict()
+        for key, val in x.items():
+            ret[key] = _resolve_files_in_item(val)
+        return ret
+    elif type(x) == list:
+        return [_resolve_files_in_item(val) for val in x]
+    elif type(x) == tuple:
+        return tuple([_resolve_files_in_item(val) for val in x])
     else:
         return x
 

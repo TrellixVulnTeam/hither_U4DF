@@ -4,18 +4,16 @@ from multiprocessing.connection import Connection
 import kachery as ka
 from hither2 import _deserialize_item
 from ._util import _random_string
+from .database import Database
 
 class RemoteJobHandler:
-    def __init__(self, *, mongo_url, database, compute_resource_id):
+    def __init__(self, *, database: Database, compute_resource_id):
         self.is_remote = True
         
-        self._mongo_url = mongo_url
         self._database = database
         self._compute_resource_id = compute_resource_id
         self._handler_id = _random_string(15)
         self._jobs: Dict = {}
-        self._client = None
-        self._client_db_url = None
         self._iterate_timer = time.time()
 
     def handle_job(self, job):
@@ -102,14 +100,7 @@ class RemoteJobHandler:
         pass
 
     def _get_db(self, collection='hither2_jobs'):
-        import pymongo
-        url = self._mongo_url
-        if url != self._client_db_url:
-            if self._client is not None:
-                self._client.close()
-            self._client = pymongo.MongoClient(url, retryWrites=False)
-            self._url = url
-        return self._client[self._database][collection]
+        return self._database.collection(collection)
 
 def _utctime():
     from datetime import datetime, timezone

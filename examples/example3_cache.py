@@ -23,15 +23,15 @@ def addone(x):
     return x + 1
 
 @hi.function('addem', '0.1.0')
-@hi.container('docker://jupyter/scipy-notebook:latest')
 def addem(x):
     return np.sum(x)
 
 def main():
     mongo_url = os.getenv('MONGO_URL', 'mongodb://localhost:27017')
     db = hi.Database(mongo_url=mongo_url, database='hither2')
-    with hi.config(job_handler=hi.RemoteJobHandler(database=db, compute_resource_id='resource1'), container=True):
-        delay = 15
+    cache = hi.JobCache(database=db, force_run=True)
+    with hi.config(job_handler=hi.ParallelJobHandler(num_workers=8), container=False, job_cache=cache):
+        delay = 1
         val1 = sumsqr_with_delay.run(x=np.array([1]), delay=delay)
         val2 = sumsqr_with_delay.run(x=np.array([1,2]), delay=delay)
         val3 = sumsqr_with_delay.run(x=np.array([1,2,3]), delay=delay)
@@ -41,6 +41,20 @@ def main():
         assert val2.wait() == 5
         assert val3.wait() == 14
         assert val4.wait() == 20
+    
+    cache = hi.JobCache(database=db, force_run=False)
+    with hi.config(job_handler=hi.ParallelJobHandler(num_workers=8), container=False, job_cache=cache):
+        delay = 1
+        val1 = sumsqr_with_delay.run(x=np.array([1]), delay=delay)
+        val2 = sumsqr_with_delay.run(x=np.array([1,2]), delay=delay)
+        val3 = sumsqr_with_delay.run(x=np.array([1,2,3]), delay=delay)
+        val4 = addem.run(x=[val1, val2, val3])
+        print(val1.wait(), val2.wait(), val3.wait(), val4.wait())
+        assert val1.wait() == 1
+        assert val2.wait() == 5
+        assert val3.wait() == 14
+        assert val4.wait() == 20
+
 
 if __name__ == '__main__':
     main()

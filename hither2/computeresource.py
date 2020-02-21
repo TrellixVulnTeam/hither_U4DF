@@ -2,15 +2,14 @@ import time
 import kachery as ka
 from .core import _serialize_item, _deserialize_job, _prepare_container
 from ._util import _random_string
+from .database import Database
 
 class ComputeResource:
-    def __init__(self, mongo_url, database, compute_resource_id, job_handler):
-        self._mongo_url = mongo_url
+    def __init__(self, database: Database, compute_resource_id, job_handler):
         self._database = database
         self._compute_resource_id = compute_resource_id
         self._instance_id = _random_string(15)
-        self._client = None
-        self._client_db_url = None
+        self._database = database
         self._iterate_timer = time.time()
         self._job_handler = job_handler
         self._jobs = dict()
@@ -107,13 +106,18 @@ class ComputeResource:
     
     def _get_active_job_handler_ids(self):
         db = self._get_db(collection='active_job_handlers')
+        db_jobs = self._get_db()
 
-        # remove the expired
+        # remove the expired job handlers
         t0 = _utctime() - 10
         query = dict(
             utctime={'$lt': t0}
         )
-        db.remove(query)
+        for doc in db.find(query):
+            handler_id = doc['handler_id']
+            print(f'Removing job handler: {handler_id}')
+            db.remove(dict(handler_id=handler_id))
+            db_jobs.remove(dict(handler_id=handler_id))
 
         # return handler ids for those that were not removed
         return [doc['handler_id'] for doc in db.find({})]
@@ -187,14 +191,7 @@ class ComputeResource:
         db.update_one(filter, update=update, upsert=True)
 
     def _get_db(self, collection='hither2_jobs'):
-        import pymongo
-        url = self._mongo_url
-        if url != self._client_db_url:
-            if self._client is not None:
-                self._client.close()
-            self._client = pymongo.MongoClient(url, retryWrites=False)
-            self._url = url
-        return self._client[self._database][collection]
+        return self._database.collection(collection)
 
     
 def _utctime():
