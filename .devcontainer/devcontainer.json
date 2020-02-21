@@ -42,6 +42,8 @@
 
 	"runArgs": ["--env-file", ".devcontainer/devcontainer.env"],
 
+	"isInternal": true,
+
 	"experimentalFeatures": {
 		"customContainers": true
 	}

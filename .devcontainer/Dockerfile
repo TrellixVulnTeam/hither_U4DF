@@ -82,3 +82,4 @@ RUN apt-get update && apt-get install -y mongodb
 
 RUN pip install numpy kachery pymongo
 RUN pip install pylint ipython
+RUN apt-get install -y nano
