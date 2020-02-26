@@ -5,12 +5,14 @@ import random
 import time
 import numpy as np
 import kachery as ka
+import base64
+import io
 from ._etconf import ETConf
 from ._shellscript import ShellScript
 from ._temporarydirectory import TemporaryDirectory
 from ._generate_source_code_for_function import _generate_source_code_for_function
 from ._run_serialized_job_in_container import _run_serialized_job_in_container
-from ._util import _random_string, _docker_form_of_container_string
+from ._util import _random_string, _docker_form_of_container_string, _deserialize_item, _serialize_item
 from .jobcache import JobCache
 from .file import File
 
@@ -18,7 +20,8 @@ _global_config = ETConf(
     defaults=dict(
         container=None,
         job_handler=None,
-        job_cache=None
+        job_cache=None,
+        download_results=None
         # cache=None,
         # cache_failing=None,
         # rerun_failing=None,
@@ -36,7 +39,8 @@ _global_config = ETConf(
 def set_config(
         container: Union[str, bool, None]=None,
         job_handler: Any=None,
-        job_cache: Union[JobCache, None]=None
+        job_cache: Union[JobCache, None]=None,
+        download_results: Union[bool, None]=None
         # cache: Union[str, dict, None]=None,
         # cache_failing: Union[bool, None]=None,
         # rerun_failing: Union[bool, None]=None,
@@ -52,7 +56,8 @@ def set_config(
     _global_config.set_config(
         container=container,
         job_handler=job_handler,
-        job_cache=job_cache
+        job_cache=job_cache,
+        download_results=download_results
         # cache=cache,
         # force_run=force_run,
         # cache_failing=cache_failing,
@@ -70,7 +75,8 @@ class config:
     def __init__(self,
         container: Union[str, bool, None]=None,
         job_handler: Any=None,
-        job_cache: Union[JobCache, None]=None
+        job_cache: Union[JobCache, None]=None,
+        download_results: Union[bool, None]=None
         # cache: Union[str, dict, None]=None,
         # cache_failing: Union[bool, None]=None,
         # rerun_failing: Union[bool, None]=None,
@@ -86,7 +92,8 @@ class config:
         self._config = dict(
             container=container,
             job_handler=job_handler,
-            job_cache=job_cache
+            job_cache=job_cache,
+            download_results=download_results
             # cache=cache,
             # cache_failing=cache_failing,
             # rerun_failing=rerun_failing,
@@ -123,7 +130,7 @@ class _JobManager:
         for id in queued_job_ids:
             job: Job = self._queued_jobs[id]
             if job._container is not None:
-                if not getattr(job._job_handler, 'is_remote', False):
+                if not job._job_handler.is_remote:
                     _prepare_container(job._container)
 
         # Check which queued jobs are ready to run
@@ -138,7 +145,8 @@ class _JobManager:
                     self._running_jobs[id] = job
                     job._kwargs = _resolve_job_values(job._kwargs)
                     if job._job_cache is not None:
-                        job._job_cache.check_job(job)
+                        if not job._job_handler.is_remote:
+                            job._job_cache.check_job(job)
                     if job._status == 'queued':
                         # still queued even after checking the cache
                         job._status = 'running'
@@ -152,8 +160,11 @@ class _JobManager:
                 # Note: we effectively iterate the same job handler potentially many times here -- I think that's okay but not 100% sure.
                 job._job_handler.iterate()
             if job._status in ['error', 'finished']:
+                if job._download_results:
+                    _download_files_as_needed_in_item(job._result)
                 if job._job_cache is not None:
-                    job._job_cache.cache_job_result(job)
+                    if not job._job_handler.is_remote:
+                        job._job_cache.cache_job_result(job)
                 del self._running_jobs[id]
     
     def wait(self):
@@ -209,7 +220,10 @@ def function(name, version):
             job_cache = _global_config.get('job_cache')
             if job_handler is None:
                 job_handler = _global_job_handler
-            job = Job(f=f, kwargs=kwargs, job_manager=_global_job_manager, job_handler=job_handler, job_cache=job_cache, container=container, label=label)
+            download_results = _global_config.get('download_results')
+            if download_results is None:
+                download_results = False
+            job = Job(f=f, kwargs=kwargs, job_manager=_global_job_manager, job_handler=job_handler, job_cache=job_cache, container=container, label=label, download_results=download_results)
             _global_job_manager.queue_job(job)
             return job
         setattr(f, 'run', run)
@@ -218,24 +232,52 @@ def function(name, version):
         return f
     return wrap
 
+def _download_files_as_needed_in_item(x):
+    if isinstance(x, File):
+        info0 = ka.get_file_info(x._sha1_path, fr=None)
+        if info0 is None:
+            remote_handler = getattr(x, '_remote_job_handler')
+            if remote_handler is not None:
+                a = remote_handler._load_file(x._sha1_path)
+                if a is None:
+                    raise Exception(f'Unable to load file {x._sha1_path} from remote compute resource: {remote_handler._compute_resource_id}')    
+            else:
+                raise Exception(f'Unable to find file: {x._sha1_path}')
+        else:
+            pass
+    elif type(x) == dict:
+        for val in x.values():
+            _download_files_as_needed_in_item(val)
+    elif type(x) == list:
+        for val in x:
+            _download_files_as_needed_in_item(val)
+    elif type(x) == tuple:
+        for val in x:
+            _download_files_as_needed_in_item(val)
+    else:
+        pass
+
 class DefaultJobHandler:
     def __init__(self):
-        pass
+        self.is_remote = False
     def handle_job(self, job):
         job._execute()
 
 _global_job_handler = DefaultJobHandler()
 
 class Job:
-    def __init__(self, *, f, kwargs, job_manager, job_handler, job_cache, container, label, code=None, function_name=None, function_version=None):
+    def __init__(self, *, f, kwargs, job_manager, job_handler, job_cache, container, label, download_results, code=None, function_name=None, function_version=None, job_id=None):
         self._f = f
         self._code = code
         self._function_name = function_name
         self._function_version = function_version
         self._label = label
         self._kwargs = kwargs
-        self._job_id = _random_string(15)
+        self._job_id = job_id
+        if self._job_id is None:
+            self._job_id = _random_string(15)
         self._container = container
+        self._download_results = download_results
 
         self._status = 'pending'
         self._result = None
@@ -309,13 +351,15 @@ class Job:
             code = None
             function = self._f
         x = dict(
+            job_id=self._job_id,
             function=function,
             code=code,
             function_name=function_name,
             function_version=function_version,
             label=self._label,
             kwargs=_serialize_item(self._kwargs),
-            container=self._container
+            container=self._container,
+            download_results=self._download_results
         )
         x = _serialize_item(x)
         return x
@@ -331,58 +375,15 @@ class Job:
             label=j['label'],
             kwargs=_deserialize_item(j['kwargs']),
             container=j['container'],
+            download_results=j.get('download_results', False),
             job_manager=job_manager,
             job_handler=None,
-            job_cache=None
+            job_cache=None,
+            job_id=j['job_id']
         )
 
 def _deserialize_job(serialized_job):
     return Job._deserialize(serialized_job)
-
-def _serialize_item(x):
-    if isinstance(x, np.ndarray):
-        sha1_path = ka.store_npy(array=x, basename='array.npy')
-        with ka.config(algorithm='sha1'):
-            sha1 = ka.get_file_hash(sha1_path)
-        return dict(
-            _type='npy',
-            sha1=sha1
-        )
-    elif isinstance(x, File):
-        return x.serialize()
-    elif isinstance(x, np.integer):
-        return int(x)
-    elif isinstance(x, np.floating):
-        return float(x)
-    elif type(x) == dict:
-        ret = dict()
-        for key, val in x.items():
-            ret[key] = _serialize_item(val)
-        return ret
-    elif type(x) == list:
-        return [_serialize_item(val) for val in x]
-    elif type(x) == tuple:
-        return tuple([_serialize_item(val) for val in x])
-    else:
-        return x
-
-def _deserialize_item(x):
-    if type(x) == dict:
-        if '_type' in x and x['_type'] == 'npy' and 'sha1' in x:
-            sha1 = x['sha1']
-            return ka.load_npy(f'sha1://{sha1}/file.npy')
-        if File.can_deserialize(x):
-            return File.deserialize(x)
-        ret = dict()
-        for key, val in x.items():
-            ret[key] = _deserialize_item(val)
-        return ret
-    elif type(x) == list:
-        return [_deserialize_item(val) for val in x]
-    elif type(x) == tuple:
-        return tuple([_deserialize_item(val) for val in x])
-    else:
-        return x
 
 def _resolve_files_in_item(x):
     if isinstance(x, File):

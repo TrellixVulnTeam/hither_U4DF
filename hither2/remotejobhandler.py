@@ -5,6 +5,7 @@ import kachery as ka
 from hither2 import _deserialize_item
 from ._util import _random_string
 from .database import Database
+from .file import File
 
 class RemoteJobHandler:
     def __init__(self, *, database: Database, compute_resource_id):
@@ -15,12 +16,28 @@ class RemoteJobHandler:
         self._handler_id = _random_string(15)
         self._jobs: Dict = {}
         self._iterate_timer = time.time()
+        self._kachery = None
+
+        db1 = self._get_db(collection='active_compute_resources')
+        t0 = _utctime() - 20
+        query = dict(
+            compute_resource_id=compute_resource_id,
+            utctime={'$gt': t0}
+        )
+        doc = db1.find_one(query)
+        if doc is None:
+            raise Exception(f'No active compute resource found: {compute_resource_id}')
+        self._kachery = doc['kachery']
 
     def handle_job(self, job):
         self._report_active()
 
+        self._send_files_as_needed_in_item(job._kwargs)
+
         job_serialized = job._serialize(generate_code=True)
-        job_serialized['code'] = ka.store_object(job_serialized['code'])
+        # send the code to the kachery
+        job_serialized['code'] = ka.store_object(job_serialized['code'], to=self._kachery)
+
         db = self._get_db()
         doc = dict(
             compute_resource_id=self._compute_resource_id,
@@ -73,6 +90,7 @@ class RemoteJobHandler:
                     j._runtime_info = doc['runtime_info']
                     j._status = 'finished'
                     j._result = _deserialize_item(doc['result'])
+                    self._attach_compute_resource_id_to_files_in_item(j._result)
                     del self._jobs[job_id]
                 elif compute_resource_status == 'error':
                     print(f'Job error: {job_id}')
@@ -83,6 +101,52 @@ class RemoteJobHandler:
                 else:
                     raise Exception(f'Unexpected compute resource status: {compute_resource_status}')
     
+    def _load_file(self, sha1_path):
+        return ka.load_file(sha1_path, fr=self._kachery)
+
+    def _send_files_as_needed_in_item(self, x):
+        if isinstance(x, File):
+            remote_handler = getattr(x, '_remote_job_handler', None)
+            if remote_handler is not None:
+                x_compute_resource_id = remote_handler._compute_resource_id
+            else:
+                x_compute_resource_id = None
+            if self._kachery is None:
+                pass
+            elif x_compute_resource_id == self._compute_resource_id:
+                pass
+            else:
+                if x_compute_resource_id is None:
+                    ka.store_file(x.path, to=self._kachery)
+                else:
+                    raise Exception('This case not yet supported (we need to transfer data from one compute resource to another)')
+        elif type(x) == dict:
+            for val in x.values():
+                self._send_files_as_needed_in_item(val)
+        elif type(x) == list:
+            for val in x:
+                self._send_files_as_needed_in_item(val)
+        elif type(x) == tuple:
+            for val in x:
+                self._send_files_as_needed_in_item(val)
+        else:
+            pass
+    
+    def _attach_compute_resource_id_to_files_in_item(self, x):
+        if isinstance(x, File):
+            setattr(x, '_remote_job_handler', self)
+        elif type(x) == dict:
+            for val in x.values():
+                self._attach_compute_resource_id_to_files_in_item(val)
+        elif type(x) == list:
+            for val in x:
+                self._attach_compute_resource_id_to_files_in_item(val)
+        elif type(x) == tuple:
+            for val in x:
+                self._attach_compute_resource_id_to_files_in_item(val)
+        else:
+            pass
+
     def _report_active(self):
         db = self._get_db(collection='active_job_handlers')
         filter = dict(

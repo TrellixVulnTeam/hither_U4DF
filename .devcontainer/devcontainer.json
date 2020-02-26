@@ -19,7 +19,9 @@
 		"eamodio.gitlens",
 		"njpwerner.autodocstring",
 		"ryanluker.vscode-coverage-gutters",
-		"stkb.rewrap"
+		"stkb.rewrap",
+		"ms-azuretools.vscode-docker",
+		"mikestead.dotenv"
 	],
 
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.

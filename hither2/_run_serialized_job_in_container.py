@@ -8,6 +8,7 @@ from ._temporarydirectory import TemporaryDirectory
 from ._shellscript import ShellScript
 import kachery as ka
 from ._util import _docker_form_of_container_string, _random_string
+from ._util import _deserialize_item, _serialize_item
 
 def _run_serialized_job_in_container(job_serialized):
     name = job_serialized['function_name']
@@ -50,7 +51,7 @@ def _run_serialized_job_in_container(job_serialized):
             import json
             import traceback
             from hither2 import ConsoleCapture
-            from hither2 import _deserialize_item, _serialize_item
+            from hither2 import _deserialize_item, _serialize_item, _resolve_files_in_item
 
             def main():
                 kwargs = json.loads('{kwargs_json}')
@@ -58,7 +59,8 @@ def _run_serialized_job_in_container(job_serialized):
                 with ConsoleCapture(label='{label}', show_console={show_console_str}) as cc:
                     print('###### RUNNING: {label}')
                     try:
-                        retval = {function_name}(**kwargs)
+                        kwargs2 = _resolve_files_in_item(kwargs)
+                        retval = {function_name}(**kwargs2)
                         success = True
                     except:
                         traceback.print_exc()
@@ -209,7 +211,7 @@ def _run_serialized_job_in_container(job_serialized):
 
         with open(os.path.join(temp_path, 'result.json')) as f:
             obj = json.load(f)
-        retval = obj['retval']
+        retval = _deserialize_item(obj['retval'])
         runtime_info = obj['runtime_info']
         success = obj['success']
 

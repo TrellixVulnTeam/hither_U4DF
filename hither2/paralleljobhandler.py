@@ -7,6 +7,7 @@ import hither2 as hi
 
 class ParallelJobHandler:
     def __init__(self, num_workers):
+        self.is_remote = False
         self._num_workers = num_workers
         self._processes: List[dict] = []
         self._halted = False

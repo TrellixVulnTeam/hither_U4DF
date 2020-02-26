@@ -1,5 +1,7 @@
 import kachery as ka
 from .database import Database
+from ._util import _deserialize_item
+from .file import File
 
 class JobCache:
     def __init__(self, database: Database, cache_failing=False, rerun_failing=False, force_run=False):
@@ -8,7 +10,6 @@ class JobCache:
         self._rerun_failing = rerun_failing
         self._force_run = force_run
     def check_job(self, job):
-        from .core import _deserialize_item
         if self._force_run:
             return False
         hash0 = self._compute_job_hash(job)
@@ -20,8 +21,12 @@ class JobCache:
         if doc is None:
             return False
         if doc['status'] == 'finished':
+            result0 = _deserialize_item(doc['result'])
+            if not _check_files_all_exist_locally_in_item(result0):
+                print(f'Found result in cache, but files do not exist locally: {job._label}')
+                return False
             job._status = 'finished'
-            job._result = _deserialize_item(doc['result'])
+            job._result = result0
             job._runtime_info = doc['runtime_info']
             job._exception = None
             print(f'Using cached result for job: {job._label}')
@@ -63,3 +68,24 @@ class JobCache:
             kwargs=_serialize_item(job._kwargs)
         )
         return ka.get_object_hash(hash_object)
+
+def _check_files_all_exist_locally_in_item(x):
+    if isinstance(x, File):
+        a = ka.get_file_info(x._sha1_path, fr=None)
+        if a is None:
+            return False
+    elif type(x) == dict:
+        for val in x.values():
+            if not _check_files_all_exist_locally_in_item(val):
+                return False
+    elif type(x) == list:
+        for val in x:
+            if not _check_files_all_exist_locally_in_item(val):
+                return False
+    elif type(x) == tuple:
+        for val in x:
+            if not _check_files_all_exist_locally_in_item(val):
+                return False
+    else:
+        pass
+    return True
