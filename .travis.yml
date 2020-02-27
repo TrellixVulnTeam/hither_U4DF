@@ -8,3 +8,10 @@ script:
 - devel/test_in_docker.sh
 after_success:
 - bash <(curl -s https://codecov.io/bash) -F travis
+deploy:
+  provider: pypi
+  user: magland
+  on:
+    tags: true
+  password:
+    secure: LZP1JPS+wexnXsIVLqryV8PuzrC/U0IHtoDfG7MBczvdJH/h0qVLqLUlk7L7gILk5uDPta9Z1KkAIouhFEF2Fbf9eyoKeDqzT0Fw+rxt+8L5CNOUfmIS3J6dyiHaspPHQGMYMkUWAlrt6HgrVNoIzGCHzniuPNHCw+V45Aja7g4+VTEhFj51ylTvDPaxR0EloKKAo0xOUjneb/uRZc34QTmW3Bm8Z6hO7CoSUn3ZgmgXywotN2vtk4GWXofeLsdse6IqRl4SVTw92sjcq5xTBgcntxbK3t9T6RYhy691DAWKYmSf8LHLRi0qB7y+1mb1BNH/hqoAcBMWwkTbbT0N8AvR8wLxUpUrTpps317sgRiUhPBHZp3tSgmNnjMukYeKbhMkwyM01C9N0TNOyXZXAbwULCu48uURSGTLPbSUGG1+OWvpl+vNGF9XNB9a5/b4X2xNDXnPxI9/vBykaqiSQ150ZJikngM89vq86PjNsNWIX/FwfTQozgloF1I1Sr39Z5rDe36YC50l6cH2/gWO/wLwpZROqKn6kvgQCqpjlJ015j6Uv5XSTSNun1z2L7e10QGd5G+oeH33PdHsSwke5sT2fiYtJmPXsHwLosg1UEtM1X5CYjb0BuCWrZdf8Hmi7zvCCb0NeeP3L8hdxFYQrGjh2L4XtDoyAnX3Ul/cDs4=
