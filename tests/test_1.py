@@ -66,8 +66,19 @@ def kachery(tmp_path):
     kachery_dir = str(tmp_path / 'kachery')
     os.mkdir(kachery_dir)
     shutil.copyfile(thisdir + '/kachery.json', kachery_dir + '/kachery.json')
+
+    ss_pull = hi.ShellScript("""
+    #!/bin/bash
+    set -ex
+
+    exec docker pull magland/kachery2
+    """)
+    ss_pull.start()
+    ss_pull.wait()
+
     ss = hi.ShellScript(f"""
     #!/bin/bash
+    set -ex
 
     exec docker run --name kachery-fixture -v {kachery_dir}:/storage -p {KACHERY_PORT}:8080 -v /etc/passwd:/etc/passwd -u `id -u`:`id -g` -it magland/kachery2
     """)

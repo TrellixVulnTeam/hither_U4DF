@@ -1,8 +1,10 @@
 language: minimal
 services:
-    - docker
+- docker
 install:
-- echo "no install"
+- docker pull magland/hither2-dev
+- docker pull magland/kachery2
+- cd .devcontainer && docker build -t magland/hither2-dev .
 script:
 - devel/test_in_docker.sh
 after_success:
