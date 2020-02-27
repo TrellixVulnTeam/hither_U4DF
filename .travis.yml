@@ -4,7 +4,6 @@ services:
 install:
 - docker pull magland/hither2-dev:latest
 - docker pull magland/kachery2
-- cd .devcontainer && docker build --cache-from magland/hither2-dev:latest -t magland/hither2-dev:latest . && cd ..
 script:
 - devel/test_in_docker.sh
 after_success:
