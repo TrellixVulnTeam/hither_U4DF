@@ -475,7 +475,8 @@ def _do_pull_docker_image(container):
     else:
         ss = ShellScript(f'''
             #!/bin/bash
-
+            set -ex
+            
             exec docker pull {container}
         ''')
     ss.start()
