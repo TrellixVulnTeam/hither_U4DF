@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -ex
+
 exec docker run \
   -v $PWD:/workspaces/hither2 \
   -v /var/run/docker.sock:/var/run/docker.sock \

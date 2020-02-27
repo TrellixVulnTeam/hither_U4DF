@@ -16,7 +16,8 @@ COMPUTE_RESOURCE_ID = 'test_compute_resource_001'
 DATABASE_NAME = 'test_database_001'
 KACHERY_PORT = 3602
 
-HOST_IP = os.getenv('HOST_IP', '172.17.0.1')
+HOST_IP = os.getenv('HOST_IP')
+print(F'Using HOST_IP={HOST_IP}')
 KACHERY_CONFIG = dict(
     url=f'http://{HOST_IP}:{KACHERY_PORT}',
     channel="test-channel",
