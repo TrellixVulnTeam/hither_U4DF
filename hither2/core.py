@@ -201,6 +201,9 @@ def local_modules(local_modules):
         return f
     return wrap
 
+def wait():
+    _global_job_manager.wait()
+
 def function(name, version):
     def wrap(f):
         assert f.__name__ == name, f"Name does not match function name: {name} <> {f.__name__}"

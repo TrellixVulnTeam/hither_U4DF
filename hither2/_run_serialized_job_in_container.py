@@ -154,18 +154,19 @@ def _run_serialized_job_in_container(job_serialized):
             docker_container_name = _random_string(8) + '_' + name
             # May not want to use -t below as it has the potential to mess up line feeds in the parent process!
             if (sys.platform == "win32"):
-                ## This win32 section needs to be updated!
-                winpath_ = lambda a : '/' + a.replace('\\','/').replace(':','')
-                container_ = _docker_form_of_container_string(container)
-                temp_path_ = winpath_(temp_path)
-                kachery_storage_dir_ = winpath_(os.getenv('KACHERY_STORAGE_DIR'))
-                print('temp_path_: ' + temp_path_)
-                run_outside_container_script = f'''
-                    docker run --name {docker_container_name} -i {gpu_opt} ^
-                    -v {kachery_storage_dir_}:/kachery-storage ^
-                    -v {temp_path_}:/run_in_container ^
-                    {container_} ^
-                    bash /run_in_container/run.sh'''
+                if 1: # pragma: no cover
+                    ## This win32 section needs to be updated!
+                    winpath_ = lambda a : '/' + a.replace('\\','/').replace(':','')
+                    container_ = _docker_form_of_container_string(container)
+                    temp_path_ = winpath_(temp_path)
+                    kachery_storage_dir_ = winpath_(os.getenv('KACHERY_STORAGE_DIR'))
+                    print('temp_path_: ' + temp_path_)
+                    run_outside_container_script = f'''
+                        docker run --name {docker_container_name} -i {gpu_opt} ^
+                        -v {kachery_storage_dir_}:/kachery-storage ^
+                        -v {temp_path_}:/run_in_container ^
+                        {container_} ^
+                        bash /run_in_container/run.sh'''
             else:
                 run_outside_container_script = """
                 #!/bin/bash

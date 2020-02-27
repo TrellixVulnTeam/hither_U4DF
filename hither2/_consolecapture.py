@@ -4,7 +4,7 @@ import time
 import io
 
 class CustomStdout():
-    def __init__(self, label, console_out, original_stdout, stderr=False, show_console=True):
+    def __init__(self, label: str, console_out: dict, original_stdout, stderr: bool=False, show_console: bool=True):
         self._label = label
         self._console_out = console_out
         self._original_stdout = original_stdout
@@ -19,8 +19,7 @@ class CustomStdout():
                     timestamp=time.time() - 0,
                     text=line
                 )
-                if self._stderr:
-                    a['stderr'] = True
+                a['stderr'] = self._stderr
                 self._console_out['lines'].append(a)
                 if self._show_console:
                     print('{} {}: {}'.format(self._label, _fmt_time(a['timestamp']), a['text']), file=self._original_stdout)
@@ -33,7 +32,7 @@ def _fmt_time(t):
     return datetime.datetime.fromtimestamp(t).isoformat()
 
 class ConsoleCapture():
-    def __init__(self, label='', show_console=True):
+    def __init__(self, label: str='', show_console: bool=True):
         self._label = label
         self._console_out = dict(label=label, lines=[])
         self._time_start = None
@@ -63,9 +62,11 @@ class ConsoleCapture():
 
     def runtime_info(self) -> dict:
         assert self._time_start is not None
+        time_stop = self._time_stop
+        if time_stop is None: time_stop = time.time()
         return dict(
             start_time=self._time_start - 0,
-            end_time=self._time_stop - 0,
-            elapsed_sec = self._time_stop - self._time_start,
+            end_time=time_stop - 0,
+            elapsed_sec = time_stop - self._time_start,
             console_out=self._console_out
         )

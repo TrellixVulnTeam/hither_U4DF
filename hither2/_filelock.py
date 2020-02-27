@@ -1,7 +1,7 @@
 import sys
 _win32 = (sys.platform == 'win32')
 if _win32:
-    import portalocker
+    import portalocker # pragma: no cover
 else:
     import fcntl
 import errno
@@ -51,18 +51,18 @@ class FileLock():
             try:
                 if self._exclusive:
                     if _win32:
-                        portalocker.lock(self._file, portalocker.LOCK_EX | portalocker.LOCK_NB)
+                        portalocker.lock(self._file, portalocker.LOCK_EX | portalocker.LOCK_NB) # pragma: no cover
                     else:
                         fcntl.flock(self._file, fcntl.LOCK_EX | fcntl.LOCK_NB)                    
                 else:
                     if _win32:
-                        portalocker.lock(self._file, portalocker.LOCK_SH | portalocker.LOCK_NB)
+                        portalocker.lock(self._file, portalocker.LOCK_SH | portalocker.LOCK_NB) # pragma: no cover
                     else:
                         fcntl.flock(self._file, fcntl.LOCK_SH | fcntl.LOCK_NB)                    
                 if num_tries > 10:
-                    print('Locked file {} after {} tries (exclusive={})...'.format(self._path, num_tries, self._exclusive))
+                    print('Locked file {} after {} tries (exclusive={})...'.format(self._path, num_tries, self._exclusive)) # pragma: no cover
                 break
-            except IOError as e:
+            except IOError as e: # pragma: no cover
                 if e.errno != errno.EAGAIN:
                     raise
                 else:
@@ -70,11 +70,10 @@ class FileLock():
                     time.sleep(random.uniform(0, 0.1))
 
     def __exit__(self, type, value: object, traceback) -> None:
-        if self._disable_lock:
-            return
+        if self._disable_lock: return
         if self._file is not None:
             if _win32:
-                portalocker.unlock(self._file)
+                portalocker.unlock(self._file) # pragma: no cover
             else:
                 fcntl.flock(self._file, fcntl.LOCK_UN)            
             self._file.close()

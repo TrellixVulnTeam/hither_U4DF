@@ -21,7 +21,8 @@
 		"ryanluker.vscode-coverage-gutters",
 		"stkb.rewrap",
 		"ms-azuretools.vscode-docker",
-		"mikestead.dotenv"
+		"mikestead.dotenv",
+		"ryanluker.vscode-coverage-gutters"
 	],
 
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.

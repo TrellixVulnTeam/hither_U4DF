@@ -73,9 +73,7 @@ class ComputeResource:
                     setattr(job, '_reported_status', 'running')
             elif job._status == 'finished':
                 print(f'Job finished: {job_id}')
-                if job._download_results:
-                    _upload_files_as_needed_in_item(job._result, kachery=self._kachery)
-                self._mark_job_as_finished(job_id=job._job_id, runtime_info=job._runtime_info, result=job._result)
+                self._handle_finished_job(job)
                 if self._job_cache is not None:
                     self._job_cache.cache_job_result(job)
                 del self._jobs[job_id]
@@ -149,7 +147,7 @@ class ComputeResource:
         )
         if job._status == 'finished':
             print(f'Found job in cache: {label}')
-            self._mark_job_as_finished(job_id=job_id, result=job._result, runtime_info=job._runtime_info)
+            self._handle_finished_job(job)
         elif job._status == 'error':
             print(f'Found error job in cache: {label}')
             self._mark_job_as_error(job_id=job_id, exception=job._exception, runtime_info=job._runtime_info)
@@ -172,6 +170,11 @@ class ComputeResource:
             db.update_one(filter0, update=update)
             setattr(job, '_reported_status', 'queued')
             setattr(job, '_handler_id', doc['handler_id'])
+    
+    def _handle_finished_job(self, job):
+        if job._download_results:
+            _upload_files_as_needed_in_item(job._result, kachery=self._kachery)
+        self._mark_job_as_finished(job_id=job._job_id, runtime_info=job._runtime_info, result=job._result)
     
     def _mark_job_as_error(self, *, job_id, runtime_info, exception):
         print(f'Job error: {job_id}')

@@ -1,3 +1,4 @@
+import time
 import numpy as np
 import hither2 as hi
 
@@ -8,7 +9,9 @@ def readnpy(x):
 
 @hi.function('make_zeros_npy', '0.1.0')
 @hi.container('docker://jupyter/scipy-notebook:latest')
-def make_zeros_npy(shape):
+def make_zeros_npy(shape, delay=None):
+    if delay is not None:
+        time.sleep(delay)
     x = np.zeros(shape)
     with hi.TemporaryDirectory() as tmpdir:
         fname = tmpdir + '/tmp.npy'
