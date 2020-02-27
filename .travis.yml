@@ -1,0 +1,9 @@
+language: minimal
+services:
+    - docker
+install:
+- echo "no install"
+script:
+- devel/test_in_docker.sh
+after_success:
+- bash <(curl -s https://codecov.io/bash) -F travis

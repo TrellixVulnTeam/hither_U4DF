@@ -12,13 +12,14 @@ class ComputeResource:
         self._kachery = kachery
         self._instance_id = _random_string(15)
         self._database = database
-        self._iterate_timer = time.time()
+        self._timestamp_database_poll = 0
+        self._timestamp_last_action = time.time()
         self._job_handler = job_handler
         self._job_cache = job_cache
         self._jobs = dict()
     def clear(self):
         db = self._get_db()
-        db.remove(dict(
+        db.delete_many(dict(
             compute_resource_id=self._compute_resource_id
         ))
     def run(self):
@@ -26,25 +27,27 @@ class ComputeResource:
             self._iterate()
             time.sleep(0.02)
     def _iterate(self):
-        elapsed = time.time() - self._iterate_timer
-        if elapsed < 3:
-            return
-
-        self._report_active()
         active_job_handler_ids = self._get_active_job_handler_ids()
 
         self._iterate_timer = time.time()
         db = self._get_db()
 
-        # Handle pending jobs
-        query = dict(
-            compute_resource_id=self._compute_resource_id,
-            last_modified_by_compute_resource=False,
-            status='queued',
-            compute_resource_status='pending'
-        )
-        for doc in db.find(query):
-            self._handle_pending_job(doc)
+        elapsed_database_poll = time.time() - self._timestamp_database_poll
+        if elapsed_database_poll > self._poll_interval():
+            self._timestamp_database_poll = time.time()
+
+            self._report_active()
+
+            # Handle pending jobs
+            query = dict(
+                compute_resource_id=self._compute_resource_id,
+                last_modified_by_compute_resource=False,
+                status='queued',
+                compute_resource_status='pending'
+            )
+            for doc in db.find(query):
+                self._report_action()
+                self._handle_pending_job(doc)
         
         # Handle jobs
         job_ids = list(self._jobs.keys())
@@ -66,6 +69,7 @@ class ComputeResource:
                         )
                     }
                     db.update_one(filter0, update=update)
+                    self._report_action()
                     setattr(job, '_reported_status', 'running')
             elif job._status == 'finished':
                 print(f'Job finished: {job_id}')
@@ -90,7 +94,7 @@ class ComputeResource:
                         compute_resource_id=self._compute_resource_id,
                         job_id=job_id
                     )
-                    db.remove(filter0)
+                    db.delete_many(filter0)
                     del self._jobs[job_id]
         
         self._job_handler.iterate()
@@ -107,8 +111,8 @@ class ComputeResource:
         for doc in db.find(query):
             handler_id = doc['handler_id']
             print(f'Removing job handler: {handler_id}')
-            db.remove(dict(handler_id=handler_id))
-            db_jobs.remove(dict(handler_id=handler_id))
+            db.delete_many(dict(handler_id=handler_id))
+            db_jobs.delete_many(dict(handler_id=handler_id))
 
         # return handler ids for those that were not removed
         return [doc['handler_id'] for doc in db.find({})]
@@ -120,13 +124,17 @@ class ComputeResource:
         
         try:
             job_serialized = doc['job_serialized']
-            job_serialized['code'] = ka.load_object(job_serialized['code'], fr=self._kachery)
+            if job_serialized['code'] is not None:
+                code_obj = ka.load_object(job_serialized['code'], fr=self._kachery)
+                if code_obj is None:
+                    raise Exception(f'Unable to load code for function {label}: {job_serialized["code"]}')
+                job_serialized['code'] = code_obj
             container = job_serialized['container']
             if container is None:
                 raise Exception('Cannot run serialized job outside of container.')
             _prepare_container(container)
         except Exception as e:
-            print(f'Error handing pending job: {label}')
+            print(f'Error handling pending job: {label}')
             print(e)
             self._mark_job_as_error(job_id=job_id, exception=e, runtime_info=None)
             return
@@ -183,6 +191,7 @@ class ComputeResource:
             )
         }
         db.update_one(filter0, update=update)
+        self._report_action()
     
     def _mark_job_as_finished(self, *, job_id, runtime_info, result):
         db = self._get_db()
@@ -201,7 +210,21 @@ class ComputeResource:
             )
         }
         db.update_one(filter0, update=update)
+        self._report_action()
     
+    def _report_action(self):
+        self._timestamp_last_action = time.time()
+    
+    def _poll_interval(self):
+        elapsed_since_last_action = time.time() - self._timestamp_last_action
+        if elapsed_since_last_action < 3:
+            return 0.1
+        elif elapsed_since_last_action < 20:
+            return 1
+        elif elapsed_since_last_action < 60:
+            return 3
+        else:
+            return 6
     def _report_active(self):
         db = self._get_db(collection='active_compute_resources')
         filter = dict(

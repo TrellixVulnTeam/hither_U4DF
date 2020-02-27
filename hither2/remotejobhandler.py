@@ -15,8 +15,10 @@ class RemoteJobHandler:
         self._compute_resource_id = compute_resource_id
         self._handler_id = _random_string(15)
         self._jobs: Dict = {}
-        self._iterate_timer = time.time()
         self._kachery = None
+
+        self._timestamp_database_poll = 0
+        self._timestamp_last_action = time.time()
 
         db1 = self._get_db(collection='active_compute_resources')
         t0 = _utctime() - 20
@@ -24,7 +26,12 @@ class RemoteJobHandler:
             compute_resource_id=compute_resource_id,
             utctime={'$gt': t0}
         )
-        doc = db1.find_one(query)
+        doc = None
+        for _ in range(5):
+            doc = db1.find_one(query)
+            if doc is not None:
+                break
+            time.sleep(0.5)
         if doc is None:
             raise Exception(f'No active compute resource found: {compute_resource_id}')
         self._kachery = doc['kachery']
@@ -51,55 +58,57 @@ class RemoteJobHandler:
             last_modified_by_compute_resource=False,
             client_code=None
         )
-        db.insert(doc)
+        db.insert_one(doc)
         self._jobs[job._job_id] = job
+
+        self._report_action()
     
     def iterate(self):
-        elapsed = time.time() - self._iterate_timer
-        if elapsed < 3:
-            return
+        elapsed_database_poll = time.time() - self._timestamp_database_poll
+        if elapsed_database_poll > self._poll_interval():
+            self._timestamp_database_poll = time.time()
+            self._report_active()
 
-        self._report_active()
-
-        self._iterate_timer = time.time()
-        db = self._get_db()
-        client_code = _random_string(15)
-        query = dict(
-            compute_resource_id=self._compute_resource_id,
-            handler_id=self._handler_id,
-            last_modified_by_compute_resource=True
-        )
-        update = {
-            '$set': dict(
-                last_modified_by_compute_resource=False,
-                client_code=client_code
+            self._iterate_timer = time.time()
+            db = self._get_db()
+            client_code = _random_string(15)
+            query = dict(
+                compute_resource_id=self._compute_resource_id,
+                handler_id=self._handler_id,
+                last_modified_by_compute_resource=True
             )
-        }
-        db.update_many(query, update=update)
-        for doc in db.find(dict(client_code=client_code)):
-            job_id = doc['job_id']
-            if job_id in self._jobs:
-                j = self._jobs[job_id]
-                compute_resource_status = doc['compute_resource_status']
-                if compute_resource_status == 'queued':
-                    print(f'Job queued: {job_id}')
-                elif compute_resource_status == 'running':
-                    print(f'Job queued: {job_id}')
-                elif compute_resource_status == 'finished':
-                    print(f'Job finished: {job_id}')
-                    j._runtime_info = doc['runtime_info']
-                    j._status = 'finished'
-                    j._result = _deserialize_item(doc['result'])
-                    self._attach_compute_resource_id_to_files_in_item(j._result)
-                    del self._jobs[job_id]
-                elif compute_resource_status == 'error':
-                    print(f'Job error: {job_id}')
-                    j._runtime_info = doc['runtime_info']
-                    j._status = 'error'
-                    j._exception = Exception(doc['exception'])
-                    del self._jobs[job_id]
-                else:
-                    raise Exception(f'Unexpected compute resource status: {compute_resource_status}')
+            update = {
+                '$set': dict(
+                    last_modified_by_compute_resource=False,
+                    client_code=client_code
+                )
+            }
+            db.update_many(query, update=update)
+            for doc in db.find(dict(client_code=client_code)):
+                self._report_action()
+                job_id = doc['job_id']
+                if job_id in self._jobs:
+                    j = self._jobs[job_id]
+                    compute_resource_status = doc['compute_resource_status']
+                    if compute_resource_status == 'queued':
+                        print(f'Job queued: {job_id}')
+                    elif compute_resource_status == 'running':
+                        print(f'Job queued: {job_id}')
+                    elif compute_resource_status == 'finished':
+                        print(f'Job finished: {job_id}')
+                        j._runtime_info = doc['runtime_info']
+                        j._status = 'finished'
+                        j._result = _deserialize_item(doc['result'])
+                        self._attach_compute_resource_id_to_files_in_item(j._result)
+                        del self._jobs[job_id]
+                    elif compute_resource_status == 'error':
+                        print(f'Job error: {job_id}')
+                        j._runtime_info = doc['runtime_info']
+                        j._status = 'error'
+                        j._exception = Exception(doc['exception'])
+                        del self._jobs[job_id]
+                    else:
+                        raise Exception(f'Unexpected compute resource status: {compute_resource_status}')
     
     def _load_file(self, sha1_path):
         return ka.load_file(sha1_path, fr=self._kachery)
@@ -159,6 +168,20 @@ class RemoteJobHandler:
             )
         }
         db.update_one(filter, update=update, upsert=True)
+    
+    def _report_action(self):
+        self._timestamp_last_action = time.time()
+
+    def _poll_interval(self):
+        elapsed_since_last_action = time.time() - self._timestamp_last_action
+        if elapsed_since_last_action < 3:
+            return 0.1
+        elif elapsed_since_last_action < 20:
+            return 1
+        elif elapsed_since_last_action < 60:
+            return 3
+        else:
+            return 6
 
     def cleanup(self):
         pass

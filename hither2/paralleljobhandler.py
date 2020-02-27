@@ -59,6 +59,8 @@ class ParallelJobHandler:
                     p['pjh_status'] = 'running'
                     p['process'].start()
                     num_running = num_running + 1
+        
+        time.sleep(0.02)
 
     def cleanup(self):
         pass
