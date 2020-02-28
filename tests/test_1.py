@@ -146,7 +146,7 @@ def _run_pipeline(*, delay=None, shape=(6, 3)):
     assert a.shape == shape
     assert np.allclose(a, np.ones(shape))
 
-def test_1(compute_resource, mongodb, local_kachery_storage):
+def test_1(mongodb, local_kachery_storage):
     _run_pipeline()
     with hi.ConsoleCapture(label='[test_1]') as cc:
         db = hi.Database(mongo_url=f'mongodb://localhost:{MONGO_PORT}', database=DATABASE_NAME)
@@ -161,6 +161,7 @@ def test_1(compute_resource, mongodb, local_kachery_storage):
                     assert elapsed < 2
         cc.runtime_info() # for code coverage
 
+@pytest.mark.compute_resource
 def test_2(compute_resource, mongodb, kachery, local_kachery_storage):
     with hi.ConsoleCapture(label='[test_2]'):
         db = hi.Database(mongo_url=f'mongodb://localhost:{MONGO_PORT}', database=DATABASE_NAME)
@@ -196,7 +197,7 @@ def test_misc():
         f.wait()
         f.result()
 
-@pytest.mark.job_error
+@pytest.mark.compute_resource
 def test_job_error(compute_resource, mongodb, kachery, local_kachery_storage):
     import pytest
     
@@ -222,7 +223,6 @@ def test_job_error(compute_resource, mongodb, kachery, local_kachery_storage):
                     a = x.wait()
                 assert str(x.exception()) == 'intentional-error'
 
-@pytest.mark.job_arg_error
 def test_job_arg_error(compute_resource, mongodb, kachery, local_kachery_storage):
     import pytest
     
@@ -231,3 +231,12 @@ def test_job_arg_error(compute_resource, mongodb, kachery, local_kachery_storage
         a = do_nothing.run(x=x)
         with pytest.raises(Exception):
             a.wait()
+
+@pytest.mark.focus
+def test_wait():
+    pjh = hi.ParallelJobHandler(num_workers=4)
+    with hi.config(job_handler=pjh):
+        a = do_nothing.run(x=None, delay=0.2)
+        hi.wait(0.1)
+        hi.wait()
+        assert a.result() == None

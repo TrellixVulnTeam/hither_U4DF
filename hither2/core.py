@@ -326,6 +326,8 @@ class Job:
             return self._result
         raise Exception('Cannot get result of job that is not yet finished.')
     def exception(self):
+        if self._status == 'error':
+            assert self._exception is not None
         return self._exception
     def _execute(self):
         if self._container is not None:
@@ -336,6 +338,8 @@ class Job:
                 self._result = result
                 self._status = 'finished'
             else:
+                assert error is not None
+                assert error != 'None'
                 self._exception = Exception(error)
                 self._status = 'error'
         else:

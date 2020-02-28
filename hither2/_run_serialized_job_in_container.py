@@ -219,6 +219,9 @@ def _run_serialized_job_in_container(job_serialized):
         runtime_info = obj['runtime_info']
         success = obj['success']
         error = obj['error']
+        if not success:
+            assert error is not None
+            assert error != 'None'
 
         if did_timeout:
             runtime_info['timed_out'] = True
