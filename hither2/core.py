@@ -221,11 +221,6 @@ def function(name, version):
     def wrap(f):
         assert f.__name__ == name, f"Name does not match function name: {name} <> {f.__name__}"
         def run(**kwargs):
-            if '_label' in kwargs:
-                label = kwargs['_label']
-                del kwargs['_label']
-            else:
-                label = name
             if _global_config.get('container') is True:
                 container = getattr(f, '_hither_container', None)
             elif _global_config.get('container') is not None and _global_config.get('container') is not False:
@@ -239,6 +234,7 @@ def function(name, version):
             download_results = _global_config.get('download_results')
             if download_results is None:
                 download_results = False
+            label = name
             job = Job(f=f, kwargs=kwargs, job_manager=_global_job_manager, job_handler=job_handler, job_cache=job_cache, container=container, label=label, download_results=download_results)
             _global_job_manager.queue_job(job)
             return job
@@ -253,12 +249,9 @@ def _download_files_as_needed_in_item(x):
         info0 = ka.get_file_info(x._sha1_path, fr=None)
         if info0 is None:
             remote_handler = getattr(x, '_remote_job_handler')
-            if remote_handler is not None:
-                a = remote_handler._load_file(x._sha1_path)
-                if a is None:
-                    raise Exception(f'Unable to load file {x._sha1_path} from remote compute resource: {remote_handler._compute_resource_id}')    
-            else:
-                raise Exception(f'Unable to find file: {x._sha1_path}')
+            assert remote_handler is not None, f'Unable to find file: {x._sha1_path}'
+            a = remote_handler._load_file(x._sha1_path)
+            assert a is not None, f'Unable to load file {x._sha1_path} from remote compute resource: {remote_handler._compute_resource_id}'
         else:
             pass
     elif type(x) == dict:
@@ -322,7 +315,7 @@ class Job:
             elif self._status == 'running':
                 pass
             else:
-                raise Exception(f'Unexpected status: {self._status}')
+                raise Exception(f'Unexpected status: {self._status}') # pragma: no cover
             time.sleep(0.02)
             elapsed = time.time() - timer
             if timeout is not None and elapsed > timeout:
@@ -335,6 +328,10 @@ class Job:
         if self._status == 'error':
             assert self._exception is not None
         return self._exception
+    def set(self, *, label=None):
+        if label is not None:
+            self._label = label
+        return self
     def _execute(self):
         if self._container is not None:
             job_serialized = self._serialize(generate_code=True)
@@ -349,8 +346,7 @@ class Job:
                 self._exception = Exception(error)
                 self._status = 'error'
         else:
-            if self._f is None:
-                raise Exception('Cannot execute job outside of container when function is not available')
+            assert self._f is not None, 'Cannot execute job outside of container when function is not available'
             try:
                 kwargs2 = _resolve_files_in_item(self._kwargs)
                 ret = self._f(**kwargs2)
@@ -366,15 +362,13 @@ class Job:
             if self._code is not None:
                 code = self._code
             else:
-                if self._f is None:
-                    raise Exception('Cannot serialize function with generate_code=True when function and code are both not available')
+                assert self._f is not None, 'Cannot serialize function with generate_code=True when function and code are both not available'
                 additional_files = getattr(self._f, '_hither_additional_files', [])
                 local_modules = getattr(self._f, '_hither_local_modules', [])
                 code = _generate_source_code_for_function(self._f, name=function_name, additional_files=additional_files, local_modules=local_modules)
             function = None
         else:
-            if self._f is None:
-                raise Exception('Cannot serialize function with generate_code=False when function is not available')
+            assert self._f is not None, 'Cannot serialize function with generate_code=False when function is not available'
             code = None
             function = self._f
         x = dict(
@@ -493,9 +487,10 @@ def _do_pull_docker_image(container):
     print(f'Pulling docker container: {container}')
     container = _docker_form_of_container_string(container)
     if (sys.platform == "win32"):
-        ss = ShellScript(f'''
-            docker pull {container}
-        ''')
+        if 1: # pragma: no cover
+            ss = ShellScript(f'''
+                docker pull {container}
+            ''')
     else:
         ss = ShellScript(f'''
             #!/bin/bash

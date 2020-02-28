@@ -6,12 +6,12 @@ import hither2 as hi
 import time
 
 @hi.function('readnpy', '0.1.0')
-@hi.container('docker://jupyter/scipy-notebook:latest')
+@hi.container('docker://jupyter/scipy-notebook:678ada768ab1')
 def readnpy(x):
     return np.load(x)
 
 @hi.function('make_zeros_npy', '0.1.0')
-@hi.container('docker://jupyter/scipy-notebook:latest')
+@hi.container('docker://jupyter/scipy-notebook:678ada768ab1')
 def make_zeros_npy(shape):
     x = np.zeros(shape)
     with hi.TemporaryDirectory() as tmpdir:
@@ -20,7 +20,7 @@ def make_zeros_npy(shape):
         return hi.File(fname)
 
 @hi.function('add_one_npy', '0.1.0')
-@hi.container('docker://jupyter/scipy-notebook:latest')
+@hi.container('docker://jupyter/scipy-notebook:678ada768ab1')
 def add_one_npy(x):
     x = np.load(x)
     with hi.TemporaryDirectory() as tmpdir:

@@ -6,12 +6,12 @@ import hither2 as hi
 import time
 
 @hi.function('sumsqr', '0.1.0')
-@hi.container('docker://jupyter/scipy-notebook:latest')
+@hi.container('docker://jupyter/scipy-notebook:678ada768ab1')
 def sumsqr(x):
     return np.sum(x**2)
 
 @hi.function('sumsqr_with_delay', '0.1.0')
-@hi.container('docker://jupyter/scipy-notebook:latest')
+@hi.container('docker://jupyter/scipy-notebook:678ada768ab1')
 def sumsqr_with_delay(x, delay: float):
     print('sumsqr_with_delay 1')
     time.sleep(delay)

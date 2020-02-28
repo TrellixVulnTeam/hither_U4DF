@@ -2,15 +2,14 @@ from hither2.jobcache import JobCache
 from sys import stdout
 import os
 import time
-import shlex
-import subprocess
+import random
 import hither2 as hi
 import pytest
 import multiprocessing
 import numpy as np
 import shutil
 import kachery as ka
-from .misc_functions import make_zeros_npy, add_one_npy, readnpy, intentional_error, do_nothing, bad_container, additional_file, local_module
+from .misc_functions import make_zeros_npy, add_one_npy, readnpy, intentional_error, do_nothing, bad_container, additional_file, local_module, identity
 
 MONGO_PORT = 27027
 COMPUTE_RESOURCE_ID = 'test_compute_resource_001'
@@ -43,7 +42,7 @@ def run_service_compute_resource(*, db, kachery_storage_dir):
 def compute_resource(tmp_path):
     print('Starting compute resource')
     db = hi.Database(mongo_url=f'mongodb://localhost:{MONGO_PORT}', database=DATABASE_NAME)
-    kachery_storage_dir_compute_resource = str(tmp_path / 'kachery-storage-compute-resource')
+    kachery_storage_dir_compute_resource = str(tmp_path / f'kachery-storage-compute-resource-{_random_string(10)}')
     os.mkdir(kachery_storage_dir_compute_resource)
     process = multiprocessing.Process(target=run_service_compute_resource, kwargs=dict(db=db, kachery_storage_dir=kachery_storage_dir_compute_resource))
     process.start()
@@ -57,7 +56,7 @@ def compute_resource(tmp_path):
 def mongodb(tmp_path):
     print('Starting mongo database')
     with open(str(tmp_path / 'mongodb_out.txt'), 'w') as logf:
-        dbpath = str(tmp_path / 'db')
+        dbpath = str(tmp_path / f'db-{_random_string(10)}')
         os.mkdir(dbpath)
         ss = hi.ShellScript(f"""
         #!/bin/bash
@@ -92,8 +91,12 @@ def run_service_kachery_server(*, kachery_dir):
 @pytest.fixture()
 def kachery(tmp_path):
     print('Starting kachery server')
+
+    # important for clearing the http request cache of the kachery client
+    ka.reset()
+
     thisdir = os.path.dirname(os.path.realpath(__file__))
-    kachery_dir = str(tmp_path / 'kachery')
+    kachery_dir = str(tmp_path / f'kachery-{_random_string(10)}')
     os.mkdir(kachery_dir)
     shutil.copyfile(thisdir + '/kachery.json', kachery_dir + '/kachery.json')
 
@@ -108,6 +111,15 @@ def kachery(tmp_path):
 
     process = multiprocessing.Process(target=run_service_kachery_server, kwargs=dict(kachery_dir=kachery_dir))
     process.start()
+    time.sleep(2)
+    
+    # Not sure why the following is causing a problem....
+    # # make sure it's working before we proceed
+    # txt0 = 'abcdefg'
+    # p = ka.store_text(txt0, to=KACHERY_CONFIG)
+    # txt = ka.load_text(p, fr=KACHERY_CONFIG, from_remote_only=True)
+    # assert txt == txt0
+
     yield process
     print('Terminating kachery server')
 
@@ -126,11 +138,15 @@ def kachery(tmp_path):
 
 @pytest.fixture()
 def local_kachery_storage(tmp_path):
+    # important for clearing the http request cache of the kachery client
+    ka.reset()
+
     old_kachery_storage_dir = os.getenv('KACHERY_STORAGE_DIR', None)
-    kachery_storage_dir = str(tmp_path / 'local-kachery-storage')
+    kachery_storage_dir = str(tmp_path / f'local-kachery-storage-{_random_string(10)}')
     os.mkdir(kachery_storage_dir)
     os.environ['KACHERY_STORAGE_DIR'] = kachery_storage_dir
     yield kachery_storage_dir
+    # do not remove the kachery storage directory here because it might be used by other things which are not yet shut down
     if old_kachery_storage_dir is not None:
         os.environ['KACHERY_STORAGE_DIR'] = old_kachery_storage_dir
 
@@ -169,7 +185,7 @@ def test_2(compute_resource, mongodb, kachery, local_kachery_storage):
         with hi.config(job_handler=rjh, container=True):
             for num in range(2):
                 timer = time.time()
-                _run_pipeline(delay=4)
+                _run_pipeline(delay=1)
                 elapsed = time.time() - timer
                 print(f'Elapsed for pass {num}: {elapsed}')
                 if num == 1:
@@ -177,8 +193,8 @@ def test_2(compute_resource, mongodb, kachery, local_kachery_storage):
             with hi.config(download_results=True):
                 _run_pipeline(shape=(6, 3))
         hi.wait() # for code coverage
-            
-def test_file_lock(tmp_path):
+
+def test_file_lock(tmp_path, local_kachery_storage):
     # For code coverage
     with hi.ConsoleCapture(label='[test_file_lock]'):
         path = str(tmp_path)
@@ -187,7 +203,7 @@ def test_file_lock(tmp_path):
         with hi.FileLock(path + '/testfile.txt', exclusive=True):
             pass
 
-def test_misc():
+def test_misc(local_kachery_storage):
     # For code coverage
     import pytest
     with hi.ConsoleCapture(label='[test_misc]'):
@@ -243,6 +259,7 @@ def test_bad_container(compute_resource, mongodb, kachery, local_kachery_storage
             with pytest.raises(Exception):
                 x.wait()
 
+@pytest.mark.compute_resource
 def test_job_arg_error(compute_resource, mongodb, kachery, local_kachery_storage):
     import pytest
     
@@ -252,7 +269,7 @@ def test_job_arg_error(compute_resource, mongodb, kachery, local_kachery_storage
         with pytest.raises(Exception):
             a.wait()
 
-def test_wait():
+def test_wait(local_kachery_storage):
     pjh = hi.ParallelJobHandler(num_workers=4)
     with hi.config(job_handler=pjh):
         a = do_nothing.run(x=None, delay=0.2)
@@ -260,11 +277,57 @@ def test_wait():
         hi.wait()
         assert a.result() == None
 
-@pytest.mark.focus
-def test_extras():
-    with hi.config(container=True):
+def test_extras(local_kachery_storage):
+    with hi.config(container='docker://jupyter/scipy-notebook:678ada768ab1'):
         a = additional_file.run()
         assert isinstance(a.wait(), np.ndarray)
 
         a = local_module.run()
         assert a.wait() == True
+
+@pytest.mark.compute_resource
+@pytest.mark.focus
+def test_missing_input_file(compute_resource, mongodb, kachery, local_kachery_storage):
+    with hi.ConsoleCapture(label='[test_missing_input_file]'):
+        db = hi.Database(mongo_url=f'mongodb://localhost:{MONGO_PORT}', database=DATABASE_NAME)
+        rjh = hi.RemoteJobHandler(database=db, compute_resource_id=COMPUTE_RESOURCE_ID)
+        path = ka.store_text('test-text')
+        false_path = path.replace('0', '1')
+        assert path != false_path
+
+        with hi.config(container=True):
+            a = do_nothing.run(x=[dict(some_file=hi.File(path))]).set(label='do-nothing-1')
+            a.wait()
+            b = do_nothing.run(x=[dict(some_file=hi.File(false_path))]).set(label='do-nothing-2')
+            with pytest.raises(Exception):
+                b.wait()
+        
+        with hi.config(job_handler=rjh, container=True):
+            a = do_nothing.run(x=[dict(some_file=hi.File(path))]).set(label='do-nothing-remotely-1')
+            a.wait()
+            b = do_nothing.run(x=[dict(some_file=hi.File(false_path))]).set(label='do-nothing-remotely-2')
+            with pytest.raises(Exception):
+                b.wait()
+
+@pytest.mark.compute_resource
+@pytest.mark.focus
+def test_identity(compute_resource, mongodb, kachery, local_kachery_storage):
+    with hi.ConsoleCapture(label='[test_identity]'):
+        db = hi.Database(mongo_url=f'mongodb://localhost:{MONGO_PORT}', database=DATABASE_NAME)
+        rjh = hi.RemoteJobHandler(database=db, compute_resource_id=COMPUTE_RESOURCE_ID)
+        path = ka.store_text('test-text-2')
+
+        with hi.config(container=True):
+            a = ([dict(file=hi.File(path))],)
+            b = identity.run(x=a).wait()
+            assert ka.get_file_hash(b[0][0]['file'].path) == ka.get_file_hash(path)
+        
+        with hi.config(job_handler=rjh, container=True, download_results=True):
+            a = ([dict(file=hi.File(path))],)
+            b = identity.run(x=a).wait()
+            assert ka.get_file_hash(b[0][0]['file'].path) == ka.get_file_hash(path)
+
+def _random_string(num: int):
+    """Generate random string of a given length.
+    """
+    return ''.join(random.choices('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ', k=num))

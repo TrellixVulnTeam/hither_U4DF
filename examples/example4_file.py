@@ -7,13 +7,13 @@ import kachery as ka
 import time
 
 @hi.function('readnpy', '0.1.0')
-@hi.container('docker://jupyter/scipy-notebook:latest')
+@hi.container('docker://jupyter/scipy-notebook:678ada768ab1')
 def readnpy(x):
     print(x)
     return np.load(ka.load_file(x))
 
 @hi.function('make_zeros_npy', '0.1.0')
-@hi.container('docker://jupyter/scipy-notebook:latest')
+@hi.container('docker://jupyter/scipy-notebook:678ada768ab1')
 def make_zeros_npy(shape):
     x = np.zeros(shape)
     with hi.TemporaryDirectory() as tmpdir:
