@@ -33,3 +33,9 @@ def intentional_error(delay=None):
     if delay is not None:
         time.sleep(delay)
     raise Exception('intentional-error')
+
+@hi.function('do_nothing', '0.1.0')
+@hi.container('docker://jupyter/scipy-notebook:latest')
+def do_nothing(x, delay=None):
+    if delay is not None:
+        time.sleep(delay)

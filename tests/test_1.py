@@ -10,7 +10,7 @@ import multiprocessing
 import numpy as np
 import shutil
 import kachery as ka
-from .misc_functions import make_zeros_npy, add_one_npy, readnpy, intentional_error
+from .misc_functions import make_zeros_npy, add_one_npy, readnpy, intentional_error, do_nothing
 
 MONGO_PORT = 27027
 COMPUTE_RESOURCE_ID = 'test_compute_resource_001'
@@ -196,6 +196,7 @@ def test_misc():
         f.wait()
         f.result()
 
+@pytest.mark.job_error
 def test_job_error(compute_resource, mongodb, kachery, local_kachery_storage):
     import pytest
     
@@ -220,3 +221,13 @@ def test_job_error(compute_resource, mongodb, kachery, local_kachery_storage):
                 with pytest.raises(Exception):
                     a = x.wait()
                 assert str(x.exception()) == 'intentional-error'
+
+@pytest.mark.job_arg_error
+def test_job_arg_error(compute_resource, mongodb, kachery, local_kachery_storage):
+    import pytest
+    
+    with hi.ConsoleCapture(label='[test_job_arg_error]'):
+        x = intentional_error.run()
+        a = do_nothing.run(x=x)
+        with pytest.raises(Exception):
+            a.wait()

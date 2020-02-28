@@ -180,7 +180,10 @@ class _JobManager:
     
     def _job_is_ready_to_run(self, job):
         assert job._status == 'queued'
-        if _some_jobs_have_status(job._kwargs, ['pending', 'queued', 'running', 'error']):
+        if _some_jobs_have_status(job._kwargs, ['error']):
+            # In this case the job will error due to an error input
+            return True
+        if _some_jobs_have_status(job._kwargs, ['pending', 'queued', 'running']):
             return False
         return True
 
