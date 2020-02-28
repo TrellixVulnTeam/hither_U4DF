@@ -25,6 +25,11 @@ KACHERY_CONFIG = dict(
 )
 
 def start_compute_resource(*, db, kachery_storage_dir):
+    # The following cleanup is needed because we terminate this compute resource process
+    # See: https://pytest-cov.readthedocs.io/en/latest/subprocess-support.html
+    from pytest_cov.embed import cleanup_on_sigterm
+    cleanup_on_sigterm()
+
     os.environ['KACHERY_STORAGE_DIR'] = kachery_storage_dir
     with hi.ConsoleCapture(label='[compute-resource]'):
         pjh = hi.ParallelJobHandler(num_workers=4)
@@ -115,30 +120,30 @@ def local_kachery_storage(tmp_path):
     shutil.rmtree(kachery_storage_dir)
     os.environ['KACHERY_STORAGE_DIR'] = old_kachery_storage_dir
 
-def _run_pipeline(*, delay=None):
-    f = make_zeros_npy.run(shape=(6, 3), delay=delay)
+def _run_pipeline(*, delay=None, shape=(6, 3)):
+    f = make_zeros_npy.run(shape=shape, delay=delay)
     g = add_one_npy.run(x=f)
     a = readnpy.run(x=g).wait()
     print('===========================================================')
     print(a)
     print('===========================================================')
-    assert a.shape == (6, 3)
-    assert np.allclose(a, np.ones((6, 3)))
+    assert a.shape == shape
+    assert np.allclose(a, np.ones(shape))
 
-def test_1(compute_resource, mongodb, local_kachery_storage):
-    _run_pipeline()
-    with hi.ConsoleCapture(label='[test_1]') as cc:
-        db = hi.Database(mongo_url=f'mongodb://localhost:{MONGO_PORT}', database=DATABASE_NAME)
-        jc = hi.JobCache(database=db)
-        with hi.config(container=True, job_cache=jc):
-            for num in range(2):
-                timer = time.time()
-                _run_pipeline()
-                elapsed = time.time() - timer
-                print(f'Elapsed for pass {num}: {elapsed}')
-                if num == 1:
-                    assert elapsed < 2
-        print('Runtime info for test_1:', cc.runtime_info()) # for code coverage
+# def test_1(compute_resource, mongodb, local_kachery_storage):
+#     _run_pipeline()
+#     with hi.ConsoleCapture(label='[test_1]') as cc:
+#         db = hi.Database(mongo_url=f'mongodb://localhost:{MONGO_PORT}', database=DATABASE_NAME)
+#         jc = hi.JobCache(database=db)
+#         with hi.config(container=True, job_cache=jc):
+#             for num in range(2):
+#                 timer = time.time()
+#                 _run_pipeline()
+#                 elapsed = time.time() - timer
+#                 print(f'Elapsed for pass {num}: {elapsed}')
+#                 if num == 1:
+#                     assert elapsed < 2
+#         print('Runtime info for test_1:', cc.runtime_info()) # for code coverage
 
 def test_2(compute_resource, mongodb, kachery, local_kachery_storage):
     with hi.ConsoleCapture(label='[test_1]'):
@@ -153,13 +158,13 @@ def test_2(compute_resource, mongodb, kachery, local_kachery_storage):
                 if num == 1:
                     assert elapsed < 2
             with hi.config(download_results=True):
-                _run_pipeline()
+                _run_pipeline(shape=(6, 3))
         hi.wait() # for code coverage
             
-def test_3(tmp_path):
-    # For code coverage
-    path = str(tmp_path)
-    with hi.FileLock(path + '/testfile.txt', exclusive=False):
-        pass
-    with hi.FileLock(path + '/testfile.txt', exclusive=True):
-        pass
+# def test_3(tmp_path):
+#     # For code coverage
+#     path = str(tmp_path)
+#     with hi.FileLock(path + '/testfile.txt', exclusive=False):
+#         pass
+#     with hi.FileLock(path + '/testfile.txt', exclusive=True):
+#         pass

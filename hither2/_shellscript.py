@@ -53,7 +53,7 @@ class ShellScript():
         else:
             tempdir = tempfile.mkdtemp(prefix='tmp_shellscript_')
             if (sys.platform == "win32"):
-                script_path = os.path.join(tempdir, 'script.bat')
+                script_path = os.path.join(tempdir, 'script.bat') # pragma: no cover
             else:
                 script_path = os.path.join(tempdir, 'script.sh')
             self._dirs_to_remove.append(tempdir)        
@@ -219,6 +219,10 @@ class ShellScript():
         while ii < len(line) and line[ii] == ' ':
             ii = ii + 1
         return ii
+    
+    @staticmethod
+    def test():
+        _test_shellscript()
 
 
 def _rmdir_with_retries(dirname, num_retries, delay_between_tries=1):
@@ -228,9 +232,77 @@ def _rmdir_with_retries(dirname, num_retries, delay_between_tries=1):
         try:
             shutil.rmtree(dirname)
             break
-        except:
+        except: # pragma: no cover
             if retry_num < num_retries:
                 print('Retrying to remove directory: {}'.format(dirname))
                 time.sleep(delay_between_tries)
             else:
                 raise Exception('Unable to remove directory after {} tries: {}'.format(num_retries, dirname))
+
+def _test_error_handling_1():
+    import pytest
+    with pytest.raises(Exception):
+        ShellScript("""
+         #/bin/bash
+        echo "bad indent"
+        """)
+    
+    ss = ShellScript("""
+    #!/bin/bash
+
+    sleep 15
+    """)
+    assert ss.elapsedTimeSinceStart() is None
+    assert ss.isRunning() == False
+    assert ss.isFinished() == False
+    ss.start()
+    assert ss.isRunning() == True
+    assert ss.isFinished() == False
+    with pytest.raises(Exception):
+        ## cannot get return code while running
+        ss.returnCode()
+    ss.stop()
+    assert ss.elapsedTimeSinceStart() < 5
+
+    ss.start()
+    ss.kill()
+    assert ss.elapsedTimeSinceStart() < 5
+
+    # it's okay to stop it if it isn't running
+    assert ss.stop() is None
+    assert ss.kill() is None
+    assert ss.stopWithSignal(signal.SIGINT, timeout=1) == True
+
+    for sig in [signal.SIGINT, signal.SIGTERM, signal.SIGKILL]:
+        ss.start()
+        assert ss.isRunning() == True
+        ss.stopWithSignal(sig, timeout=0.1)
+        assert ss.isRunning() == False
+        assert ss.elapsedTimeSinceStart() < 5
+
+def _test_coverage():
+    from ._temporarydirectory import TemporaryDirectory
+    with TemporaryDirectory() as tmpdir:
+        _rmdir_with_retries(dirname=tmpdir + '/does-not-exist', num_retries=1)
+
+def _test_shellscript():
+    from ._temporarydirectory import TemporaryDirectory
+    with TemporaryDirectory() as tmpdir:
+        fname = tmpdir + '/file1.txt'
+        text0 = 'some-test-text'
+        ss = ShellScript(f"""
+        #!/bin/bash
+
+        echo "{text0}" > {fname}
+        """)
+        ss.start()
+        ss.wait(timeout=5)
+        with open(fname, 'r') as f:
+            txt = str(f.read())
+            print(f'txt = {txt}')
+            assert txt == text0 + '\n'
+        assert ss.returnCode() == 0
+        print(f'Script path: {ss.scriptPath()}')
+    
+    _test_error_handling_1()
+    _test_coverage()
