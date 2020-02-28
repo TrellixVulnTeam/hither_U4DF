@@ -10,8 +10,8 @@ class TemporaryDirectory():
         self._prefix = prefix
 
     def __enter__(self) -> str:
-        storage_dir = os.environ.get('KACHERY_STORAGE_DIR', None)
-        if storage_dir:
+        storage_dir = os.getenv('KACHERY_STORAGE_DIR', None)
+        if storage_dir is not None:
             dirpath = os.path.join(storage_dir, 'tmp')
             if not os.path.exists(dirpath):
                 os.mkdir(dirpath)
