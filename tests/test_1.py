@@ -130,20 +130,20 @@ def _run_pipeline(*, delay=None, shape=(6, 3)):
     assert a.shape == shape
     assert np.allclose(a, np.ones(shape))
 
-# def test_1(compute_resource, mongodb, local_kachery_storage):
-#     _run_pipeline()
-#     with hi.ConsoleCapture(label='[test_1]') as cc:
-#         db = hi.Database(mongo_url=f'mongodb://localhost:{MONGO_PORT}', database=DATABASE_NAME)
-#         jc = hi.JobCache(database=db)
-#         with hi.config(container=True, job_cache=jc):
-#             for num in range(2):
-#                 timer = time.time()
-#                 _run_pipeline()
-#                 elapsed = time.time() - timer
-#                 print(f'Elapsed for pass {num}: {elapsed}')
-#                 if num == 1:
-#                     assert elapsed < 2
-#         print('Runtime info for test_1:', cc.runtime_info()) # for code coverage
+def test_1(compute_resource, mongodb, local_kachery_storage):
+    _run_pipeline()
+    with hi.ConsoleCapture(label='[test_1]') as cc:
+        db = hi.Database(mongo_url=f'mongodb://localhost:{MONGO_PORT}', database=DATABASE_NAME)
+        jc = hi.JobCache(database=db)
+        with hi.config(container=True, job_cache=jc):
+            for num in range(2):
+                timer = time.time()
+                _run_pipeline()
+                elapsed = time.time() - timer
+                print(f'Elapsed for pass {num}: {elapsed}')
+                if num == 1:
+                    assert elapsed < 2
+        print('Runtime info for test_1:', cc.runtime_info()) # for code coverage
 
 def test_2(compute_resource, mongodb, kachery, local_kachery_storage):
     with hi.ConsoleCapture(label='[test_1]'):
@@ -161,10 +161,10 @@ def test_2(compute_resource, mongodb, kachery, local_kachery_storage):
                 _run_pipeline(shape=(6, 3))
         hi.wait() # for code coverage
             
-# def test_3(tmp_path):
-#     # For code coverage
-#     path = str(tmp_path)
-#     with hi.FileLock(path + '/testfile.txt', exclusive=False):
-#         pass
-#     with hi.FileLock(path + '/testfile.txt', exclusive=True):
-#         pass
+def test_3(tmp_path):
+    # For code coverage
+    path = str(tmp_path)
+    with hi.FileLock(path + '/testfile.txt', exclusive=False):
+        pass
+    with hi.FileLock(path + '/testfile.txt', exclusive=True):
+        pass
