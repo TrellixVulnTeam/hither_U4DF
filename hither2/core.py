@@ -131,12 +131,18 @@ class _JobManager:
             job: Job = self._queued_jobs[id]
             if job._container is not None:
                 if not job._job_handler.is_remote:
-                    _prepare_container(job._container)
+                    try:
+                        _prepare_container(job._container)
+                    except:
+                        job._status = 'error'
+                        job._exception = Exception(f'Unable to prepare container for job {job._label}: {job._container}')
 
-        # Check which queued jobs are ready to run
+        # Check which queued jobs are ready to run (and remove jobs where status!='queued')
         for id in queued_job_ids:
             job: Job = self._queued_jobs[id]
-            if self._job_is_ready_to_run(job):
+            if job._status != 'queued':
+                del self._queued_jobs[id]
+            elif self._job_is_ready_to_run(job):
                 del self._queued_jobs[id]
                 if _some_jobs_have_status(job._kwargs, ['error']):
                     job._status = 'error'

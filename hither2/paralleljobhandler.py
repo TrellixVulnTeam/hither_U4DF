@@ -24,15 +24,15 @@ class ParallelJobHandler:
             pjh_status='pending'
         ))
     
-    # def cancel_job(self, job_id):
-    #     for p in self._processes:
-    #         if p['job']._job_id == job_id:
-    #             if p['pjh_status'] == 'running':
-    #                 pp = p['process']
-    #                 print(f'Terminating process.')
-    #                 pp.terminate()
-    #                 pp.join()
-    #             p['pjh_status'] = 'canceled'
+    def cancel_job(self, job_id):
+        for p in self._processes:
+            if p['job']._job_id == job_id:
+                if p['pjh_status'] == 'running':
+                    pp = p['process']
+                    print(f'Terminating process.')
+                    pp.terminate()
+                    pp.join()
+                p['pjh_status'] = 'canceled'
     
     def iterate(self):
         if self._halted:
@@ -57,6 +57,7 @@ class ParallelJobHandler:
             if p['pjh_status'] == 'pending':
                 if num_running < self._num_workers:
                     p['pjh_status'] = 'running'
+                    p['job']._status = 'running'
                     p['process'].start()
                     num_running = num_running + 1
         

@@ -10,7 +10,7 @@ import multiprocessing
 import numpy as np
 import shutil
 import kachery as ka
-from .misc_functions import make_zeros_npy, add_one_npy, readnpy, intentional_error, do_nothing
+from .misc_functions import make_zeros_npy, add_one_npy, readnpy, intentional_error, do_nothing, bad_container, additional_file, local_module
 
 MONGO_PORT = 27027
 COMPUTE_RESOURCE_ID = 'test_compute_resource_001'
@@ -169,7 +169,7 @@ def test_2(compute_resource, mongodb, kachery, local_kachery_storage):
         with hi.config(job_handler=rjh, container=True):
             for num in range(2):
                 timer = time.time()
-                _run_pipeline(delay=0.2)
+                _run_pipeline(delay=4)
                 elapsed = time.time() - timer
                 print(f'Elapsed for pass {num}: {elapsed}')
                 if num == 1:
@@ -223,6 +223,26 @@ def test_job_error(compute_resource, mongodb, kachery, local_kachery_storage):
                     a = x.wait()
                 assert str(x.exception()) == 'intentional-error'
 
+@pytest.mark.compute_resource
+def test_bad_container(compute_resource, mongodb, kachery, local_kachery_storage):
+    import pytest
+    
+    with hi.ConsoleCapture(label='[test_bad_container]'):
+        db = hi.Database(mongo_url=f'mongodb://localhost:{MONGO_PORT}', database=DATABASE_NAME)
+        rjh = hi.RemoteJobHandler(database=db, compute_resource_id=COMPUTE_RESOURCE_ID)
+
+        bad_container.run().wait()
+
+        with hi.config(container=True):
+            x = bad_container.run()
+            with pytest.raises(Exception):
+                x.wait()
+        
+        with hi.config(job_handler=rjh, container=True):
+            x = bad_container.run()
+            with pytest.raises(Exception):
+                x.wait()
+
 def test_job_arg_error(compute_resource, mongodb, kachery, local_kachery_storage):
     import pytest
     
@@ -232,7 +252,6 @@ def test_job_arg_error(compute_resource, mongodb, kachery, local_kachery_storage
         with pytest.raises(Exception):
             a.wait()
 
-@pytest.mark.focus
 def test_wait():
     pjh = hi.ParallelJobHandler(num_workers=4)
     with hi.config(job_handler=pjh):
@@ -240,3 +259,12 @@ def test_wait():
         hi.wait(0.1)
         hi.wait()
         assert a.result() == None
+
+@pytest.mark.focus
+def test_extras():
+    with hi.config(container=True):
+        a = additional_file.run()
+        assert isinstance(a.wait(), np.ndarray)
+
+        a = local_module.run()
+        assert a.wait() == True
