@@ -167,12 +167,16 @@ class _JobManager:
                         job._job_cache.cache_job_result(job)
                 del self._running_jobs[id]
     
-    def wait(self):
+    def wait(self, timeout: Union[float, None]=None):
+        timer = time.time()
         while True:
             self.iterate()
             if self._queued_jobs == {} and self._running_jobs == {}:
                 return
             time.sleep(0.02)
+            elapsed = time.time() - timer
+            if timeout is not None and elapsed > timeout:
+                return
     
     def _job_is_ready_to_run(self, job):
         assert job._status == 'queued'
@@ -201,8 +205,8 @@ def local_modules(local_modules):
         return f
     return wrap
 
-def wait():
-    _global_job_manager.wait()
+def wait(timeout: Union[float, None]=None):
+    _global_job_manager.wait(timeout)
 
 def function(name, version):
     def wrap(f):
@@ -285,7 +289,7 @@ class Job:
         self._status = 'pending'
         self._result = None
         self._runtime_info = None
-        self._exception = Exception()
+        self._exception: Union[Exception, None] = None
 
         self._job_handler = job_handler
         self._job_manager = job_manager
@@ -295,12 +299,14 @@ class Job:
             self._function_name = getattr(self._f, '_hither_name')
         if self._function_version is None:
             self._function_version = getattr(self._f, '_hither_version')
-    def wait(self):
+    def wait(self, timeout: Union[float, None]=None):
+        timer = time.time()
         while True:
             self._job_manager.iterate()
             if self._status == 'finished':
                 return self._result
             elif self._status == 'error':
+                assert self._exception is not None
                 raise self._exception
             elif self._status == 'queued':
                 pass
@@ -309,20 +315,25 @@ class Job:
             else:
                 raise Exception(f'Unexpected status: {self._status}')
             time.sleep(0.02)
+            elapsed = time.time() - timer
+            if timeout is not None and elapsed > timeout:
+                return None
     def result(self):
         if self._status == 'finished':
             return self._result
         raise Exception('Cannot get result of job that is not yet finished.')
+    def exception(self):
+        return self._exception
     def _execute(self):
         if self._container is not None:
             job_serialized = self._serialize(generate_code=True)
-            success, result, runtime_info = _run_serialized_job_in_container(job_serialized)
+            success, result, runtime_info, error = _run_serialized_job_in_container(job_serialized)
             self._runtime_info = runtime_info
             if success:
                 self._result = result
                 self._status = 'finished'
             else:
-                self._exception = Exception('Problem running function in container.')
+                self._exception = Exception(error)
                 self._status = 'error'
         else:
             if self._f is None:

@@ -62,16 +62,19 @@ def _run_serialized_job_in_container(job_serialized):
                         kwargs2 = _resolve_files_in_item(kwargs)
                         retval = {function_name}(**kwargs2)
                         success = True
-                    except:
+                        error = None
+                    except Exception as e:
                         traceback.print_exc()
                         retval = None
                         success = False
+                        error = str(e)
                 
                 runtime_info = cc.runtime_info()
                 result = dict(
                     retval=_serialize_item(retval),
                     success=success,
-                    runtime_info=runtime_info
+                    runtime_info=runtime_info,
+                    error=error
                 )
                 with open('{run_in_container_path}/result.json', 'w') as f:
                     json.dump(result, f)
@@ -215,6 +218,7 @@ def _run_serialized_job_in_container(job_serialized):
         retval = _deserialize_item(obj['retval'])
         runtime_info = obj['runtime_info']
         success = obj['success']
+        error = obj['error']
 
         if did_timeout:
             runtime_info['timed_out'] = True
@@ -222,7 +226,7 @@ def _run_serialized_job_in_container(job_serialized):
         else:
             runtime_info['timed_out'] = False
 
-        return success, retval, runtime_info
+        return success, retval, runtime_info, error
 
 def _write_python_code_to_directory(dirname: str, code: dict) -> None:
     if os.path.exists(dirname):

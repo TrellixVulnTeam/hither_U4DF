@@ -26,3 +26,10 @@ def add_one_npy(x):
         fname = tmpdir + '/tmp.npy'
         np.save(fname, x + 1)
         return hi.File(fname)
+
+@hi.function('intentional_error', '0.1.0')
+@hi.container('docker://jupyter/scipy-notebook:latest')
+def intentional_error(delay=None):
+    if delay is not None:
+        time.sleep(delay)
+    raise Exception('intentional-error')

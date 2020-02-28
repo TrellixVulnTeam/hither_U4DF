@@ -79,7 +79,7 @@ class ComputeResource:
                 del self._jobs[job_id]
             elif job._status == 'error':
                 print(f'Job error: {job_id}')
-                self._mark_job_as_error(job_id=job_id, runtime_info=job._runtime_info, exception='test-exception')
+                self._mark_job_as_error(job_id=job_id, runtime_info=job._runtime_info, exception=job._exception)
                 del self._jobs[job_id]
             
             # check if handler is still active
