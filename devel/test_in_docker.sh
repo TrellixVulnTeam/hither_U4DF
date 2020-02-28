@@ -8,7 +8,6 @@ exec docker run \
   -v /etc/group:/etc/group:ro \
   -v /run/docker.sock:/run/docker.sock \
   -e DOCKER_HOST=unix:///run/docker.sock \
-  -e KACHERY_STORAGE_DIR=$KACHERY_STORAGE_DIR \
   --group-add docker \
   -u $(id -u):$(id -g) \
   -v /tmp:/tmp \

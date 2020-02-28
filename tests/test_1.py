@@ -126,13 +126,13 @@ def kachery(tmp_path):
 
 @pytest.fixture()
 def local_kachery_storage(tmp_path):
-    old_kachery_storage_dir = str(os.getenv('KACHERY_STORAGE_DIR'))
+    old_kachery_storage_dir = os.getenv('KACHERY_STORAGE_DIR', None)
     kachery_storage_dir = str(tmp_path / 'local-kachery-storage')
     os.mkdir(kachery_storage_dir)
     os.environ['KACHERY_STORAGE_DIR'] = kachery_storage_dir
     yield kachery_storage_dir
-    shutil.rmtree(kachery_storage_dir)
-    os.environ['KACHERY_STORAGE_DIR'] = old_kachery_storage_dir
+    if old_kachery_storage_dir is not None:
+        os.environ['KACHERY_STORAGE_DIR'] = old_kachery_storage_dir
 
 def _run_pipeline(*, delay=None, shape=(6, 3)):
     f = make_zeros_npy.run(shape=shape, delay=delay)

@@ -1,13 +1,10 @@
 language: minimal
 services:
 - docker
-env:
-- KACHERY_STORAGE_DIR=/tmp/kachery-storage
 install:
 - docker pull magland/hither2-dev:latest
 - docker pull magland/kachery2
 script:
-- mkdir -p $KACHERY_STORAGE_DIR
 - devel/test_in_docker.sh
 after_success:
 - bash <(curl -s https://codecov.io/bash) -f ./cov.xml -F travis
