@@ -13,5 +13,6 @@ exec docker run \
   -v /tmp:/tmp \
   -e HOST_IP="$(ip -4 addr show docker0 | grep -Po 'inet \K[\d.]+')" \
   -w /workspaces/hither2 \
+  -e PYTHONPATH=/workspaces/hither2 \
   -it magland/hither2-dev \
-  python -m pytest --cov hither2 --cov-report=term --cov-report=xml:cov.xml -s 
+  python -m pytest --cov hither2 --cov-report=term --cov-report=xml:cov.xml -s -rA --durations=0 "$@"

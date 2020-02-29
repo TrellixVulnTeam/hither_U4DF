@@ -1,74 +1,52 @@
-from typing import Dict, Union, Any
+import time
+from typing import Union, Any
 import os
 import sys
-import random
-import time
-import numpy as np
 import kachery as ka
-import base64
-import io
 from ._etconf import ETConf
 from ._shellscript import ShellScript
-from ._temporarydirectory import TemporaryDirectory
 from ._generate_source_code_for_function import _generate_source_code_for_function
 from ._run_serialized_job_in_container import _run_serialized_job_in_container
 from ._util import _random_string, _docker_form_of_container_string, _deserialize_item, _serialize_item
 from .jobcache import JobCache
 from .file import File
 
+_default_global_config = dict(
+    container=None,
+    job_handler=None,
+    job_cache=None,
+    download_results=None,
+    job_timeout=None
+    # cache=None,
+    # cache_failing=None,
+    # rerun_failing=None,
+    # force_run=None,
+    # gpu=None,
+    # exception_on_fail=None, # None means True
+    # job_handler=None,
+    # show_console=None, # None means True
+    # show_cached_console=None, # None means False
+    # job_timeout=None,
+    # log_path=None
+)
+
 _global_config = ETConf(
-    defaults=dict(
-        container=None,
-        job_handler=None,
-        job_cache=None,
-        download_results=None
-        # cache=None,
-        # cache_failing=None,
-        # rerun_failing=None,
-        # force_run=None,
-        # gpu=None,
-        # exception_on_fail=None, # None means True
-        # job_handler=None,
-        # show_console=None, # None means True
-        # show_cached_console=None, # None means False
-        # job_timeout=None,
-        # log_path=None
-    )
+    defaults=_default_global_config
 )
 
 def set_config(
         container: Union[str, bool, None]=None,
         job_handler: Any=None,
         job_cache: Union[JobCache, None]=None,
-        download_results: Union[bool, None]=None
-        # cache: Union[str, dict, None]=None,
-        # cache_failing: Union[bool, None]=None,
-        # rerun_failing: Union[bool, None]=None,
-        # force_run: Union[bool, None]=None,
-        # gpu: Union[bool, None]=None,
-        # exception_on_fail: Union[bool, None]=None,
-        # job_handler: Union[Any, None]=None,
-        # show_console: Union[bool, None]=None,
-        # show_cached_console: Union[bool, None]=None,
-        # job_timeout: Union[float, None]=None,
-        # log_path: Union[str, None]=None
+        download_results: Union[bool, None]=None,
+        job_timeout: Union[float, None]=None
 ) -> None:
     _global_config.set_config(
         container=container,
         job_handler=job_handler,
         job_cache=job_cache,
-        download_results=download_results
-        # cache=cache,
-        # force_run=force_run,
-        # cache_failing=cache_failing,
-        # rerun_failing=rerun_failing,
-        # gpu=gpu,
-        # exception_on_fail=exception_on_fail,
-        # job_handler=job_handler,
-        # show_console=show_console,
-        # show_cached_console=show_cached_console,
-        # job_timeout=job_timeout,
-        # log_path=log_path
+        download_results=download_results,
+        job_timeout=job_timeout
     )
 
 class config:
@@ -76,35 +54,15 @@ class config:
         container: Union[str, bool, None]=None,
         job_handler: Any=None,
         job_cache: Union[JobCache, None]=None,
-        download_results: Union[bool, None]=None
-        # cache: Union[str, dict, None]=None,
-        # cache_failing: Union[bool, None]=None,
-        # rerun_failing: Union[bool, None]=None,
-        # force_run: Union[bool, None]=None,
-        # gpu: Union[bool, None]=None,
-        # exception_on_fail: Union[bool, None]=None,
-        # job_handler: Union[Any, None]=None,
-        # show_console: Union[bool, None]=None,
-        # show_cached_console: Union[bool, None]=None,
-        # job_timeout: Union[float, None]=None,
-        # log_path: Union[str, None]=None
+        download_results: Union[bool, None]=None,
+        job_timeout: Union[float, None]=None
     ):
         self._config = dict(
             container=container,
             job_handler=job_handler,
             job_cache=job_cache,
-            download_results=download_results
-            # cache=cache,
-            # cache_failing=cache_failing,
-            # rerun_failing=rerun_failing,
-            # force_run=force_run,
-            # gpu=gpu,
-            # exception_on_fail=exception_on_fail,
-            # job_handler=job_handler,
-            # show_console=show_console,
-            # show_cached_console=show_cached_console,
-            # job_timeout=job_timeout,
-            # log_path=log_path
+            download_results=download_results,
+            job_timeout=job_timeout
         )
         self._old_config = None
     def __enter__(self):
@@ -173,6 +131,10 @@ class _JobManager:
                         job._job_cache.cache_job_result(job)
                 del self._running_jobs[id]
     
+    def reset(self):
+        self._queued_jobs = dict()
+        self._running_jobs = dict()
+    
     def wait(self, timeout: Union[float, None]=None):
         timer = time.time()
         while True:
@@ -194,6 +156,10 @@ class _JobManager:
         return True
 
 _global_job_manager = _JobManager()
+
+def reset():
+    _global_job_manager.reset()
+    set_config(**_default_global_config)
 
 def container(container):
     assert container.startswith('docker://'), f"Container string {container} must begin with docker://"
@@ -234,8 +200,9 @@ def function(name, version):
             download_results = _global_config.get('download_results')
             if download_results is None:
                 download_results = False
+            job_timeout = _global_config.get('job_timeout')
             label = name
-            job = Job(f=f, kwargs=kwargs, job_manager=_global_job_manager, job_handler=job_handler, job_cache=job_cache, container=container, label=label, download_results=download_results)
+            job = Job(f=f, kwargs=kwargs, job_manager=_global_job_manager, job_handler=job_handler, job_cache=job_cache, container=container, label=label, download_results=download_results, job_timeout=job_timeout)
             _global_job_manager.queue_job(job)
             return job
         setattr(f, 'run', run)
@@ -275,7 +242,7 @@ class DefaultJobHandler:
 _global_job_handler = DefaultJobHandler()
 
 class Job:
-    def __init__(self, *, f, kwargs, job_manager, job_handler, job_cache, container, label, download_results, code=None, function_name=None, function_version=None, job_id=None):
+    def __init__(self, *, f, kwargs, job_manager, job_handler, job_cache, container, label, download_results, job_timeout: Union[float, None], code=None, function_name=None, function_version=None, job_id=None):
         self._f = f
         self._code = code
         self._function_name = function_name
@@ -287,6 +254,7 @@ class Job:
             self._job_id = _random_string(15)
         self._container = container
         self._download_results = download_results
+        self._job_timeout = None
 
         self._status = 'pending'
         self._result = None
@@ -380,7 +348,8 @@ class Job:
             label=self._label,
             kwargs=_serialize_item(self._kwargs),
             container=self._container,
-            download_results=self._download_results
+            download_results=self._download_results,
+            job_timeout=self._job_timeout
         )
         x = _serialize_item(x)
         return x
@@ -397,6 +366,7 @@ class Job:
             kwargs=_deserialize_item(j['kwargs']),
             container=j['container'],
             download_results=j.get('download_results', False),
+            job_timeout=j.get('job_timeout', None),
             job_manager=job_manager,
             job_handler=None,
             job_cache=None,

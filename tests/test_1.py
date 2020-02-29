@@ -1,3 +1,4 @@
+from hither2.slurmjobhandler import SlurmJobHandler
 from hither2.jobcache import JobCache
 from sys import stdout
 import os
@@ -92,9 +93,6 @@ def run_service_kachery_server(*, kachery_dir):
 def kachery(tmp_path):
     print('Starting kachery server')
 
-    # important for clearing the http request cache of the kachery client
-    ka.reset()
-
     thisdir = os.path.dirname(os.path.realpath(__file__))
     kachery_dir = str(tmp_path / f'kachery-{_random_string(10)}')
     os.mkdir(kachery_dir)
@@ -138,9 +136,6 @@ def kachery(tmp_path):
 
 @pytest.fixture()
 def local_kachery_storage(tmp_path):
-    # important for clearing the http request cache of the kachery client
-    ka.reset()
-
     old_kachery_storage_dir = os.getenv('KACHERY_STORAGE_DIR', None)
     kachery_storage_dir = str(tmp_path / f'local-kachery-storage-{_random_string(10)}')
     os.mkdir(kachery_storage_dir)
@@ -149,6 +144,15 @@ def local_kachery_storage(tmp_path):
     # do not remove the kachery storage directory here because it might be used by other things which are not yet shut down
     if old_kachery_storage_dir is not None:
         os.environ['KACHERY_STORAGE_DIR'] = old_kachery_storage_dir
+
+@pytest.fixture()
+def general(local_kachery_storage):
+    # important to clear all the running or queued jobs
+    hi.reset()
+    # important for clearing the http request cache of the kachery client
+    ka.reset()
+    x = dict()
+    yield x
 
 def _run_pipeline(*, delay=None, shape=(6, 3)):
     f = make_zeros_npy.run(shape=shape, delay=delay)
@@ -162,7 +166,7 @@ def _run_pipeline(*, delay=None, shape=(6, 3)):
     assert a.shape == shape
     assert np.allclose(a, np.ones(shape))
 
-def test_1(mongodb, local_kachery_storage):
+def test_1(general, mongodb):
     _run_pipeline()
     with hi.ConsoleCapture(label='[test_1]') as cc:
         db = hi.Database(mongo_url=f'mongodb://localhost:{MONGO_PORT}', database=DATABASE_NAME)
@@ -178,7 +182,7 @@ def test_1(mongodb, local_kachery_storage):
         cc.runtime_info() # for code coverage
 
 @pytest.mark.compute_resource
-def test_2(compute_resource, mongodb, kachery, local_kachery_storage):
+def test_2(general, compute_resource, mongodb, kachery):
     with hi.ConsoleCapture(label='[test_2]'):
         db = hi.Database(mongo_url=f'mongodb://localhost:{MONGO_PORT}', database=DATABASE_NAME)
         rjh = hi.RemoteJobHandler(database=db, compute_resource_id=COMPUTE_RESOURCE_ID)
@@ -194,7 +198,7 @@ def test_2(compute_resource, mongodb, kachery, local_kachery_storage):
                 _run_pipeline(shape=(6, 3))
         hi.wait() # for code coverage
 
-def test_file_lock(tmp_path, local_kachery_storage):
+def test_file_lock(general, tmp_path):
     # For code coverage
     with hi.ConsoleCapture(label='[test_file_lock]'):
         path = str(tmp_path)
@@ -203,7 +207,7 @@ def test_file_lock(tmp_path, local_kachery_storage):
         with hi.FileLock(path + '/testfile.txt', exclusive=True):
             pass
 
-def test_misc(local_kachery_storage):
+def test_misc(general):
     # For code coverage
     import pytest
     with hi.ConsoleCapture(label='[test_misc]'):
@@ -214,7 +218,7 @@ def test_misc(local_kachery_storage):
         f.result()
 
 @pytest.mark.compute_resource
-def test_job_error(compute_resource, mongodb, kachery, local_kachery_storage):
+def test_job_error(general, compute_resource, mongodb, kachery):
     import pytest
     
     with hi.ConsoleCapture(label='[test_job_error]'):
@@ -240,7 +244,7 @@ def test_job_error(compute_resource, mongodb, kachery, local_kachery_storage):
                 assert str(x.exception()) == 'intentional-error'
 
 @pytest.mark.compute_resource
-def test_bad_container(compute_resource, mongodb, kachery, local_kachery_storage):
+def test_bad_container(general, compute_resource, mongodb, kachery):
     import pytest
     
     with hi.ConsoleCapture(label='[test_bad_container]'):
@@ -260,7 +264,7 @@ def test_bad_container(compute_resource, mongodb, kachery, local_kachery_storage
                 x.wait()
 
 @pytest.mark.compute_resource
-def test_job_arg_error(compute_resource, mongodb, kachery, local_kachery_storage):
+def test_job_arg_error(general, compute_resource, mongodb, kachery):
     import pytest
     
     with hi.ConsoleCapture(label='[test_job_arg_error]'):
@@ -269,7 +273,7 @@ def test_job_arg_error(compute_resource, mongodb, kachery, local_kachery_storage
         with pytest.raises(Exception):
             a.wait()
 
-def test_wait(local_kachery_storage):
+def test_wait(general):
     pjh = hi.ParallelJobHandler(num_workers=4)
     with hi.config(job_handler=pjh):
         a = do_nothing.run(x=None, delay=0.2)
@@ -277,7 +281,7 @@ def test_wait(local_kachery_storage):
         hi.wait()
         assert a.result() == None
 
-def test_extras(local_kachery_storage):
+def test_extras(general):
     with hi.config(container='docker://jupyter/scipy-notebook:678ada768ab1'):
         a = additional_file.run()
         assert isinstance(a.wait(), np.ndarray)
@@ -286,8 +290,7 @@ def test_extras(local_kachery_storage):
         assert a.wait() == True
 
 @pytest.mark.compute_resource
-@pytest.mark.focus
-def test_missing_input_file(compute_resource, mongodb, kachery, local_kachery_storage):
+def test_missing_input_file(general, compute_resource, mongodb, kachery):
     with hi.ConsoleCapture(label='[test_missing_input_file]'):
         db = hi.Database(mongo_url=f'mongodb://localhost:{MONGO_PORT}', database=DATABASE_NAME)
         rjh = hi.RemoteJobHandler(database=db, compute_resource_id=COMPUTE_RESOURCE_ID)
@@ -310,8 +313,7 @@ def test_missing_input_file(compute_resource, mongodb, kachery, local_kachery_st
                 b.wait()
 
 @pytest.mark.compute_resource
-@pytest.mark.focus
-def test_identity(compute_resource, mongodb, kachery, local_kachery_storage):
+def test_identity(general, compute_resource, mongodb, kachery):
     with hi.ConsoleCapture(label='[test_identity]'):
         db = hi.Database(mongo_url=f'mongodb://localhost:{MONGO_PORT}', database=DATABASE_NAME)
         rjh = hi.RemoteJobHandler(database=db, compute_resource_id=COMPUTE_RESOURCE_ID)
@@ -326,6 +328,31 @@ def test_identity(compute_resource, mongodb, kachery, local_kachery_storage):
             a = ([dict(file=hi.File(path))],)
             b = identity.run(x=a).wait()
             assert ka.get_file_hash(b[0][0]['file'].path) == ka.get_file_hash(path)
+
+@pytest.mark.focus
+def test_slurm_job_handler(general, tmp_path):
+    slurm_working_dir = str(tmp_path / 'slurm-job-handler')
+    sjh = SlurmJobHandler(
+        working_dir=slurm_working_dir,
+        use_slurm=False,
+        num_workers_per_batch=3,
+        num_cores_per_job=2,
+        time_limit_per_batch=2400,  # number of seconds or None
+        max_simultaneous_batches=5,
+        additional_srun_opts=[]
+    )
+    with hi.ConsoleCapture(label='[slurm_job_handler]'):
+        with hi.config(container=True, job_handler=sjh):
+            shapes = [(j, 3) for j in range(1, 8)]
+            results = []
+            for shape in shapes:
+                f = make_zeros_npy.run(shape=shape, delay=0.1)
+                g = add_one_npy.run(x=f)
+                A = readnpy.run(x=g)
+                results.append(A)
+            for i in range(len(shapes)):
+                assert shapes[i] == results[i].wait().shape
+                print(f'Checked: {shapes[i]} {results[i].wait().shape}')
 
 def _random_string(num: int):
     """Generate random string of a given length.

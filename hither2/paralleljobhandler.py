@@ -43,9 +43,10 @@ class ParallelJobHandler:
                 if p['pipe_to_child'].poll():
                     ret = p['pipe_to_child'].recv()
                     p['pipe_to_child'].send('okay!')
-                    p['job']._result=ret['result']
-                    p['job']._status=ret['status']
-                    p['job']._exception=ret['exception']
+                    p['job']._result = ret['result']
+                    p['job']._status = ret['status']
+                    p['job']._exception = ret['exception']
+                    p['job']._runtime_info = ret['runtime_info']
                     p['pjh_status'] = 'finished'
         
         num_running = 0
@@ -71,7 +72,8 @@ def _pjh_run_job(pipe_to_parent: Connection, serialized_job: Any, kachery_config
     ret = dict(
         result=job._result,
         status=job._status,
-        exception=job._exception
+        exception=job._exception,
+        runtime_info=job._runtime_info
     )
     pipe_to_parent.send(ret)
     # wait for message to return
