@@ -1,11 +1,4 @@
 from copy import deepcopy
-import time
-import os
-import stat
-import json
-from typing import Optional, List, Union
-import urllib.request as request
-from ._filelock import FileLock
 
 class ETConf:
     def __init__(self, *, defaults, config_dir=None):

@@ -60,6 +60,9 @@ def _b64_to_npy(x):
     f = io.BytesIO(bytes0)
     return np.load(f)
 
+def _utctime():
+    from datetime import datetime, timezone
+    return datetime.utcnow().replace(tzinfo=timezone.utc).timestamp()
 
 def _docker_form_of_container_string(container):
     if container.startswith('docker://'):

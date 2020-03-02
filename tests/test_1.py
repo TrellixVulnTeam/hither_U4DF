@@ -25,17 +25,19 @@ KACHERY_CONFIG = dict(
     password="test-password"
 )
 
-def run_service_compute_resource(*, db, kachery_storage_dir):
+def run_service_compute_resource(*, db, kachery_storage_dir, compute_resource_id, kachery):
     # The following cleanup is needed because we terminate this compute resource process
     # See: https://pytest-cov.readthedocs.io/en/latest/subprocess-support.html
     from pytest_cov.embed import cleanup_on_sigterm
     cleanup_on_sigterm()
 
+    os.environ['RUNNING_PYTEST'] = 'TRUE'
+
     os.environ['KACHERY_STORAGE_DIR'] = kachery_storage_dir
     with hi.ConsoleCapture(label='[compute-resource]'):
         pjh = hi.ParallelJobHandler(num_workers=4)
         jc = hi.JobCache(database=db)
-        CR = hi.ComputeResource(database=db, job_handler=pjh, compute_resource_id=COMPUTE_RESOURCE_ID, kachery=KACHERY_CONFIG, job_cache=jc)
+        CR = hi.ComputeResource(database=db, job_handler=pjh, compute_resource_id=compute_resource_id, kachery=kachery, job_cache=jc)
         CR.clear()
         CR.run()
 
@@ -45,7 +47,7 @@ def compute_resource(tmp_path):
     db = hi.Database(mongo_url=f'mongodb://localhost:{MONGO_PORT}', database=DATABASE_NAME)
     kachery_storage_dir_compute_resource = str(tmp_path / f'kachery-storage-compute-resource-{_random_string(10)}')
     os.mkdir(kachery_storage_dir_compute_resource)
-    process = multiprocessing.Process(target=run_service_compute_resource, kwargs=dict(db=db, kachery_storage_dir=kachery_storage_dir_compute_resource))
+    process = multiprocessing.Process(target=run_service_compute_resource, kwargs=dict(db=db, kachery_storage_dir=kachery_storage_dir_compute_resource, compute_resource_id=COMPUTE_RESOURCE_ID, kachery=KACHERY_CONFIG))
     process.start()
     yield process
     print('Terminating compute resource')
@@ -76,6 +78,8 @@ def run_service_kachery_server(*, kachery_dir):
     # See: https://pytest-cov.readthedocs.io/en/latest/subprocess-support.html
     from pytest_cov.embed import cleanup_on_sigterm
     cleanup_on_sigterm()
+
+    os.environ['RUNNING_PYTEST'] = 'TRUE'
 
     with hi.ConsoleCapture(label='[kachery-server]'):
         ss = hi.ShellScript(f"""
@@ -151,6 +155,9 @@ def general(local_kachery_storage):
     hi.reset()
     # important for clearing the http request cache of the kachery client
     ka.reset()
+
+    os.environ['RUNNING_PYTEST'] = 'TRUE'
+
     x = dict()
     yield x
 
@@ -329,7 +336,6 @@ def test_identity(general, compute_resource, mongodb, kachery):
             b = identity.run(x=a).wait()
             assert ka.get_file_hash(b[0][0]['file'].path) == ka.get_file_hash(path)
 
-@pytest.mark.focus
 def test_slurm_job_handler(general, tmp_path):
     slurm_working_dir = str(tmp_path / 'slurm-job-handler')
     sjh = SlurmJobHandler(
@@ -353,6 +359,44 @@ def test_slurm_job_handler(general, tmp_path):
             for i in range(len(shapes)):
                 assert shapes[i] == results[i].wait().shape
                 print(f'Checked: {shapes[i]} {results[i].wait().shape}')
+
+@pytest.fixture()
+def remote_compute_resource(tmp_path):
+    if os.getenv('SPIKEFOREST_COMPUTE_RESOURCE_READWRITE_PASSWORD', None):
+        print('Starting remote compute resource')
+        db = hi.Database.preset('spikeforest_readwrite')
+        kachery_storage_dir_remote_compute_resource = str(tmp_path / f'kachery-storage-remote-compute-resource-{_random_string(10)}')
+        os.mkdir(kachery_storage_dir_remote_compute_resource)
+        kachery = 'default_readwrite'
+        process = multiprocessing.Process(target=run_service_compute_resource, kwargs=dict(db=db, kachery_storage_dir=kachery_storage_dir_remote_compute_resource, compute_resource_id='spikeforest1', kachery=kachery))
+        process.start()
+    else:
+        print('Not starting remote compute resource because environment variable not set: SPIKEFOREST_COMPUTE_RESOURCE_READWRITE_PASSWORD')
+        process = None
+        
+    yield process
+
+    if process is not None:
+        print('Terminating remote compute resource')
+        process.terminate()
+        shutil.rmtree(kachery_storage_dir_remote_compute_resource)
+        print('Terminated remote compute resource')
+
+@pytest.mark.focus
+# def test_spikeforest_remote_compute_resource(general, remote_compute_resource):
+def test_spikeforest_remote_compute_resource(general):
+    if not os.getenv('SPIKEFOREST_COMPUTE_RESOURCE_READWRITE_PASSWORD', None):
+        print('Skipping remote compute resource test because environment variable not set: SPIKEFOREST_COMPUTE_RESOURCE_READWRITE_PASSWORD')
+        return
+
+    db = hi.Database.preset('spikeforest_readwrite')
+    rjh = hi.RemoteJobHandler(database=db, compute_resource_id='spikeforest1')
+    with hi.config(container=True, job_handler=rjh):
+        _run_pipeline()
+
+def test_preset_config(general):
+    db = hi.Database.preset('spikeforest_readonly')
+    assert db is not None
 
 def _random_string(num: int):
     """Generate random string of a given length.

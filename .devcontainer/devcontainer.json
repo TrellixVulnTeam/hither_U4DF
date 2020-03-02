@@ -42,11 +42,14 @@
 	],
 
 	"containerEnv": {
-		"KACHERY_STORAGE_DIR": "${localEnv:KACHERY_STORAGE_DIR}"
+		"KACHERY_STORAGE_DIR": "${localEnv:KACHERY_STORAGE_DIR}",
+		"KACHERY_DEFAULT_PASSWORD": "${localEnv:KACHERY_DEFAULT_PASSWORD}",
+		"HOST_IP": "${localEnv:HOST_IP}",
+		"MONGO_URL": "${localEnv:MONGO_URL}",
+		"SPIKEFOREST_COMPUTE_RESOURCE_READWRITE_PASSWORD": "${localEnv:SPIKEFOREST_COMPUTE_RESOURCE_READWRITE_PASSWORD}"
 	},
 
 	"runArgs": [
-		"--env-file", ".devcontainer/devcontainer.env",
 	],
 
 	"isInternal": true,

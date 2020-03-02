@@ -1,11 +1,11 @@
 import time
 from typing import Dict
-from multiprocessing.connection import Connection
 import kachery as ka
 from hither2 import _deserialize_item
-from ._util import _random_string
+from ._util import _random_string, _utctime
 from .database import Database
 from .file import File
+from ._load_config import _load_preset_config_from_github
 
 class RemoteJobHandler:
     def __init__(self, *, database: Database, compute_resource_id):
@@ -35,6 +35,12 @@ class RemoteJobHandler:
         if doc is None:
             raise Exception(f'No active compute resource found: {compute_resource_id}')
         self._kachery = doc['kachery']
+    
+    @staticmethod
+    def preset(name):
+        db = Database.preset(name)
+        config = _load_preset_config_from_github(url='https://raw.githubusercontent.com/laboratorybox/hither2/config/config/2020a.json', name=name)
+        return RemoteJobHandler(database=db, compute_resource_id=config['compute_resource_id'])
 
     def handle_job(self, job):
         self._report_active()
@@ -188,7 +194,3 @@ class RemoteJobHandler:
 
     def _get_db(self, collection='hither2_jobs'):
         return self._database.collection(collection)
-
-def _utctime():
-    from datetime import datetime, timezone
-    return datetime.utcnow().replace(tzinfo=timezone.utc).timestamp()

@@ -1,7 +1,7 @@
 import time
 import kachery as ka
 from .core import _serialize_item, _deserialize_job, _prepare_container
-from ._util import _random_string
+from ._util import _random_string, _utctime
 from .database import Database
 from .file import File
 
@@ -277,7 +277,3 @@ def _upload_files_as_needed_in_item(x, *, kachery):
             _upload_files_as_needed_in_item(val, kachery=kachery)
     else:
         pass
-
-def _utctime():
-    from datetime import datetime, timezone
-    return datetime.utcnow().replace(tzinfo=timezone.utc).timestamp()
