@@ -197,7 +197,6 @@ def test_1(general, mongodb):
                     assert elapsed < 2
         cc.runtime_info() # for code coverage
 
-@pytest.mark.focus
 @pytest.mark.compute_resource
 def test_2(general, compute_resource, mongodb, kachery):
     with hi.ConsoleCapture(label='[test_2]'):
@@ -329,6 +328,7 @@ def test_missing_input_file(general, compute_resource, mongodb, kachery):
             with pytest.raises(Exception):
                 b.wait()
 
+@pytest.mark.focus
 @pytest.mark.compute_resource
 def test_identity(general, compute_resource, mongodb, kachery):
     with hi.ConsoleCapture(label='[test_identity]'):

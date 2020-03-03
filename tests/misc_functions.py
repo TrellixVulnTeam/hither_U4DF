@@ -4,7 +4,7 @@ import time
 import numpy as np
 import hither2 as hi
 
-@hi.function('zeros', '0.1.0')
+@hi.function('zeros', '0.1.1')
 @hi.container('docker://jupyter/scipy-notebook:678ada768ab1')
 def zeros(shape, delay=None):
     if delay is not None:
@@ -76,7 +76,7 @@ def local_module():
     assert test_module1.return42() == 42
     return True
 
-@hi.function('identity', '0.1.0')
+@hi.function('identity', '0.1.1')
 @hi.container('docker://jupyter/scipy-notebook:678ada768ab1')
 def identity(x):
     if type(x) == str:
