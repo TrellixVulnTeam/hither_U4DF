@@ -197,6 +197,7 @@ def test_1(general, mongodb):
                     assert elapsed < 2
         cc.runtime_info() # for code coverage
 
+@pytest.mark.focus
 @pytest.mark.compute_resource
 def test_2(general, compute_resource, mongodb, kachery):
     with hi.ConsoleCapture(label='[test_2]'):
@@ -391,6 +392,20 @@ def remote_compute_resource(tmp_path):
         process.terminate()
         shutil.rmtree(kachery_storage_dir_remote_compute_resource)
         print('Terminated remote compute resource')
+
+@pytest.mark.compute_resource
+def test_combo_local_remote(general, compute_resource, mongodb, kachery):
+    with hi.ConsoleCapture(label='[test_combo_local_remote]'):
+        db = hi.Database(mongo_url=f'mongodb://localhost:{MONGO_PORT}', database=DATABASE_NAME)
+        rjh = hi.RemoteJobHandler(database=db, compute_resource_id=COMPUTE_RESOURCE_ID)
+        
+        A = np.ones((5, 5))
+
+        with hi.config(container=True, job_handler=rjh):
+            with hi.config(download_results=True):
+                B = mf.add.run(x=A, y=1)
+        b = B.wait().array()
+        assert np.allclose(A + 1, b)
 
 # def test_spikeforest_remote_compute_resource(general, remote_compute_resource):
 def test_spikeforest_remote_compute_resource(general):

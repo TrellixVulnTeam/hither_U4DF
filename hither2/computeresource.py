@@ -120,19 +120,31 @@ class ComputeResource:
         label = doc['job_serialized']['label']
         print(f'Queuing job: {label}')
         
-        try:
-            job_serialized = doc['job_serialized']
-            if job_serialized['code'] is not None:
+        job_serialized = doc['job_serialized']
+        if job_serialized['code'] is not None:
+            try:
                 code_obj = ka.load_object(job_serialized['code'], fr=self._kachery)
-                if code_obj is None:
-                    raise Exception(f'Unable to load code for function {label}: {job_serialized["code"]}')
-                job_serialized['code'] = code_obj
-            container = job_serialized['container']
-            if container is None:
-                raise Exception('Cannot run serialized job outside of container.')
+            except Exception as e:
+                exc = f'Error loading code for function {label}: {job_serialized["code"]} ({str(e)})'
+                print(exc)
+                self._mark_job_as_error(job_id=job_id, exception=Exception(exc), runtime_info=None)
+                return
+            if code_obj is None:
+                exc = f'Unable to load code for function {label}: {job_serialized["code"]}'
+                print(exc)
+                self._mark_job_as_error(job_id=job_id, exception=Exception(exc), runtime_info=None)
+                return
+            job_serialized['code'] = code_obj
+        container = job_serialized['container']
+        if container is None:
+            exc = f'Cannot run serialized job outside of container: {label}'
+            print(exc)
+            self._mark_job_as_error(job_id=job_id, exception=Exception(exc), runtime_info=None)
+            return
+        try:
             _prepare_container(container)
         except Exception as e:
-            print(f'Error handling pending job: {label}')
+            print(f'Error preparing container for pending job: {label}')
             print(e)
             self._mark_job_as_error(job_id=job_id, exception=e, runtime_info=None)
             return

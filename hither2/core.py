@@ -250,6 +250,8 @@ class Job:
         self._function_version = function_version
         self._label = label
         self._kwargs = kwargs
+        # the following is important for converting ndarray items into File items
+        self._kwargs = _deserialize_item(_serialize_item(self._kwargs))
         self._job_id = job_id
         if self._job_id is None:
             self._job_id = _random_string(15)
