@@ -45,8 +45,8 @@ class SlurmJobHandler:
             os.mkdir(working_dir)
         handler_dir = os.path.join(working_dir, 'tmp_slurm_job_handler_' + _random_string(8))
         os.mkdir(handler_dir)
-        self._num_workers_per_batch = num_workers_per_batch
-        self._num_cores_per_job = num_cores_per_job
+        self._num_workers_per_batch = int(num_workers_per_batch)
+        self._num_cores_per_job = int(num_cores_per_job)
         self._use_slurm = use_slurm
         self._time_limit_per_batch = time_limit_per_batch
         self._max_simultaneous_batches = max_simultaneous_batches

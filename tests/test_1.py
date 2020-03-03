@@ -4,6 +4,7 @@ from sys import stdout
 import os
 import time
 import random
+import json
 import hither2 as hi
 import pytest
 import multiprocessing
@@ -172,6 +173,14 @@ def _run_pipeline(*, delay=None, shape=(6, 3)):
     print('===========================================================')
     assert a.shape == shape
     assert np.allclose(a, np.ones(shape))
+
+def _run_short_pipeline(*, delay=None, shape=(6, 3)):
+    f = make_zeros_npy.run(shape=shape, delay=delay)
+    A = readnpy.run(x=f)
+    A.wait(0.1) # For code coverage
+    a = A.wait()
+    assert a.shape == shape
+    assert np.allclose(a, np.zeros(shape))
 
 def test_1(general, mongodb):
     _run_pipeline()
@@ -382,7 +391,6 @@ def remote_compute_resource(tmp_path):
         shutil.rmtree(kachery_storage_dir_remote_compute_resource)
         print('Terminated remote compute resource')
 
-@pytest.mark.focus
 # def test_spikeforest_remote_compute_resource(general, remote_compute_resource):
 def test_spikeforest_remote_compute_resource(general):
     if not os.getenv('SPIKEFOREST_COMPUTE_RESOURCE_READWRITE_PASSWORD', None):
@@ -397,6 +405,51 @@ def test_spikeforest_remote_compute_resource(general):
 def test_preset_config(general):
     db = hi.Database.preset('spikeforest_readonly')
     assert db is not None
+
+@pytest.mark.focus
+def test_bin(general, tmp_path, mongodb, kachery):
+    working_dir = str(tmp_path / 'compute-resource')
+    os.mkdir(working_dir)
+    ss1 = hi.ShellScript(f"""
+    #!/bin/bash
+    set -ex
+
+    cd {working_dir}
+    hither2-compute-resource init
+    """)
+    ss1.start()
+    ss1.wait()
+    config_fname = working_dir + '/compute_resource.json'
+    with open(config_fname, 'r') as f:
+        config = json.load(f)
+    config['compute_resource_id'] = 'test_resource_1'
+    database_config = dict(
+        mongo_url = f'mongodb://localhost:{MONGO_PORT}',
+        database='test_database'
+    )
+    config['database'] = database_config
+    config['kachery'] = KACHERY_CONFIG
+    with open(config_fname, 'w') as f:
+        json.dump(config, f)
+    ss2 = hi.ShellScript(f"""
+    #!/bin/bash
+    set -ex
+
+    cd {working_dir}
+    hither2-compute-resource start
+    """)
+    ss2.start()
+    ss2.wait(1)
+
+    db = hi.Database(**database_config)
+    rjh = hi.RemoteJobHandler(
+        database=db,
+        compute_resource_id='test_resource_1',
+    )
+    with hi.config(container=True, job_handler=rjh):
+        _run_short_pipeline()
+        hi.wait()
+    ss2.kill()
 
 def _random_string(num: int):
     """Generate random string of a given length.

@@ -9,7 +9,9 @@ setuptools.setup(
     author_email="jmagland@flatironinstitute.org",
     description="Run batches of Python functions in containers and on remote servers",
     packages=setuptools.find_packages(),
-    scripts=[],
+    scripts=[
+        "bin/hither2-compute-resource"
+    ],
     install_requires=[
         "pymongo"
         # non-explicit dependencies: kachery, numpy
