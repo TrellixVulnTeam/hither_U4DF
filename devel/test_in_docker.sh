@@ -2,6 +2,7 @@
 
 set -ex
 
+allargs="$@"
 exec docker run \
   -v $PWD:/workspaces/hither2 \
   -v /etc/passwd:/etc/passwd:ro \
@@ -11,8 +12,9 @@ exec docker run \
   --group-add docker \
   -u $(id -u):$(id -g) \
   -v /tmp:/tmp \
-  -e HOST_IP="$(ip -4 addr show docker0 | grep -Po 'inet \K[\d.]+')" \
+  --net=host \
   -w /workspaces/hither2 \
-  -e PYTHONPATH=/workspaces/hither2 \
   -it magland/hither2-dev \
-  python -m pytest --cov hither2 --cov-report=term --cov-report=xml:cov.xml -s -rA --durations=0 "$@"
+  /bin/bash -c "PYTHONPATH=/workspaces/hither2 PATH=/workspaces/hither2/bin:\$PATH devel/test.sh $allargs"
+
+#-e HOST_IP="$(ip -4 addr show docker0 | grep -Po 'inet \K[\d.]+')" \

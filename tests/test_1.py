@@ -18,10 +18,8 @@ COMPUTE_RESOURCE_ID = 'test_compute_resource_001'
 DATABASE_NAME = 'test_database_001'
 KACHERY_PORT = 3602
 
-HOST_IP = os.getenv('HOST_IP')
-print(F'Using HOST_IP={HOST_IP}')
 KACHERY_CONFIG = dict(
-    url=f'http://{HOST_IP}:{KACHERY_PORT}',
+    url=f'http://localhost:{KACHERY_PORT}',
     channel="test-channel",
     password="test-password"
 )
@@ -198,6 +196,7 @@ def test_1(general, mongodb):
         cc.runtime_info() # for code coverage
 
 @pytest.mark.compute_resource
+@pytest.mark.focus
 def test_2(general, compute_resource, mongodb, kachery):
     with hi.ConsoleCapture(label='[test_2]'):
         db = hi.Database(mongo_url=f'mongodb://localhost:{MONGO_PORT}', database=DATABASE_NAME)
@@ -406,7 +405,6 @@ def test_preset_config(general):
     db = hi.Database.preset('spikeforest_readonly')
     assert db is not None
 
-@pytest.mark.focus
 def test_bin(general, tmp_path, mongodb, kachery):
     working_dir = str(tmp_path / 'compute-resource')
     os.mkdir(working_dir)
