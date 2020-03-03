@@ -5,12 +5,20 @@ import io
 import kachery as ka
 from .file import File
 
-def _serialize_item(x):
+def _serialize_item(x, use_files_for_ndarrays=True):
+    kwargs = dict(
+        use_files_for_ndarrays=use_files_for_ndarrays
+    )
     if isinstance(x, np.ndarray):
-        return dict(
-            _type='npy',
-            data_b64=_npy_to_b64(x)
-        )
+        if use_files_for_ndarrays:
+            path0 = ka.store_npy(x, basename='ndarray.npy')
+            ff = File(path0, item_type='ndarray')
+            return _serialize_item(ff)
+        else:
+            return dict(
+                _type='npy',
+                data_b64=_npy_to_b64(x)
+            )
     elif isinstance(x, File):
         return x.serialize()
     elif isinstance(x, np.integer):
@@ -20,12 +28,12 @@ def _serialize_item(x):
     elif type(x) == dict:
         ret = dict()
         for key, val in x.items():
-            ret[key] = _serialize_item(val)
+            ret[key] = _serialize_item(val, **kwargs)
         return ret
     elif type(x) == list:
-        return [_serialize_item(val) for val in x]
+        return [_serialize_item(val, **kwargs) for val in x]
     elif type(x) == tuple:
-        return tuple([_serialize_item(val) for val in x])
+        return tuple([_serialize_item(val, **kwargs) for val in x])
     else:
         return x
 

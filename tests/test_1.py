@@ -163,9 +163,10 @@ def general(local_kachery_storage):
 def _run_pipeline(*, delay=None, shape=(6, 3)):
     f = make_zeros_npy.run(shape=shape, delay=delay)
     g = add_one_npy.run(x=f)
-    A = readnpy.run(x=g)
+    with hi.config(download_results=True):
+        A = readnpy.run(x=g)
     A.wait(0.1) # For code coverage
-    a = A.wait()
+    a = A.wait().array()
     print('===========================================================')
     print(a)
     print('===========================================================')
@@ -174,9 +175,10 @@ def _run_pipeline(*, delay=None, shape=(6, 3)):
 
 def _run_short_pipeline(*, delay=None, shape=(6, 3)):
     f = make_zeros_npy.run(shape=shape, delay=delay)
-    A = readnpy.run(x=f)
+    with hi.config(download_results=True):
+        A = readnpy.run(x=f)
     A.wait(0.1) # For code coverage
-    a = A.wait()
+    a = A.wait().array()
     assert a.shape == shape
     assert np.allclose(a, np.zeros(shape))
 
@@ -195,8 +197,8 @@ def test_1(general, mongodb):
                     assert elapsed < 2
         cc.runtime_info() # for code coverage
 
-@pytest.mark.compute_resource
 @pytest.mark.focus
+@pytest.mark.compute_resource
 def test_2(general, compute_resource, mongodb, kachery):
     with hi.ConsoleCapture(label='[test_2]'):
         db = hi.Database(mongo_url=f'mongodb://localhost:{MONGO_PORT}', database=DATABASE_NAME)
@@ -204,7 +206,7 @@ def test_2(general, compute_resource, mongodb, kachery):
         with hi.config(job_handler=rjh, container=True):
             for num in range(2):
                 timer = time.time()
-                _run_pipeline(delay=1)
+                _run_short_pipeline(delay=1)
                 elapsed = time.time() - timer
                 print(f'Elapsed for pass {num}: {elapsed}')
                 if num == 1:
@@ -296,10 +298,11 @@ def test_wait(general):
         hi.wait()
         assert a.result() == None
 
+@pytest.mark.focus
 def test_extras(general):
     with hi.config(container='docker://jupyter/scipy-notebook:678ada768ab1'):
         a = additional_file.run()
-        assert isinstance(a.wait(), np.ndarray)
+        assert a.wait().array().shape == (2, 3)
 
         a = local_module.run()
         assert a.wait() == True
@@ -344,6 +347,7 @@ def test_identity(general, compute_resource, mongodb, kachery):
             b = identity.run(x=a).wait()
             assert ka.get_file_hash(b[0][0]['file'].path) == ka.get_file_hash(path)
 
+@pytest.mark.focus
 def test_slurm_job_handler(general, tmp_path):
     slurm_working_dir = str(tmp_path / 'slurm-job-handler')
     sjh = SlurmJobHandler(
@@ -365,8 +369,8 @@ def test_slurm_job_handler(general, tmp_path):
                 A = readnpy.run(x=g)
                 results.append(A)
             for i in range(len(shapes)):
-                assert shapes[i] == results[i].wait().shape
-                print(f'Checked: {shapes[i]} {results[i].wait().shape}')
+                assert shapes[i] == results[i].wait().array().shape
+                print(f'Checked: {shapes[i]} {results[i].wait().array().shape}')
 
 @pytest.fixture()
 def remote_compute_resource(tmp_path):

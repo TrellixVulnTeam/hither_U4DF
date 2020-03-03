@@ -103,8 +103,9 @@ class _JobManager:
             elif self._job_is_ready_to_run(job):
                 del self._queued_jobs[id]
                 if _some_jobs_have_status(job._kwargs, ['error']):
+                    exc = _get_job_exception_in_item(job._kwargs)
                     job._status = 'error'
-                    job._exception = Exception('Exception in argument.')
+                    job._exception = Exception(f'Exception in argument. {str(exc)}')
                 else:
                     self._running_jobs[id] = job
                     job._kwargs = _resolve_job_values(job._kwargs)
@@ -318,7 +319,7 @@ class Job:
             try:
                 kwargs2 = _resolve_files_in_item(self._kwargs)
                 ret = self._f(**kwargs2)
-                self._result = ret
+                self._result = _deserialize_item(_serialize_item(ret))
                 self._status = 'finished'
             except Exception as e:
                 self._status = 'error'
@@ -378,9 +379,14 @@ def _deserialize_job(serialized_job):
 
 def _resolve_files_in_item(x):
     if isinstance(x, File):
-        path = ka.load_file(x._sha1_path)
-        assert path is not None, f'Unable to load file: {x._sha1_path}'
-        return path
+        if x._item_type == 'file':
+            path = ka.load_file(x._sha1_path)
+            assert path is not None, f'Unable to load file: {x._sha1_path}'
+            return path
+        elif x._item_type == 'ndarray':
+            return x.array()
+        else:
+            raise Exception(f'Unexpected item type: {x._item_type}')
     elif type(x) == dict:
         ret = dict()
         for key, val in x.items():
@@ -410,6 +416,27 @@ def _some_jobs_have_status(x, status_list):
             if _some_jobs_have_status(v, status_list):
                 return True
     return False
+
+def _get_job_exception_in_item(x):
+    if isinstance(x, Job):
+        if x._status == 'error':
+            return f'{x._label}: {str(x._exception)}'
+    elif type(x) == dict:
+        for v in x.values():
+            exc = _get_job_exception_in_item(v)
+            if exc is not None:
+                return exc
+    elif type(x) == list:
+        for v in x:
+            exc = _get_job_exception_in_item(v)
+            if exc is not None:
+                return exc
+    elif type(x) == tuple:
+        for v in x:
+            exc = _get_job_exception_in_item(v)
+            if exc is not None:
+                return exc
+    return None
 
 def _resolve_job_values(x):
     if isinstance(x, Job):
