@@ -1,32 +1,45 @@
+from types import SimpleNamespace
 import os
 import time
 import numpy as np
 import hither2 as hi
 
-@hi.function('readnpy', '0.1.0')
+@hi.function('zeros', '0.1.0')
 @hi.container('docker://jupyter/scipy-notebook:678ada768ab1')
-def readnpy(x):
-    return np.load(x)
-
-@hi.function('make_zeros_npy', '0.1.0')
-@hi.container('docker://jupyter/scipy-notebook:678ada768ab1')
-def make_zeros_npy(shape, delay=None):
+def zeros(shape, delay=None):
     if delay is not None:
         time.sleep(delay)
-    x = np.zeros(shape)
-    with hi.TemporaryDirectory() as tmpdir:
-        fname = tmpdir + '/tmp.npy'
-        np.save(fname, x)
+    return np.zeros(shape=shape)
+
+@hi.function('ones', '0.1.0')
+@hi.container('docker://jupyter/scipy-notebook:678ada768ab1')
+def ones(shape):
+    return np.ones(shape=shape)
+
+@hi.function('add', '0.1.0')
+@hi.container('docker://jupyter/scipy-notebook:678ada768ab1')
+def add(x, y):
+    return x + y
+
+@hi.function('mult', '0.1.0')
+@hi.container('docker://jupyter/scipy-notebook:678ada768ab1')
+def mult(x, y):
+    return x * y
+
+@hi.function('write_text_file', '0.1.0')
+@hi.container('docker://jupyter/scipy-notebook:678ada768ab1')
+def write_text_file(text):
+    with hi.TemporaryDirectory() as tmpddir:
+        fname = tmpddir + '/file.txt'
+        with open(fname, 'w') as f:
+            f.write(text)
         return hi.File(fname)
 
-@hi.function('add_one_npy', '0.1.0')
+@hi.function('read_text_file', '0.1.0')
 @hi.container('docker://jupyter/scipy-notebook:678ada768ab1')
-def add_one_npy(x):
-    x = np.load(x)
-    with hi.TemporaryDirectory() as tmpdir:
-        fname = tmpdir + '/tmp.npy'
-        np.save(fname, x + 1)
-        return hi.File(fname)
+def read_text_file(file):
+    with open(file, 'r') as f:
+        return f.read()
 
 @hi.function('intentional_error', '0.1.0')
 @hi.container('docker://jupyter/scipy-notebook:678ada768ab1')
@@ -82,3 +95,19 @@ def identity(x):
         return tuple([identity(a) for a in x])
     else:
         return x
+
+misc_functions = SimpleNamespace(
+    zeros=zeros,
+    ones=ones,
+    add=add,
+    mult=mult,
+    write_text_file=write_text_file,
+    read_text_file=read_text_file,
+    intentional_error=intentional_error,
+    do_nothing=do_nothing,
+    bad_container=bad_container,
+    additional_file=additional_file,
+    local_module=local_module,
+    identity=identity
+)
+

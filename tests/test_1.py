@@ -11,7 +11,7 @@ import multiprocessing
 import numpy as np
 import shutil
 import kachery as ka
-from .misc_functions import make_zeros_npy, add_one_npy, readnpy, intentional_error, do_nothing, bad_container, additional_file, local_module, identity
+from .misc_functions import misc_functions as mf
 
 MONGO_PORT = 27027
 COMPUTE_RESOURCE_ID = 'test_compute_resource_001'
@@ -161,10 +161,10 @@ def general(local_kachery_storage):
     yield x
 
 def _run_pipeline(*, delay=None, shape=(6, 3)):
-    f = make_zeros_npy.run(shape=shape, delay=delay)
-    g = add_one_npy.run(x=f)
+    f = mf.zeros.run(shape=(6, 3))
+    g = mf.add.run(x=f, y=1)
     with hi.config(download_results=True):
-        A = readnpy.run(x=g)
+        A = mf.identity.run(x=g)
     A.wait(0.1) # For code coverage
     a = A.wait().array()
     print('===========================================================')
@@ -174,9 +174,9 @@ def _run_pipeline(*, delay=None, shape=(6, 3)):
     assert np.allclose(a, np.ones(shape))
 
 def _run_short_pipeline(*, delay=None, shape=(6, 3)):
-    f = make_zeros_npy.run(shape=shape, delay=delay)
+    f = mf.zeros.run(shape=(6, 3))
     with hi.config(download_results=True):
-        A = readnpy.run(x=f)
+        A = mf.identity.run(x=f)
     A.wait(0.1) # For code coverage
     a = A.wait().array()
     assert a.shape == shape
@@ -228,7 +228,7 @@ def test_misc(general):
     # For code coverage
     import pytest
     with hi.ConsoleCapture(label='[test_misc]'):
-        f = make_zeros_npy.run(shape=(3, 4), delay=0)
+        f = mf.zeros.run(shape=(3, 4), delay=0)
         with pytest.raises(Exception):
             f.result()
         f.wait()
@@ -239,7 +239,7 @@ def test_job_error(general, compute_resource, mongodb, kachery):
     import pytest
     
     with hi.ConsoleCapture(label='[test_job_error]'):
-        x = intentional_error.run()
+        x = mf.intentional_error.run()
         with pytest.raises(Exception):
             a = x.wait()
         assert str(x.exception()) == 'intentional-error'
@@ -248,14 +248,14 @@ def test_job_error(general, compute_resource, mongodb, kachery):
         rjh = hi.RemoteJobHandler(database=db, compute_resource_id=COMPUTE_RESOURCE_ID)
         with hi.config(job_handler=rjh, container=True):
             for _ in range(2):
-                x = intentional_error.run()
+                x = mf.intentional_error.run()
                 with pytest.raises(Exception):
                     a = x.wait()
                 assert str(x.exception()) == 'intentional-error'
         jc = JobCache(database=db, cache_failing=True)
         with hi.config(job_cache=jc, container=True):
             for _ in range(2):
-                x = intentional_error.run()
+                x = mf.intentional_error.run()
                 with pytest.raises(Exception):
                     a = x.wait()
                 assert str(x.exception()) == 'intentional-error'
@@ -268,15 +268,15 @@ def test_bad_container(general, compute_resource, mongodb, kachery):
         db = hi.Database(mongo_url=f'mongodb://localhost:{MONGO_PORT}', database=DATABASE_NAME)
         rjh = hi.RemoteJobHandler(database=db, compute_resource_id=COMPUTE_RESOURCE_ID)
 
-        bad_container.run().wait()
+        mf.bad_container.run().wait()
 
         with hi.config(container=True):
-            x = bad_container.run()
+            x = mf.bad_container.run()
             with pytest.raises(Exception):
                 x.wait()
         
         with hi.config(job_handler=rjh, container=True):
-            x = bad_container.run()
+            x = mf.bad_container.run()
             with pytest.raises(Exception):
                 x.wait()
 
@@ -285,26 +285,25 @@ def test_job_arg_error(general, compute_resource, mongodb, kachery):
     import pytest
     
     with hi.ConsoleCapture(label='[test_job_arg_error]'):
-        x = intentional_error.run()
-        a = do_nothing.run(x=x)
+        x = mf.intentional_error.run()
+        a = mf.do_nothing.run(x=x)
         with pytest.raises(Exception):
             a.wait()
 
 def test_wait(general):
     pjh = hi.ParallelJobHandler(num_workers=4)
     with hi.config(job_handler=pjh):
-        a = do_nothing.run(x=None, delay=0.2)
+        a = mf.do_nothing.run(x=None, delay=0.2)
         hi.wait(0.1)
         hi.wait()
         assert a.result() == None
 
-@pytest.mark.focus
 def test_extras(general):
     with hi.config(container='docker://jupyter/scipy-notebook:678ada768ab1'):
-        a = additional_file.run()
+        a = mf.additional_file.run()
         assert a.wait().array().shape == (2, 3)
 
-        a = local_module.run()
+        a = mf.local_module.run()
         assert a.wait() == True
 
 @pytest.mark.compute_resource
@@ -317,16 +316,16 @@ def test_missing_input_file(general, compute_resource, mongodb, kachery):
         assert path != false_path
 
         with hi.config(container=True):
-            a = do_nothing.run(x=[dict(some_file=hi.File(path))]).set(label='do-nothing-1')
+            a = mf.do_nothing.run(x=[dict(some_file=hi.File(path))]).set(label='do-nothing-1')
             a.wait()
-            b = do_nothing.run(x=[dict(some_file=hi.File(false_path))]).set(label='do-nothing-2')
+            b = mf.do_nothing.run(x=[dict(some_file=hi.File(false_path))]).set(label='do-nothing-2')
             with pytest.raises(Exception):
                 b.wait()
         
         with hi.config(job_handler=rjh, container=True):
-            a = do_nothing.run(x=[dict(some_file=hi.File(path))]).set(label='do-nothing-remotely-1')
+            a = mf.do_nothing.run(x=[dict(some_file=hi.File(path))]).set(label='do-nothing-remotely-1')
             a.wait()
-            b = do_nothing.run(x=[dict(some_file=hi.File(false_path))]).set(label='do-nothing-remotely-2')
+            b = mf.do_nothing.run(x=[dict(some_file=hi.File(false_path))]).set(label='do-nothing-remotely-2')
             with pytest.raises(Exception):
                 b.wait()
 
@@ -339,15 +338,14 @@ def test_identity(general, compute_resource, mongodb, kachery):
 
         with hi.config(container=True):
             a = ([dict(file=hi.File(path))],)
-            b = identity.run(x=a).wait()
+            b = mf.identity.run(x=a).wait()
             assert ka.get_file_hash(b[0][0]['file'].path) == ka.get_file_hash(path)
         
         with hi.config(job_handler=rjh, container=True, download_results=True):
             a = ([dict(file=hi.File(path))],)
-            b = identity.run(x=a).wait()
+            b = mf.identity.run(x=a).wait()
             assert ka.get_file_hash(b[0][0]['file'].path) == ka.get_file_hash(path)
 
-@pytest.mark.focus
 def test_slurm_job_handler(general, tmp_path):
     slurm_working_dir = str(tmp_path / 'slurm-job-handler')
     sjh = SlurmJobHandler(
@@ -364,9 +362,9 @@ def test_slurm_job_handler(general, tmp_path):
             shapes = [(j, 3) for j in range(1, 8)]
             results = []
             for shape in shapes:
-                f = make_zeros_npy.run(shape=shape, delay=0.1)
-                g = add_one_npy.run(x=f)
-                A = readnpy.run(x=g)
+                f = mf.zeros(shape=shape, delay=0.1)
+                g = mf.add.run(x=f, y=1)
+                A = mf.identity.run(x=g)
                 results.append(A)
             for i in range(len(shapes)):
                 assert shapes[i] == results[i].wait().array().shape
