@@ -25,7 +25,6 @@ def main():
         }
         x = {
             "compute_resource_id": "<compute-resource-id>",
-            "compute_resource_type": "slurm",
             "database": "<database-config>",
             "kachery": "<kachery-config>",
             "job_handler": {
@@ -42,7 +41,6 @@ def main():
             config = json.load(f)
         database = config['database']
         compute_resource_id = config['compute_resource_id']
-        compute_resource_type = config['compute_resource_type']
         kachery = config['kachery']
         job_handler = config['job_handler']
         if type(database) == str:
