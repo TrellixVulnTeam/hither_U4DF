@@ -4,7 +4,7 @@ pkg_name = "hither2"
 
 setuptools.setup(
     name=pkg_name,
-    version="0.1.1",
+    version="0.1.2",
     author="Jeremy Magland",
     author_email="jmagland@flatironinstitute.org",
     description="Run batches of Python functions in containers and on remote servers",
