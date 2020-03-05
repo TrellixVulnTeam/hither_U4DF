@@ -3,6 +3,7 @@ from typing import Union, Any
 import os
 import sys
 import kachery as ka
+from copy import deepcopy
 from ._etconf import ETConf
 from ._shellscript import ShellScript
 from ._generate_source_code_for_function import _generate_source_code_for_function
@@ -41,6 +42,18 @@ def set_config(
         download_results: Union[bool, None]=None,
         job_timeout: Union[float, None]=None
 ) -> None:
+    """Set hither2 configuration parameters.
+    
+    Usually you will want to instead use the context manager
+    form of this function:
+    ```
+    with hi.config(...):
+        ...
+    ```
+    See help for the `config` function.
+    Any parameter that is left as the default None
+    will not be modified.
+    """
     _global_config.set_config(
         container=container,
         job_handler=job_handler,
@@ -57,6 +70,30 @@ class config:
         download_results: Union[bool, None]=None,
         job_timeout: Union[float, None]=None
     ):
+        """Set hither2 config parameters in a context manager.
+
+        Example usage:
+        ```
+        import hither2 as hi
+        with hi.config(container=True):
+            # code goes here
+        ```
+        Parameters set to None are left unchanged
+        
+        Parameters
+        ----------
+        container : Union[str, bool, None], optional
+            If bool, controls whether to use the default docker container specified for each function job
+            If str, use the docker container given by the string, by default None
+        job_handler : Any, optional
+            The job handler to use for each function job, by default None
+        job_cache : Union[JobCache, None], optional
+            The job cache to use for each function job, by default None
+        download_results : Union[bool, None], optional
+            Whether to download results after the function job runs (applied to remote job handler), by default None
+        job_timeout : Union[float, None], optional
+            A timeout time (in seconds) for each function job, by default None
+        """
         self._config = dict(
             container=container,
             job_handler=job_handler,
@@ -303,6 +340,8 @@ class Job:
         if label is not None:
             self._label = label
         return self
+    def runtime_info(self):
+        return deepcopy(self._runtime_info)
     def _execute(self):
         if self._container is not None:
             job_serialized = self._serialize(generate_code=True)

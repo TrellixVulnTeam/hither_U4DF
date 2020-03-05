@@ -99,7 +99,7 @@ class RemoteJobHandler:
                     if compute_resource_status == 'queued':
                         print(f'Job queued: {job_id}')
                     elif compute_resource_status == 'running':
-                        print(f'Job queued: {job_id}')
+                        print(f'Job running: {job_id}')
                     elif compute_resource_status == 'finished':
                         print(f'Job finished: {job_id}')
                         j._runtime_info = doc['runtime_info']
