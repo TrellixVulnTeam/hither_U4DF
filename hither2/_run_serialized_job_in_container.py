@@ -108,7 +108,7 @@ def _run_serialized_job_in_container(job_serialized):
             export OMP_NUM_THREADS=$NUM_WORKERS
 
             export {env_vars_inside_container}
-            exec python3 {run_in_container_path}/run.py
+            exec python3 {run_in_container_path}/run.py >> /tmp/debug_log.txt 2>> /tmp/debug_log_err.txt
         """.format(
             env_vars_inside_container=' '.join(['{}={}'.format(k, v) for k, v in env_vars_inside_container.items()]),
             num_workers_env=os.getenv('NUM_WORKERS', ''),
