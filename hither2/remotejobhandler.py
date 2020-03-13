@@ -69,6 +69,9 @@ class RemoteJobHandler:
 
         self._report_action()
     
+    def cancel_job(self, job_id):
+        print('Warning: not yet able to cancel job of remotejobhandler')
+    
     def iterate(self):
         elapsed_database_poll = time.time() - self._timestamp_database_poll
         if elapsed_database_poll > self._poll_interval():

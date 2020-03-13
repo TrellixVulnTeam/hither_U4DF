@@ -46,32 +46,47 @@ def _run_serialized_job_in_container(job_serialized):
         run_py_script = """
             #!/usr/bin/env python
 
-            from function_src import {function_name}
             import sys
             import json
             import traceback
-            from hither2 import ConsoleCapture
-            from hither2 import _deserialize_item, _serialize_item, _resolve_files_in_item
 
             def main():
-                kwargs = json.loads('{kwargs_json}')
-                kwargs = _deserialize_item(kwargs)
-                with ConsoleCapture(label='{label}', show_console={show_console_str}) as cc:
-                    print('###### RUNNING: {label}')
-                    try:
-                        kwargs2 = _resolve_files_in_item(kwargs)
-                        retval = {function_name}(**kwargs2)
-                        success = True
-                        error = None
-                    except Exception as e:
-                        traceback.print_exc()
-                        retval = None
-                        success = False
-                        error = str(e)
-                
-                runtime_info = cc.runtime_info()
+                try:
+                    import hither2
+                    ok_import_hither2 = True
+                except Exception as e:
+                    traceback.print_exc()
+                    retval = None
+                    success = False
+                    error = str(e)
+                    runtime_info = dict()
+                    ok_import_hither2 = False
+
+                if ok_import_hither2:
+                    from hither2 import ConsoleCapture
+                    from hither2 import _deserialize_item, _serialize_item, _resolve_files_in_item
+
+                    kwargs = json.loads('{kwargs_json}')
+                    kwargs = _deserialize_item(kwargs)
+                    with ConsoleCapture(label='{label}', show_console={show_console_str}) as cc:
+                        print('###### RUNNING: {label}')
+                        try:
+                            from function_src import {function_name}
+                            kwargs2 = _resolve_files_in_item(kwargs)
+                            retval = {function_name}(**kwargs2)
+                            success = True
+                            error = None
+                        except Exception as e:
+                            traceback.print_exc()
+                            retval = None
+                            success = False
+                            error = str(e)
+                    
+                    retval = _serialize_item(retval)
+                    
+                    runtime_info = cc.runtime_info()
                 result = dict(
-                    retval=_serialize_item(retval),
+                    retval=retval,
                     success=success,
                     runtime_info=runtime_info,
                     error=error
@@ -193,25 +208,36 @@ def _run_serialized_job_in_container(job_serialized):
         print(run_outside_container_script)
         print('#############################################################')
 
-        ss = ShellScript(run_outside_container_script, keep_temp_files=False, label='run_outside_container', docker_container_name=docker_container_name)
-        ss.start()
-        timer = time.time()
-        did_timeout = False
-        while True:
-            retcode = ss.wait(1)
-            if retcode is not None:
-                break
-            elapsed = time.time() - timer
-            if timeout is not None:
-                if elapsed > timeout:
-                    print(f'Stopping job due to timeout {elapsed} > {timeout}')
-                    did_timeout = True
-                    ss.stop()
+        try:
+            ss = ShellScript(run_outside_container_script, keep_temp_files=False, label='run_outside_container', docker_container_name=docker_container_name)
+            ss.start()
+            timer = time.time()
+            did_timeout = False
+            while True:
+                retcode = ss.wait(1)
+                if retcode is not None:
+                    break
+                elapsed = time.time() - timer
+                if timeout is not None:
+                    if elapsed > timeout:
+                        print(f'Stopping job due to timeout {elapsed} > {timeout}')
+                        did_timeout = True
+                        ss.stop()
+        finally:
+            ss_cleanup = ShellScript(f"""
+            #!/bin/bash
+
+            docker stop {docker_container_name} || true
+            docker kill {docker_container_name} || true
+            docker rm {docker_container_name} || true
+            """)
+            ss_cleanup.start()
+            ss_cleanup.wait()
 
         # Need to think about the rest of this function
         if (retcode != 0) and (not did_timeout):
             # This is a genuine framework exception because if it were a function exception, we'd get that reported in the runtime_info
-            raise Exception('Non-zero exit code ({}) running [{}] in container {}'.format(retcode, label, container))
+            raise Exception('Unexpected non-zero exit code ({}) running [{}] in container {}'.format(retcode, label, container))
 
         with open(os.path.join(temp_path, 'result.json')) as f:
             obj = json.load(f)

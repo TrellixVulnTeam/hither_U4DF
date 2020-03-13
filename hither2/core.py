@@ -112,6 +112,7 @@ class _JobManager:
     def __init__(self) -> None:
         self._queued_jobs = dict()
         self._running_jobs = dict()
+        self._finished_jobs_by_job_hash = dict()
     def queue_job(self, job):
         job._status = 'queued'
         self._queued_jobs[job._job_id] = job
@@ -120,6 +121,48 @@ class _JobManager:
     
         # Check which queued jobs are ready to run
         queued_job_ids = list(self._queued_jobs.keys())
+
+        # Check which queued jobs have the same hash as those that are already finished
+        queued_jobs_by_hash = dict()
+        for job in self._queued_jobs.values():
+            if not hasattr(job, '_same_hash_as'):
+                job_hash = job._job_hash
+                if job_hash in self._finished_jobs_by_job_hash.keys():
+                    other_job = self._finished_jobs_by_job_hash[job_hash]
+                    setattr(job, '_same_hash_as', other_job)
+
+        # Check which queued jobs have the same hash as those that are already queued
+        queued_jobs_by_hash = dict()
+        for job in self._queued_jobs.values():
+            if not hasattr(job, '_same_hash_as'):
+                job_hash = job._job_hash
+                if job_hash in queued_jobs_by_hash.keys():
+                    other_job = queued_jobs_by_hash[job_hash]
+                    setattr(job, '_same_hash_as', other_job)
+                else:
+                    queued_jobs_by_hash[job_hash] = job
+        
+        # Check which queued jobs have the same hash as those that are already running
+        running_jobs_by_hash = dict()
+        for job in self._running_jobs.values():
+            job_hash = job._job_hash
+            running_jobs_by_hash[job_hash] = job
+        for job in self._queued_jobs.values():
+            if not hasattr(job, '_same_hash_as'):
+                job_hash = job._job_hash
+                if job_hash in running_jobs_by_hash.keys():
+                    other_job = running_jobs_by_hash[job_hash]
+                    setattr(job, '_same_hash_as', other_job)
+        
+        # Check which queued jobs have the same hash as jobs that are complete and then mark them as complete
+        for job in self._queued_jobs.values():
+            if hasattr(job, '_same_hash_as'):
+                other_job = getattr(job, '_same_hash_as')
+                if other_job._status == 'finished' or other_job._status == 'error':
+                    job._status = other_job._status
+                    job._result = other_job._result
+                    job._runtime_info = other_job._runtime_info
+                    job._exception = other_job._exception
 
         # Check which containers need to be prepared (pulled or built)
         for id in queued_job_ids:
@@ -137,22 +180,24 @@ class _JobManager:
             job: Job = self._queued_jobs[id]
             if job._status != 'queued':
                 del self._queued_jobs[id]
-            elif self._job_is_ready_to_run(job):
-                del self._queued_jobs[id]
-                if _some_jobs_have_status(job._kwargs, ['error']):
-                    exc = _get_job_exception_in_item(job._kwargs)
-                    job._status = 'error'
-                    job._exception = Exception(f'Exception in argument. {str(exc)}')
-                else:
-                    self._running_jobs[id] = job
-                    job._kwargs = _resolve_job_values(job._kwargs)
-                    if job._job_cache is not None:
-                        if not job._job_handler.is_remote:
-                            job._job_cache.check_job(job)
-                    if job._status == 'queued':
-                        # still queued even after checking the cache
-                        job._status = 'running'
-                        job._job_handler.handle_job(job)
+            elif not hasattr(job, '_same_hash_as'):
+                if  self._job_is_ready_to_run(job):
+                    del self._queued_jobs[id]
+                    if _some_jobs_have_status(job._kwargs, ['error']):
+                        exc = _get_job_exception_in_item(job._kwargs)
+                        job._status = 'error'
+                        job._exception = Exception(f'Exception in argument. {str(exc)}')
+                    else:
+                        self._running_jobs[id] = job
+                        job._kwargs = _resolve_job_values(job._kwargs)
+                        if job._job_cache is not None:
+                            if not job._job_handler.is_remote:
+                                job._job_cache.check_job(job)
+                        if job._status == 'queued':
+                            # still queued even after checking the cache
+                            print(f'Handling job: {job._label}')
+                            job._status = 'running'
+                            job._job_handler.handle_job(job)
 
         # Check which running jobs are finished and iterate job handlers of running jobs
         running_job_ids = list(self._running_jobs.keys())
@@ -168,6 +213,8 @@ class _JobManager:
                     if not job._job_handler.is_remote:
                         job._job_cache.cache_job_result(job)
                 del self._running_jobs[id]
+                if job._status == 'finished':
+                    self._finished_jobs_by_job_hash[job._job_hash] = job
     
     def reset(self):
         self._queued_jobs = dict()
@@ -178,6 +225,8 @@ class _JobManager:
         while True:
             self.iterate()
             if self._queued_jobs == {} and self._running_jobs == {}:
+                return
+            if timeout == 0:
                 return
             time.sleep(0.02)
             elapsed = time.time() - timer
@@ -276,6 +325,8 @@ class DefaultJobHandler:
         self.is_remote = False
     def handle_job(self, job):
         job._execute()
+    def cancel_job(self, job_id):
+        print('Warning: not yet able to cancel job of defaultjobhandler')
 
 _global_job_handler = DefaultJobHandler()
 
@@ -305,6 +356,17 @@ class Job:
         self._job_manager = job_manager
         self._job_cache = job_cache
 
+        # For purpose of efficiently handling the exact same job queued multiple times simultaneously
+        job_hash_obj = dict(
+            function_name=self._function_name,
+            function_version=self._function_version,
+            kwargs=_serialize_item(self._kwargs),
+            container=self._container,
+            download_results=self._download_results,
+            job_timeout=self._job_timeout
+        )
+        self._job_hash = ka.get_object_hash(job_hash_obj)
+
         if self._function_name is None:
             self._function_name = getattr(self._f, '_hither_name')
         if self._function_version is None:
@@ -324,10 +386,14 @@ class Job:
                 pass
             else:
                 raise Exception(f'Unexpected status: {self._status}') # pragma: no cover
+            if timeout == 0:
+                return None
             time.sleep(0.02)
             elapsed = time.time() - timer
             if timeout is not None and elapsed > timeout:
                 return None
+    def status(self):
+        return self._status
     def result(self):
         if self._status == 'finished':
             return self._result

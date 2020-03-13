@@ -139,6 +139,9 @@ class SlurmJobHandler:
         """
         self.halt()
         _rmdir_with_retries(self._handler_dir, num_retries=10)
+    
+    def cancel_job(self, job_id):
+        print('Warning: not yet able to cancel job of slurmjobhandler')
 
     def _handle_unassigned_job(self, job: Job):
         # See if we can add a job to an existing batch that has a vacancy
