@@ -1,4 +1,5 @@
 from os import stat
+from os.path import basename
 import kachery as ka
 
 class File:
@@ -6,7 +7,7 @@ class File:
         if path.startswith('sha1://') or path.startswith('sha1dir://'):
             self._sha1_path = path
         else:
-            self._sha1_path = ka.store_file(path)
+            self._sha1_path = ka.store_file(path, basename=_get_basename_from_path(path))
         self.path = self._sha1_path
         self._item_type = item_type
     def serialize(self):
@@ -31,3 +32,13 @@ class File:
     @staticmethod
     def deserialize(x):
         return File(x['sha1_path'], item_type=x.get('item_type', 'file'))
+
+def _get_basename_from_path(path):
+    if path.startswith('sha1://'):
+        return _get_basename_from_path(path[7:])
+    elif path.startswith('sha1dir://'):
+        return _get_basename_from_path(path[10:])
+    a = path.split('/')
+    if len(a) > 1:
+        return a[-1]
+    return None
