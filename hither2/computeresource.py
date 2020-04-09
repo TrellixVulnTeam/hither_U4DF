@@ -78,7 +78,7 @@ class ComputeResource:
                     self._job_cache.cache_job_result(job)
                 del self._jobs[job_id]
             elif job._status == 'error':
-                print(job._runtime_info)
+                _print_console_out(job._runtime_info['console_out'])
                 print(job._exception)
                 print(f'Job error: {job_id}')
                 self._mark_job_as_error(job_id=job_id, runtime_info=job._runtime_info, exception=job._exception)
@@ -291,3 +291,13 @@ def _upload_files_as_needed_in_item(x, *, kachery):
             _upload_files_as_needed_in_item(val, kachery=kachery)
     else:
         pass
+
+def _print_console_out(x):
+    for a in x['lines']:
+        t = _fmt_time(a['timestamp'])
+        txt = a['text']
+        print(f'{t}: {txt}')
+
+def _fmt_time(t):
+    import datetime
+    return datetime.datetime.fromtimestamp(t).isoformat()
