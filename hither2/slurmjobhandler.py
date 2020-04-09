@@ -10,6 +10,7 @@ from ._filelock import FileLock
 from typing import Optional, List, Union
 import json
 from .core import Job, _deserialize_item
+from os import rename
 
 DEFAULT_JOB_TIMEOUT = 1200
 
@@ -642,6 +643,11 @@ class _SlurmProcess():
                 job_fname = working_dir + '/worker_{{}}_job.json'.format(worker_num)
                 result_fname = working_dir + '/worker_{{}}_result.json'.format(worker_num)
 
+                def _serialize_exception(e):
+                    if e is None:
+                        return None
+                    return str(e)
+
                 try:  # We are going to catch any exceptions and report them back to the parent process
                     num_found = 0
                     num_exceptions = 0
@@ -686,14 +692,15 @@ class _SlurmProcess():
                             result = dict(
                                 result=job._result,
                                 status=job._status,
-                                exception=job._exception,
+                                exception=_serialize_exception(job._exception),
                                 runtime_info=job._runtime_info
                             )
                             result_serialized = _serialize_item(result)
                             with FileLock(result_fname + '.lock', exclusive=True):
-                                with open(result_fname, 'w') as f:
+                                with open(result_fname + '.tmp', 'w') as f:
                                     # Write the result
                                     json.dump(result_serialized, f)
+                                os.rename(result_fname + '.tmp', result_fname)
                         time.sleep(0.2)
                 except:
                     # report the exception back to the parent process by writing a _result.json.error file
@@ -801,7 +808,6 @@ class _SlurmProcess():
             if not x.isFinished():
                 if not x.stopWithSignal(sig=signal.SIGTERM, timeout=5):
                     print('Warning: unable to stop slurm script.')
-
 
 def _rmdir_with_retries(dirname, num_retries, delay_between_tries=1):
     for retry_num in range(1, num_retries + 1):
