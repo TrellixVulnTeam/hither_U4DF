@@ -29,7 +29,7 @@ class JobCache:
             job._result = result0
             job._runtime_info = doc['runtime_info']
             job._exception = None
-            print(f'Using cached result for job: {job._label}')
+            print(f'Using cached result for job: {job._label} ({job._function_name} {job._function_version})')
             return True
         elif doc['status'] == 'error':
             if self._cache_failing and (not self._rerun_failing):
@@ -37,7 +37,7 @@ class JobCache:
                 job._result = None
                 job._runtime_info = doc['runtime_info']
                 job._exception = Exception(doc['exception'])
-                print(f'Using cached error for job: {job._label}')
+                print(f'Using cached error for job: {job._label} ({job._function_name} {job._function_version})')
                 return True
         return False
     def cache_job_result(self, job):
