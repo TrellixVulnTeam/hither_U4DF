@@ -12,6 +12,7 @@ from ._util import _deserialize_item, _serialize_item
 
 def _run_serialized_job_in_container(job_serialized):
     name = job_serialized['function_name']
+    version = job_serialized['function_version']
     label = job_serialized['label']
     if label is None:
         label = name
@@ -154,6 +155,8 @@ def _run_serialized_job_in_container(job_serialized):
             run_outside_container_script = """
                 #!/bin/bash
 
+                # {label} ({name} {version})
+
                 exec singularity exec -e {gpu_opt} \\
                     -B $KACHERY_STORAGE_DIR:/kachery-storage \\
                     -B {temp_path}:/run_in_container \\
@@ -162,7 +165,10 @@ def _run_serialized_job_in_container(job_serialized):
             """.format(
                 gpu_opt=gpu_opt,
                 container=container,
-                temp_path=temp_path
+                temp_path=temp_path,
+                label=label,
+                name=name,
+                version=version
             )
         else:
             if gpu:
@@ -189,6 +195,8 @@ def _run_serialized_job_in_container(job_serialized):
                 run_outside_container_script = """
                 #!/bin/bash
 
+                # {label} ({name} {version})
+
                 exec docker run --name {docker_container_name} -i {gpu_opt} \\
                     -v /etc/localtime:/etc/localtime:ro \\
                     -v /etc/passwd:/etc/passwd -u `id -u`:`id -g` \\
@@ -202,7 +210,10 @@ def _run_serialized_job_in_container(job_serialized):
                     docker_container_name=docker_container_name,
                     gpu_opt=gpu_opt,
                     container=_docker_form_of_container_string(container),
-                    temp_path=temp_path
+                    temp_path=temp_path,
+                    label=label,
+                    name=name,
+                    version=version
                 )
         print('#############################################################')
         print(run_outside_container_script)
@@ -224,15 +235,16 @@ def _run_serialized_job_in_container(job_serialized):
                         did_timeout = True
                         ss.stop()
         finally:
-            ss_cleanup = ShellScript(f"""
-            #!/bin/bash
+            if docker_container_name is not None:
+                ss_cleanup = ShellScript(f"""
+                #!/bin/bash
 
-            docker stop {docker_container_name} || true
-            docker kill {docker_container_name} || true
-            docker rm {docker_container_name} || true
-            """)
-            ss_cleanup.start()
-            ss_cleanup.wait()
+                docker stop {docker_container_name} || true
+                docker kill {docker_container_name} || true
+                docker rm {docker_container_name} || true
+                """)
+                ss_cleanup.start()
+                ss_cleanup.wait()
 
         # Need to think about the rest of this function
         if (retcode != 0) and (not did_timeout):
