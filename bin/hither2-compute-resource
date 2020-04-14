@@ -39,6 +39,7 @@ def main():
     elif command == 'start':
         with open('compute_resource.json', 'r') as f:
             config = json.load(f)
+        config = _replace_env(config)
         database = config['database']
         compute_resource_id = config['compute_resource_id']
         kachery = config['kachery']
@@ -75,6 +76,21 @@ def main():
         cr.run()
     else:
         print(f'Unexpected command: {command}')
+
+def _replace_env(x):
+    if type(x) == dict:
+        if 'env' in x:
+            return os.environ[x['env']]
+        ret = dict()
+        for k, v in x.items():
+            ret[k] = _replace_env(v)
+        return ret
+    elif type(x) == list:
+        return [_replace_env(a) for a in x]
+    elif type(x) == tuple:
+        return tuple([_replace_env(a) for a in x])
+    else:
+        return x
 
 if __name__ == "__main__":
     main()
