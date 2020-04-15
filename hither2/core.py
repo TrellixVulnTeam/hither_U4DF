@@ -327,6 +327,8 @@ class DefaultJobHandler:
         job._execute()
     def cancel_job(self, job_id):
         print('Warning: not yet able to cancel job of defaultjobhandler')
+    def iterate(self):
+        pass
 
 _global_job_handler = DefaultJobHandler()
 
