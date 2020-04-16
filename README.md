@@ -13,30 +13,70 @@ Run batches of Python functions in containers and on remote servers
 
 Needs to describe other tools, how hither2 differs, and why it is needed.
 
-## Examples
+## A first example
 
-### How to define a hither2 function
+Add an interesting example. Should be something that computes something useful and illustrates the various functionalities.
 
-### How to call a hither2 function
+```python
+# Explain that this can be replaced by other job handlers, including sending jobs to a remote compute resource
+job_handler = hi.ParallelJobHandler()
 
-Either directly, or using .run()
+# Make sure the function uses a container
+# e.g., docker://jupyter/scipy-notebook:678ada768ab1
 
-### How to run a function in a container
+# point out that it is not necessary to install scipy locally if docker is present
 
-### How to use a job cache
+# Set this to false if you don't want
+# to use docker. You must have the python
+# libraries installed on your machine
+use_container = True
 
-Automatically caches results
+# Explain what a job cache does
+# TODO: change database argument to database_name, or something else appropriate
+# Explain that to use a job cache, you need to have a mongo database running.
+# Otherwise, use job_cache = None
+db = hi.Database(
+    mongo_url='mongodb://localhost:27017',
+    database='hither'
+)
+job_cache = hi.JobCache(
+    database=db,
+    cache_failing=False,
+    rerun_failing=False
+)
 
-### How to run a pipeline
+# TODO: maybe replace this with some useful computation that uses something from scipy - think about this
+@hi.function('sumsqr', '0.1.0')
+@hi.container('docker://jupyter/scipy-notebook:678ada768ab1')
+def sumsqr(x):
+    return np.sum(x**2)
 
-Multiple jobs, outputs of jobs are used as inputs of other jobs
+with hi.config(
+    job_handler=job_handler,
+    job_cache=job_cache,
+    container=use_container
+):
+    # TODO: think about doing something more interesting
+    x = np.array([1, 2, 3, 4])
+    result = sumsqr.run(x=x).wait()
+    print(f'Result: {result}')
 
-### How to run jobs in parallel
+```
 
-(What about dask? How is hither2 different, why needed?)
+## Pipeline example
 
-For example, parallel job handler -- run multiple jobs in parallel
+Give another full example showing how to pass the output of one function as an input to another.
 
-### How to use a remote compute resource
+## Parallel computing example
 
-### How to run a hither2 compute resource server
+Give another full example of looping through a list of arguments, accumulating a list of job results, and then aggregating the outputs after processing completes.
+
+
+## Reference documentation
+
+[Reference documentation](doc/reference.md)
+
+## Authors
+
+* Jeremy Magland
+* Jeff Soules

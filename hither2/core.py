@@ -12,6 +12,8 @@ from ._util import _random_string, _docker_form_of_container_string, _deserializ
 from .jobcache import JobCache
 from .file import File
 
+# TODO: think about splitting this file into pieces
+
 _default_global_config = dict(
     container=None,
     job_handler=None,
@@ -159,6 +161,8 @@ class _JobManager:
             if hasattr(job, '_same_hash_as'):
                 other_job = getattr(job, '_same_hash_as')
                 if other_job._status == 'finished' or other_job._status == 'error':
+                    # TODO: do we want to use the failure status of the other job?
+                    # Need to think about this.
                     job._status = other_job._status
                     job._result = other_job._result
                     job._runtime_info = other_job._runtime_info
@@ -270,6 +274,7 @@ def local_modules(local_modules):
 def wait(timeout: Union[float, None]=None):
     _global_job_manager.wait(timeout)
 
+############################################################
 def function(name, version):
     def wrap(f):
         assert f.__name__ == name, f"Name does not match function name: {name} <> {f.__name__}"
@@ -293,6 +298,7 @@ def function(name, version):
             _global_job_manager.queue_job(job)
             return job
         setattr(f, 'run', run)
+        # These attributes should definitely not be set, and instead values should be passed to Job() above.
         setattr(f, '_hither_name', name)
         setattr(f, '_hither_version', version)
         return f
@@ -332,6 +338,7 @@ class DefaultJobHandler:
 
 _global_job_handler = DefaultJobHandler()
 
+# TODO: put this class in a separate .py file
 class Job:
     def __init__(self, *, f, kwargs, job_manager, job_handler, job_cache, container, label, download_results, job_timeout: Union[float, None], code=None, function_name=None, function_version=None, job_id=None):
         self._f = f
@@ -359,6 +366,7 @@ class Job:
         self._job_cache = job_cache
 
         # For purpose of efficiently handling the exact same job queued multiple times simultaneously
+        # Important: this is NOT the hash used to lookup previously-run jobs in the cache
         job_hash_obj = dict(
             function_name=self._function_name,
             function_version=self._function_version,
@@ -369,6 +377,7 @@ class Job:
         )
         self._job_hash = ka.get_object_hash(job_hash_obj)
 
+        # This code will go away
         if self._function_name is None:
             self._function_name = getattr(self._f, '_hither_name')
         if self._function_version is None:
@@ -392,6 +401,7 @@ class Job:
                 return None
             time.sleep(0.02)
             elapsed = time.time() - timer
+            # Not the same as the job timeout... this is the wait timeout
             if timeout is not None and elapsed > timeout:
                 return None
     def status(self):

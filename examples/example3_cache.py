@@ -35,7 +35,7 @@ def main():
         val1 = sumsqr_with_delay.run(x=np.array([1]), delay=delay)
         val2 = sumsqr_with_delay.run(x=np.array([1,2]), delay=delay)
         val3 = sumsqr_with_delay.run(x=np.array([1,2,3]), delay=delay)
-        val4 = addem.run(x=[val1, val2, val3])
+        val4 = addem.run(x=np.array([val1, val2, val3]))
         print(val1.wait(), val2.wait(), val3.wait(), val4.wait())
         assert val1.wait() == 1
         assert val2.wait() == 5
