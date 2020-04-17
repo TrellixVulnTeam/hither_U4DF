@@ -11,9 +11,12 @@ def additional_file():
     assert a.shape == (2, 3)
     return a
 
-additional_file.test_calls = [
-    dict(
-        args=dict(),
-        result=np.array([[1, 2, 3], [4, 5, 6]])
-    )
-]
+def test_calls():
+    return [
+        dict(
+            args=dict(),
+            result=np.array([[1, 2, 3], [4, 5, 6]])
+        )
+    ]
+
+additional_file.test_calls = test_calls

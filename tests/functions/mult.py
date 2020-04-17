@@ -6,11 +6,14 @@ import hither2 as hi
 def mult(x, y):
     return x * y
 
-mult.test_calls = [
-    dict(
-        args=dict(
-            x=np.array([1, 2, 3]), y=np.array([-1, -2, -3])
-        ),
-        result=np.array([-1, -4, -9])
-    )
-]
+def test_calls():
+    return [
+        dict(
+            args=dict(
+                x=np.array([1, 2, 3]), y=np.array([-1, -2, -3])
+            ),
+            result=np.array([-1, -4, -9])
+        )
+    ]
+
+mult.test_calls = test_calls

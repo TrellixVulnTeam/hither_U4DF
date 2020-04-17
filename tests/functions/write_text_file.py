@@ -10,10 +10,13 @@ def write_text_file(text):
             f.write(text)
         return hi.File(fname)
 
-write_text_file.test_calls = [
-    dict(
-        args=dict(
-            text='test-write-text-file'
+def test_calls():
+    return [
+        dict(
+            args=dict(
+                text='test-write-text-file'
+            )
         )
-    )
-]
+    ]
+
+write_text_file.test_calls = test_calls

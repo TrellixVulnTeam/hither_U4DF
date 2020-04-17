@@ -7,6 +7,7 @@ class File:
         if path.startswith('sha1://') or path.startswith('sha1dir://'):
             self._sha1_path = path
         else:
+            print('---- storing file', path)
             self._sha1_path = ka.store_file(path, basename=_get_basename_from_path(path))
         self.path = self._sha1_path
         self._item_type = item_type

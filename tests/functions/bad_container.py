@@ -5,10 +5,14 @@ import hither2 as hi
 def bad_container():
     pass
 
-bad_container.test_calls = [
-    dict(
-        args=dict(),
-        result=None
-    )
-]
+def test_calls():
+    return [
+        dict(
+            args=dict(),
+            exception=True,
+            container_only=True
+        )
+    ]
+
+bad_container.test_calls = test_calls
 

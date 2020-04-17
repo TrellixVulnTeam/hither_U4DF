@@ -5,11 +5,14 @@ import hither2 as hi
 def add(x, y):
     return x + y
 
-add.test_calls = [
-    dict(
-        args=dict(
-            x=1, y=2
-        ),
-        result=3
-    )
-]
+def test_calls():
+    return [
+        dict(
+            args=dict(
+                x=1, y=2
+            ),
+            result=3
+        )
+    ]
+
+add.test_calls = test_calls

@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+import hither2 as hi
 from .functions import functions as fun
 
 def assert_same_result(r1, r2):
@@ -30,9 +31,11 @@ def test_call_functions_directly(general):
     functions = [getattr(fun, k) for k in dir(fun)]
     for function in functions:
         if callable(function) and hasattr(function, 'test_calls'):
-            for test_call in function.test_calls:
+            for test_call in function.test_calls():
                 if not test_call.get('container_only'):
                     args = test_call.get('args')
+                    # the following is needed for the case where we send in a hi.File object
+                    args = hi._resolve_files_in_item(args)
                     print(f'Calling {function.__name__} {args}')
                     try:
                         result = function(**args)
@@ -45,12 +48,16 @@ def test_call_functions_directly(general):
                         elif 'exception' in test_call:
                             assert_same_exception(e, test_call['exception'])
 
-def test_run_functions(general):
+def do_test_run_functions(container=False):
     functions = [getattr(fun, k) for k in dir(fun)]
     for function in functions:
         if callable(function) and hasattr(function, 'test_calls'):
-            for test_call in function.test_calls:
-                if not test_call.get('container_only'):
+            for test_call in function.test_calls():
+                do_run = True
+                if test_call.get('container_only'):
+                    if not container:
+                        do_run = False
+                if do_run:
                     args = test_call.get('args')
                     print(f'Running {function.__name__} {args}')
                     try:
@@ -62,4 +69,16 @@ def test_run_functions(general):
                         if 'result' in test_call:
                             raise
                         elif 'exception' in test_call:
-                            assert_same_exception(e, test_call['exception'])
+                            if test_call['exception'] is True:
+                                pass
+                            else:
+                                assert_same_exception(e, test_call['exception'])
+
+def test_run_functions(general):
+    with hi.config(container=False):
+        do_test_run_functions()
+
+@pytest.mark.container
+def test_run_functions_in_container(general):
+    with hi.config(container=True):
+        do_test_run_functions()

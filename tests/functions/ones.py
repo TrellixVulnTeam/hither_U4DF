@@ -6,11 +6,14 @@ import numpy as np
 def ones(shape):
     return np.ones(shape=shape)
 
-ones.test_calls = [
-    dict(
-        args=dict(
-            shape=(2, 3, 4)
-        ),
-        result=np.ones((2, 3, 4))
-    )
-]
+def test_calls():
+    return [
+        dict(
+            args=dict(
+                shape=(2, 3, 4)
+            ),
+            result=np.ones((2, 3, 4))
+        )
+    ]
+
+ones.test_calls = test_calls

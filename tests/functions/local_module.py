@@ -10,10 +10,13 @@ def local_module():
     assert test_module1.return42() == 42
     return True
 
-local_module.test_calls = [
-    dict(
-        args=dict(),
-        result=True,
-        container_only=True
-    )
-]
+def test_calls():
+    return [
+        dict(
+            args=dict(),
+            result=True,
+            container_only=True
+        )
+    ]
+
+local_module.test_calls = test_calls

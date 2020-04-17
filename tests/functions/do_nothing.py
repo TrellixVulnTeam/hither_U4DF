@@ -7,17 +7,20 @@ def do_nothing(x, delay=None):
     if delay is not None:
         time.sleep(delay)
 
-do_nothing.test_calls = [
-    dict(
-        args=dict(
-            x=1, delay=0
+def test_calls():
+    return [
+        dict(
+            args=dict(
+                x=1, delay=0
+            ),
+            result=None
         ),
-        result=None
-    ),
-    dict(
-        args=dict(
-            x=None, delay=None
-        ),
-        result=None
-    )
-]
+        dict(
+            args=dict(
+                x=None, delay=None
+            ),
+            result=None
+        )
+    ]
+
+do_nothing.test_calls = test_calls

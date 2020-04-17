@@ -7,12 +7,15 @@ def read_text_file(file):
     with open(file, 'r') as f:
         return f.read()
 
-thisdir = os.path.dirname(os.path.realpath(__file__))
-read_text_file.test_calls = [
-    dict(
-        args=dict(
-            file=thisdir + '/test_text.txt'
-        ),
-        result='some-text'
-    )
-]
+def test_calls():
+    thisdir = os.path.dirname(os.path.realpath(__file__))
+    return [
+        dict(
+            args=dict(
+                file=hi.File(thisdir + '/test_text.txt')
+            ),
+            result='some-text'
+        )
+    ]
+
+read_text_file.test_calls = test_calls

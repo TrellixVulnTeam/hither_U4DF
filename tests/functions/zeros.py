@@ -9,12 +9,15 @@ def zeros(shape, delay=None):
         time.sleep(delay)
     return np.zeros(shape=shape)
 
-zeros.test_calls = [
-    dict(
-        args=dict(
-            shape=(5, 2),
-            delay=0
-        ),
-        result=np.zeros((5, 2))
-    )
-]
+def test_calls():
+    return [
+        dict(
+            args=dict(
+                shape=(5, 2),
+                delay=0
+            ),
+            result=np.zeros((5, 2))
+        )
+    ]
+
+zeros.test_calls = test_calls

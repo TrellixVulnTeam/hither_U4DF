@@ -22,18 +22,21 @@ def identity(x):
     else:
         return x
 
-thisdir = os.path.dirname(os.path.realpath(__file__))
-identity.test_calls = [
-    dict(
-        args=dict(
-            x=x
-        ),
-        result=x
-    ) for x in [
-        # thisdir + '/identity.py',
-        dict(a=3),
-        [1, 2, 3],
-        (1, 2, 3),
-        np.array([4, 5, 6])
+def test_calls():
+    # thisdir = os.path.dirname(os.path.realpath(__file__))
+    return [
+        dict(
+            args=dict(
+                x=x
+            ),
+            result=x
+        ) for x in [
+            # thisdir + '/identity.py',
+            dict(a=3),
+            [1, 2, 3],
+            (1, 2, 3),
+            np.array([4, 5, 6])
+        ]
     ]
-]
+
+identity.test_calls = test_calls
