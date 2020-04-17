@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 from .functions import functions as fun
 
 def assert_same_result(r1, r2):
