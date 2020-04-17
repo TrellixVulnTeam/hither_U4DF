@@ -3,8 +3,23 @@ import pytest
 from .functions import functions as fun
 
 def assert_same_result(r1, r2):
+    assert type(r1) == type(r2)
     if isinstance(r1, np.ndarray):
         np.testing.assert_array_equal(r1, r2)
+    elif type(r1) == list:
+        assert len(r1) == len(r2)
+        for i in range(len(r1)):
+            assert_same_result(r1[i], r2[i])
+    elif type(r1) == tuple:
+        assert len(r1) == len(r2)
+        for i in range(len(r1)):
+            assert_same_result(r1[i], r2[i])
+    elif type(r1) == dict:
+        for k in r1.keys():
+            assert k in r2
+            assert_same_result(r1[k], r2[k])
+        for k in r2.keys():
+            assert k in r1
     else:
         assert r1 == r2
 

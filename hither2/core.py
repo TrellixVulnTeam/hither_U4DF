@@ -365,6 +365,12 @@ class Job:
         self._job_manager = job_manager
         self._job_cache = job_cache
 
+        # This code will go away
+        if self._function_name is None:
+            self._function_name = getattr(self._f, '_hither_name')
+        if self._function_version is None:
+            self._function_version = getattr(self._f, '_hither_version')
+
         # For purpose of efficiently handling the exact same job queued multiple times simultaneously
         # Important: this is NOT the hash used to lookup previously-run jobs in the cache
         job_hash_obj = dict(
@@ -377,11 +383,6 @@ class Job:
         )
         self._job_hash = ka.get_object_hash(job_hash_obj)
 
-        # This code will go away
-        if self._function_name is None:
-            self._function_name = getattr(self._f, '_hither_name')
-        if self._function_version is None:
-            self._function_version = getattr(self._f, '_hither_version')
     def wait(self, timeout: Union[float, None]=None):
         timer = time.time()
         while True:
