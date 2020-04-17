@@ -1,0 +1,16 @@
+import numpy as np
+import hither2 as hi
+
+@hi.function('mult', '0.1.0')
+@hi.container('docker://jupyter/scipy-notebook:678ada768ab1')
+def mult(x, y):
+    return x * y
+
+mult.test_calls = [
+    dict(
+        args=dict(
+            x=np.array([1, 2, 3]), y=np.array([-1, -2, -3])
+        ),
+        result=np.array([-1, -4, -9])
+    )
+]

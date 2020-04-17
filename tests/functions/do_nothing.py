@@ -1,0 +1,23 @@
+import time
+import hither2 as hi
+
+@hi.function('do_nothing', '0.1.0')
+@hi.container('docker://jupyter/scipy-notebook:678ada768ab1')
+def do_nothing(x, delay=None):
+    if delay is not None:
+        time.sleep(delay)
+
+do_nothing.test_calls = [
+    dict(
+        args=dict(
+            x=1, delay=0
+        ),
+        result=None
+    ),
+    dict(
+        args=dict(
+            x=None, delay=None
+        ),
+        result=None
+    )
+]
