@@ -11,6 +11,7 @@ from ._run_serialized_job_in_container import _run_serialized_job_in_container
 from ._util import _random_string, _docker_form_of_container_string, _deserialize_item, _serialize_item
 from .jobcache import JobCache
 from .file import File
+from ._resolve_files_in_item import _resolve_files_in_item, _deresolve_files_in_item
 
 # TODO: think about splitting this file into pieces
 
@@ -346,9 +347,8 @@ class Job:
         self._function_name = function_name
         self._function_version = function_version
         self._label = label
-        self._kwargs = kwargs
-        # the following is important for converting ndarray items into File items
-        self._kwargs = _deserialize_item(_serialize_item(self._kwargs))
+        self._kwargs = _deresolve_files_in_item(kwargs)
+        # self._kwargs = _deserialize_item(_serialize_item(self._kwargs))
         self._job_id = job_id
         if self._job_id is None:
             self._job_id = _random_string(15)
@@ -383,12 +383,15 @@ class Job:
         )
         self._job_hash = ka.get_object_hash(job_hash_obj)
 
-    def wait(self, timeout: Union[float, None]=None):
+    def wait(self, timeout: Union[float, None]=None, resolve_files=True):
         timer = time.time()
         while True:
             self._job_manager.iterate()
             if self._status == 'finished':
-                return self._result
+                if resolve_files:
+                    return _resolve_files_in_item(self._result)
+                else:
+                    return self._result
             elif self._status == 'error':
                 assert self._exception is not None
                 raise self._exception
@@ -439,7 +442,8 @@ class Job:
             try:
                 kwargs2 = _resolve_files_in_item(self._kwargs)
                 ret = self._f(**kwargs2)
-                self._result = _deserialize_item(_serialize_item(ret))
+                self._result = _deresolve_files_in_item(ret)
+                # self._result = _deserialize_item(_serialize_item(ret))
                 self._status = 'finished'
             except Exception as e:
                 self._status = 'error'
@@ -496,28 +500,6 @@ class Job:
 
 def _deserialize_job(serialized_job):
     return Job._deserialize(serialized_job)
-
-def _resolve_files_in_item(x):
-    if isinstance(x, File):
-        if x._item_type == 'file':
-            path = ka.load_file(x._sha1_path)
-            assert path is not None, f'Unable to load file: {x._sha1_path}'
-            return path
-        elif x._item_type == 'ndarray':
-            return x.array()
-        else:
-            raise Exception(f'Unexpected item type: {x._item_type}')
-    elif type(x) == dict:
-        ret = dict()
-        for key, val in x.items():
-            ret[key] = _resolve_files_in_item(val)
-        return ret
-    elif type(x) == list:
-        return [_resolve_files_in_item(val) for val in x]
-    elif type(x) == tuple:
-        return tuple([_resolve_files_in_item(val) for val in x])
-    else:
-        return x
 
 def _some_jobs_have_status(x, status_list):
     if isinstance(x, Job):

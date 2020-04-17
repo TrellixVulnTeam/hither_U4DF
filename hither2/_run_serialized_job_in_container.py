@@ -65,7 +65,7 @@ def _run_serialized_job_in_container(job_serialized):
 
                 if ok_import_hither2:
                     from hither2 import ConsoleCapture
-                    from hither2 import _deserialize_item, _serialize_item, _resolve_files_in_item
+                    from hither2 import _deserialize_item, _serialize_item, _resolve_files_in_item, _deresolve_files_in_item
 
                     kwargs = json.loads('{kwargs_json}')
                     kwargs = _deserialize_item(kwargs)
@@ -75,6 +75,7 @@ def _run_serialized_job_in_container(job_serialized):
                             from function_src import {function_name}
                             kwargs2 = _resolve_files_in_item(kwargs)
                             retval = {function_name}(**kwargs2)
+                            retval = _deresolve_files_in_item(retval)
                             success = True
                             error = None
                         except Exception as e:

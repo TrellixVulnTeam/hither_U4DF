@@ -6,8 +6,9 @@ from ._temporarydirectory import TemporaryDirectory
 from ._shellscript import ShellScript
 from ._filelock import FileLock
 from ._consolecapture import ConsoleCapture
-from .core import _resolve_files_in_item, _deserialize_job
-from ._util import _deserialize_item, _serialize_item
+from .core import _deserialize_job
+from ._resolve_files_in_item import _resolve_files_in_item, _deresolve_files_in_item
+from ._util import _serialize_item, _deserialize_item
 from .paralleljobhandler import ParallelJobHandler
 from .slurmjobhandler import SlurmJobHandler
 from .remotejobhandler import RemoteJobHandler
