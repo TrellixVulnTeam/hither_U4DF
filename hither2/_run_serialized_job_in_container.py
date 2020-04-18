@@ -226,7 +226,7 @@ def _run_serialized_job_in_container(job_serialized):
             timer = time.time()
             did_timeout = False
             while True:
-                retcode = ss.wait(1)
+                retcode = ss.wait(0.02)
                 if retcode is not None:
                     break
                 elapsed = time.time() - timer
@@ -267,7 +267,7 @@ def _run_serialized_job_in_container(job_serialized):
             success = False
         else:
             runtime_info['timed_out'] = False
-
+        
         return success, retval, runtime_info, error
 
 def _write_python_code_to_directory(dirname: str, code: dict) -> None:
