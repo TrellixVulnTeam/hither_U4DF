@@ -108,7 +108,7 @@ class RemoteJobHandler:
                         j._runtime_info = doc['runtime_info']
                         j._status = 'finished'
                         j._result = _deserialize_item(doc['result'])
-                        self._attach_compute_resource_id_to_files_in_item(j._result)
+                        self._attach_remote_job_handler_to_files_in_item(j._result)
                         del self._jobs[job_id]
                     elif compute_resource_status == 'error':
                         print(f'Job error: {job_id}')
@@ -150,18 +150,18 @@ class RemoteJobHandler:
         else:
             pass
     
-    def _attach_compute_resource_id_to_files_in_item(self, x):
+    def _attach_remote_job_handler_to_files_in_item(self, x):
         if isinstance(x, File):
             setattr(x, '_remote_job_handler', self)
         elif type(x) == dict:
             for val in x.values():
-                self._attach_compute_resource_id_to_files_in_item(val)
+                self._attach_remote_job_handler_to_files_in_item(val)
         elif type(x) == list:
             for val in x:
-                self._attach_compute_resource_id_to_files_in_item(val)
+                self._attach_remote_job_handler_to_files_in_item(val)
         elif type(x) == tuple:
             for val in x:
-                self._attach_compute_resource_id_to_files_in_item(val)
+                self._attach_remote_job_handler_to_files_in_item(val)
         else:
             pass
 
