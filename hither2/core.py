@@ -201,59 +201,59 @@ class _JobManager:
             return False
         if not job._job_handler.is_remote:
             # it's a local job handler, so we need to make sure the input files are available locally
-            if not self._files_are_available_locally_in_item(job._kwargs):
-                job._kwargs = self._replace_unavailable_files_by_retrieval_jobs(job._kwargs)
+            if not _files_are_available_locally_in_item(job._kwargs):
+                job._kwargs = _replace_unavailable_files_by_retrieval_jobs(job._kwargs)
                 return False
         return True
     
-    def _files_are_available_locally_in_item(self, x):
-        if isinstance(x, File):
-            info0 = ka.get_file_info(x._sha1_path, fr=None)
-            if info0 is None:
-                return False
-            else:
-                pass
-        elif type(x) == dict:
-            for val in x.values():
-                if not self._files_are_available_locally_in_item(val):
-                    return False
-        elif type(x) == list:
-            for val in x:
-                if not self._files_are_available_locally_in_item(val):
-                    return False
-        elif type(x) == tuple:
-            for val in x:
-                if not self._files_are_available_locally_in_item(val):
-                    return False
+def _files_are_available_locally_in_item(x):
+    if isinstance(x, File):
+        info0 = ka.get_file_info(x._sha1_path, fr=None)
+        if info0 is None:
+            return False
         else:
             pass
-        return True
-    
-    def _replace_unavailable_files_by_retrieval_jobs(self, x):
-        if isinstance(x, File):
-            info0 = ka.get_file_info(x._sha1_path, fr=None)
-            if info0 is None:
-                return self._create_file_retrieval_job(x)
-            else:
-                return x
-        elif type(x) == dict:
-            ret = dict()
-            for k, v in x.items():
-                ret[k] = self._replace_unavailable_files_by_retrieval_jobs(v)
-            return ret
-        elif type(x) == list:
-            return [self._replace_unavailable_files_by_retrieval_jobs(v) for v in x]
-        elif type(x) == tuple:
-            return tuple([self._replace_unavailable_files_by_retrieval_jobs(v) for v in x])
+    elif type(x) == dict:
+        for val in x.values():
+            if not _files_are_available_locally_in_item(val):
+                return False
+    elif type(x) == list:
+        for val in x:
+            if not _files_are_available_locally_in_item(val):
+                return False
+    elif type(x) == tuple:
+        for val in x:
+            if not _files_are_available_locally_in_item(val):
+                return False
+    else:
+        pass
+    return True
+
+def _replace_unavailable_files_by_retrieval_jobs(x):
+    if isinstance(x, File):
+        info0 = ka.get_file_info(x._sha1_path, fr=None)
+        if info0 is None:
+            return _create_file_retrieval_job(x)
         else:
             return x
-    
-    def _create_file_retrieval_job(self, x: File):
-        if not hasattr(x, '_remote_job_handler'):
-            raise Exception('Cannot retrieve input file when there is no remote job handler associated with file.')
-        with config(job_handler=getattr(x, '_remote_job_handler'), download_results=True):
-            from ._to_file import to_file
-            return to_file.run(path=x._sha1_path)
+    elif type(x) == dict:
+        ret = dict()
+        for k, v in x.items():
+            ret[k] = _replace_unavailable_files_by_retrieval_jobs(v)
+        return ret
+    elif type(x) == list:
+        return [_replace_unavailable_files_by_retrieval_jobs(v) for v in x]
+    elif type(x) == tuple:
+        return tuple([_replace_unavailable_files_by_retrieval_jobs(v) for v in x])
+    else:
+        return x
+
+def _create_file_retrieval_job(x: File):
+    if not hasattr(x, '_remote_job_handler'):
+        raise Exception('Cannot retrieve input file when there is no remote job handler associated with file.')
+    with config(job_handler=getattr(x, '_remote_job_handler'), download_results=True):
+        from ._to_file import to_file
+        return to_file.run(path=x._sha1_path)
 
 _global_job_manager = _JobManager()
 
@@ -384,6 +384,21 @@ class Job:
 
     def wait(self, timeout: Union[float, None]=None, resolve_files=True):
         timer = time.time()
+
+        if resolve_files and self._job_handler.is_remote:
+            # in this case, we need to make sure that files are downloaded from the remote resource
+            if not self._download_results:
+                if self._status in ['pending', 'queued']:
+                    # it's not too late. Let's just request download now
+                    self._download_results = True
+                else:
+                    # let's wait until finished, and then we'll run again with the request to download
+                    result = self.wait(timeout=timeout, resolve_files=False)
+                    if result is None:
+                        return None
+                    if not _files_are_available_locally_in_item(result):
+                        raise Exception('This case not handled yet.')
+                    return _resolve_files_in_item(self._result)
         while True:
             self._job_manager.iterate()
             if self._status == 'finished':
