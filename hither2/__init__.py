@@ -1,7 +1,8 @@
-from .core import function, container, additional_files, local_modules
+from .core import function, container, additional_files, local_modules, opts
 from .core import config, set_config
 from .core import wait
 from .core import reset
+from ._identity import identity
 from ._temporarydirectory import TemporaryDirectory
 from ._shellscript import ShellScript
 from ._filelock import FileLock

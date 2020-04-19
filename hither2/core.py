@@ -252,8 +252,8 @@ def _create_file_retrieval_job(x: File):
     if not hasattr(x, '_remote_job_handler'):
         raise Exception('Cannot retrieve input file when there is no remote job handler associated with file.')
     with config(job_handler=getattr(x, '_remote_job_handler'), download_results=True):
-        from ._to_file import to_file
-        return to_file.run(path=x._sha1_path)
+        from ._identity import identity
+        return identity.run(x=x)
 
 _global_job_manager = _JobManager()
 
@@ -267,6 +267,14 @@ def container(container):
         setattr(f, '_hither_container', container)
         return f
     return wrap
+
+def opts(no_resolve_input_files=None):
+    def wrap(f):
+        if no_resolve_input_files is not None:
+            setattr(f, '_no_resolve_input_files', no_resolve_input_files)
+        return f
+    return wrap
+
 
 def additional_files(additional_files):
     def wrap(f):
@@ -303,7 +311,11 @@ def function(name, version):
                 download_results = False
             job_timeout = _global_config.get('job_timeout')
             label = name
-            job = Job(f=f, kwargs=kwargs, job_manager=_global_job_manager, job_handler=job_handler, job_cache=job_cache, container=container, label=label, download_results=download_results, job_timeout=job_timeout)
+            if hasattr(f, '_no_resolve_input_files'):
+                no_resolve_input_files = f._no_resolve_input_files
+            else:
+                no_resolve_input_files = False
+            job = Job(f=f, kwargs=kwargs, job_manager=_global_job_manager, job_handler=job_handler, job_cache=job_cache, container=container, label=label, download_results=download_results, job_timeout=job_timeout, no_resolve_input_files=no_resolve_input_files)
             _global_job_manager.queue_job(job)
             return job
         setattr(f, 'run', run)
@@ -349,11 +361,12 @@ _global_job_handler = DefaultJobHandler()
 
 # TODO: put this class in a separate .py file
 class Job:
-    def __init__(self, *, f, kwargs, job_manager, job_handler, job_cache, container, label, download_results, job_timeout: Union[float, None], code=None, function_name=None, function_version=None, job_id=None):
+    def __init__(self, *, f, kwargs, job_manager, job_handler, job_cache, container, label, download_results, job_timeout: Union[float, None], code=None, function_name=None, function_version=None, job_id=None, no_resolve_input_files=False):
         self._f = f
         self._code = code
         self._function_name = function_name
         self._function_version = function_version
+        self._no_resolve_input_files = no_resolve_input_files
         self._label = label
         self._kwargs = _deresolve_files_in_item(kwargs)
         # self._kwargs = _deserialize_item(_serialize_item(self._kwargs))
@@ -381,6 +394,12 @@ class Job:
         
         # Not used for now
         self._efficiency_job_hash_ = None
+
+        # If the job handler is local, then we need to be sure to mark remote jobs with _download_results=True
+        # Note, though, that this will only work if the remote jobs have not yet been sent to the compute resource
+        # In that case, we need to insert another 'identity' job
+        if self._job_handler is None or (not self._job_handler.is_remote):
+            _mark_download_results_for_remote_jobs_in_item(self._kwargs)
 
     def wait(self, timeout: Union[float, None]=None, resolve_files=True):
         timer = time.time()
@@ -454,8 +473,11 @@ class Job:
         else:
             assert self._f is not None, 'Cannot execute job outside of container when function is not available'
             try:
-                kwargs2 = _resolve_files_in_item(self._kwargs)
-                ret = self._f(**kwargs2)
+                if not self._no_resolve_input_files:
+                    kwargs = _resolve_files_in_item(self._kwargs)
+                else:
+                    kwargs = self._kwargs
+                ret = self._f(**kwargs)
                 self._result = _deresolve_files_in_item(ret)
                 # self._result = _deserialize_item(_serialize_item(ret))
                 self._status = 'finished'
@@ -488,7 +510,8 @@ class Job:
             kwargs=_serialize_item(self._kwargs),
             container=self._container,
             download_results=self._download_results,
-            job_timeout=self._job_timeout
+            job_timeout=self._job_timeout,
+            no_resolve_input_files=self._no_resolve_input_files
         )
         x = _serialize_item(x)
         return x
@@ -505,7 +528,8 @@ class Job:
             kwargs=_serialize_item(self._kwargs),
             container=self._container,
             download_results=self._download_results,
-            job_timeout=self._job_timeout
+            job_timeout=self._job_timeout,
+            no_resolve_input_files=self._no_resolve_input_files
         )
         self._efficiency_job_hash_ = ka.get_object_hash(efficiency_job_hash_obj)
         return self._efficiency_job_hash_
@@ -526,7 +550,8 @@ class Job:
             job_manager=job_manager,
             job_handler=None,
             job_cache=None,
-            job_id=j['job_id']
+            job_id=j['job_id'],
+            no_resolve_input_files=j['no_resolve_input_files']
         )
 
 def _deserialize_job(serialized_job):
@@ -570,6 +595,30 @@ def _get_job_exception_in_item(x):
             if exc is not None:
                 return exc
     return None
+
+def _mark_download_results_for_remote_jobs_in_item(x):
+    # If the job handler is local, then we need to be sure to mark remote jobs with _download_results=True
+    # Note, though, that this will only work if the remote jobs have not yet been sent to the compute resource
+    # In that case, we need to insert another 'identity' job
+    if isinstance(x, Job):
+        if x._job_handler.is_remote:
+            if x._status in ['pending', 'queued']:
+                x._download_results = True
+                return x
+            else:
+                with config(job_handler=x._job_handler):
+                    return identity.run(x=x, download_results=True)
+    elif type(x) == dict:
+        ret = dict()
+        for k, v in x.items():
+            ret[k] = _mark_download_results_for_remote_jobs_in_item(v)
+        return ret
+    elif type(x) == list:
+        return [_mark_download_results_for_remote_jobs_in_item(v) for v in x]
+    elif type(x) == tuple:
+        return tuple([_mark_download_results_for_remote_jobs_in_item(v) for v in x])
+    else:
+        return x
 
 def _resolve_job_values(x):
     if isinstance(x, Job):

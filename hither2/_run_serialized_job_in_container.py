@@ -22,6 +22,7 @@ def _run_serialized_job_in_container(job_serialized):
     
     code = job_serialized['code']
     container = job_serialized['container']
+    no_resolve_input_files = job_serialized['no_resolve_input_files']
 
     kwargs = job_serialized['kwargs']
 
@@ -73,8 +74,9 @@ def _run_serialized_job_in_container(job_serialized):
                         print('###### RUNNING: {label}')
                         try:
                             from function_src import {function_name}
-                            kwargs2 = _resolve_files_in_item(kwargs)
-                            retval = {function_name}(**kwargs2)
+                            if not {no_resolve_input_files}:
+                                kwargs = _resolve_files_in_item(kwargs)
+                            retval = {function_name}(**kwargs)
                             retval = _deresolve_files_in_item(retval)
                             success = True
                             error = None
@@ -108,7 +110,8 @@ def _run_serialized_job_in_container(job_serialized):
             function_name=name,
             label=label,
             show_console_str='True' if show_console else 'False',
-            run_in_container_path=run_in_container_path
+            run_in_container_path=run_in_container_path,
+            no_resolve_input_files='True' if no_resolve_input_files else 'False'
         )
 
         # For unindenting

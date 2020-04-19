@@ -67,6 +67,8 @@ class JobCache:
             function_version=job._function_version,
             kwargs=_serialize_item(job._kwargs)
         )
+        if job._no_resolve_input_files:
+            hash_object['no_resolve_input_files'] = True
         return ka.get_object_hash(hash_object)
 
 def _check_files_all_exist_locally_in_item(x):
