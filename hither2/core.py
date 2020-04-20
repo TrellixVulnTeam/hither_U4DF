@@ -249,6 +249,7 @@ def _replace_unavailable_files_by_retrieval_jobs(x):
         return x
 
 def _create_file_retrieval_job(x: File):
+    from ._identity import identity
     if not hasattr(x, '_remote_job_handler'):
         raise Exception('Cannot retrieve input file when there is no remote job handler associated with file.')
     with config(job_handler=getattr(x, '_remote_job_handler'), download_results=True):
@@ -411,7 +412,7 @@ class Job:
                     # it's not too late. Let's just request download now
                     self._download_results = True
                 else:
-                    # let's wait until finished, and then we'll run again with the request to download
+                    # let's wait until finished, and then we'll see what we need to do
                     result = self.wait(timeout=timeout, resolve_files=False)
                     if result is None:
                         return None
@@ -607,6 +608,7 @@ def _mark_download_results_for_remote_jobs_in_item(x):
                 return x
             else:
                 with config(job_handler=x._job_handler):
+                    from ._identity import identity
                     return identity.run(x=x, download_results=True)
     elif type(x) == dict:
         ret = dict()

@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 import time
 from typing import Dict
 import kachery as ka
@@ -19,6 +20,11 @@ class RemoteJobHandler:
 
         self._timestamp_database_poll = 0
         self._timestamp_last_action = time.time()
+
+        self._internal_counts = SimpleNamespace(
+            num_jobs=0,
+            num_finished_jobs=0
+        )
 
         db1 = self._get_db(collection='active_compute_resources')
         t0 = _utctime() - 20
@@ -43,6 +49,7 @@ class RemoteJobHandler:
         return RemoteJobHandler(database=db, compute_resource_id=config['compute_resource_id'])
 
     def handle_job(self, job):
+        self._internal_counts.num_jobs += 1
         self._report_active()
 
         self._send_files_as_needed_in_item(job._kwargs)
@@ -105,6 +112,7 @@ class RemoteJobHandler:
                         print(f'Job running: {job_id}')
                     elif compute_resource_status == 'finished':
                         print(f'Job finished: {job_id}')
+                        self._internal_counts.num_finished_jobs += 1
                         j._runtime_info = doc['runtime_info']
                         j._status = 'finished'
                         j._result = _deserialize_item(doc['result'])
@@ -112,6 +120,7 @@ class RemoteJobHandler:
                         del self._jobs[job_id]
                     elif compute_resource_status == 'error':
                         print(f'Job error: {job_id}')
+                        self._internal_counts.num_errored_jobs += 1
                         j._runtime_info = doc['runtime_info']
                         j._status = 'error'
                         j._exception = Exception(doc['exception'])
