@@ -2,6 +2,7 @@ kachery-storage*
 .devcontainer/devcontainer.env
 cov.xml
 .vscode
+.devcontainer/.env
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

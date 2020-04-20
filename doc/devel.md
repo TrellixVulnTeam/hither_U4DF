@@ -17,6 +17,12 @@ mkdir /data/kachery-storage
 
 TODO: explain about the kachery storage directory.
 
+## Create .env file
+
+Create an empty environment file at: `.devcontainer/.env`.
+
+TODO: explain about this
+
 ## Environment variables
 
 Set the following environment variables in your `~/.bashrc` or `~/.bash_profile`. Note that if any of these change, you may need to logout and log back in again [more details needed].
