@@ -252,7 +252,7 @@ def _create_file_retrieval_job(x: File):
     from ._identity import identity
     if not hasattr(x, '_remote_job_handler'):
         raise Exception('Cannot retrieve input file when there is no remote job handler associated with file.')
-    with config(job_handler=getattr(x, '_remote_job_handler'), download_results=True):
+    with config(job_handler=getattr(x, '_remote_job_handler'), download_results=True, container=True):
         from ._identity import identity
         return identity.run(x=x)
 
@@ -386,6 +386,10 @@ class Job:
         self._job_handler = job_handler
         self._job_manager = job_manager
         self._job_cache = job_cache
+        
+        # this is used by wait() in the case where results were not downloaded
+        # and the job has already been sent to the remote compute resource
+        self._substitute_job_for_wait: Union[None, Job] = None
 
         # This code will go away
         if self._function_name is None:
@@ -403,6 +407,10 @@ class Job:
             _mark_download_results_for_remote_jobs_in_item(self._kwargs)
 
     def wait(self, timeout: Union[float, None]=None, resolve_files=True):
+        if resolve_files and self._substitute_job_for_wait is not None:
+            assert self._substitute_job_for_wait is not None # for pyright
+            return self._substitute_job_for_wait.wait(timeout=timeout, resolve_files=resolve_files)
+
         timer = time.time()
 
         if resolve_files and self._job_handler.is_remote:
@@ -412,13 +420,24 @@ class Job:
                     # it's not too late. Let's just request download now
                     self._download_results = True
                 else:
+                    # here is where we make a substitute job
                     # let's wait until finished, and then we'll see what we need to do
                     result = self.wait(timeout=timeout, resolve_files=False)
                     if result is None:
                         return None
                     if not _files_are_available_locally_in_item(result):
-                        raise Exception('This case not handled yet.')
-                    return _resolve_files_in_item(self._result)
+                        from ._identity import identity
+                        assert self._substitute_job_for_wait is None, 'Unexpected at this point in the code: self._substitute_job_for_wait is not None'
+                        with config(job_handler=self._job_handler, download_results=True):
+                            self._substitute_job_for_wait = identity.run(x=result)
+                        # compute the remainder timeout for this call to wait()
+                        timeout2 = timeout
+                        if timeout2 is not None:
+                            elapsed = time.time() - timer
+                            timeout2 = max(0, timeout2 - elapsed)
+                        return self._substitute_job_for_wait.wait(timeout=timeout2, resolve_files=resolve_files)
+                    else:
+                        return _resolve_files_in_item(self._result)
         while True:
             self._job_manager.iterate()
             if self._status == 'finished':
@@ -607,9 +626,9 @@ def _mark_download_results_for_remote_jobs_in_item(x):
                 x._download_results = True
                 return x
             else:
-                with config(job_handler=x._job_handler):
-                    from ._identity import identity
-                    return identity.run(x=x, download_results=True)
+                from ._identity import identity
+                with config(job_handler=x._job_handler, download_results=True, container=True):
+                    return identity.run(x=x)
     elif type(x) == dict:
         ret = dict()
         for k, v in x.items():

@@ -78,7 +78,7 @@ class ComputeResource:
                     self._job_cache.cache_job_result(job)
                 del self._jobs[job_id]
             elif job._status == 'error':
-                _print_console_out(job._runtime_info['console_out'])
+                # _print_console_out(job._runtime_info['console_out'])
                 print(job._exception)
                 print(f'Job error: {job_id}')
                 self._mark_job_as_error(job_id=job_id, runtime_info=job._runtime_info, exception=job._exception)

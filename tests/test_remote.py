@@ -21,11 +21,12 @@ def test_remote_1b(general, mongodb, kachery_server, compute_resource):
     with hi.config(job_handler=jh, container=True):
         a = fun.ones.run(shape=(4, 3))
         hi.wait()
+        # we should get an implicit 'identity' job here
         a = a.wait()
         assert np.array_equal(a, np.ones((4, 3)))
         assert jh._internal_counts.num_jobs == 2, f'Unexpected number of jobs: {jh._internal_counts.num_jobs}'
 
-@pytest.mark.remote
+# @pytest.mark.remote
 def test_remote_2(general, mongodb, kachery_server, compute_resource):
     db = hi.Database(mongo_url=f'mongodb://localhost:{MONGO_PORT}', database=DATABASE_NAME)
     jh = hi.RemoteJobHandler(database=db, compute_resource_id=COMPUTE_RESOURCE_ID)
@@ -54,9 +55,11 @@ def test_remote_4(general, mongodb, kachery_server, compute_resource):
     jh = hi.RemoteJobHandler(database=db, compute_resource_id=COMPUTE_RESOURCE_ID)
     with hi.config(job_handler=jh, container=True, download_results=True):
         a = fun.ones.run(shape=(4, 3))
+        b = fun.ones.run(shape=(4, 3))
         hi.wait()
     
-    b = fun.add.run(x=a, y=a)
-    b = b.wait()
-    assert np.array_equal(b, 2* np.ones((4, 3)))
-    assert jh._internal_counts.num_jobs == 1, f'Unexpected number of jobs: {jh._internal_counts.num_jobs}'
+    # two implicit jobs should be created here
+    c = fun.add.run(x=a, y=b)
+    c = c.wait()
+    assert np.array_equal(c, 2* np.ones((4, 3)))
+    assert jh._internal_counts.num_jobs == 4, f'Unexpected number of jobs: {jh._internal_counts.num_jobs}'

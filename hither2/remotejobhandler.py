@@ -23,7 +23,8 @@ class RemoteJobHandler:
 
         self._internal_counts = SimpleNamespace(
             num_jobs=0,
-            num_finished_jobs=0
+            num_finished_jobs=0,
+            num_errored_jobs=0
         )
 
         db1 = self._get_db(collection='active_compute_resources')
