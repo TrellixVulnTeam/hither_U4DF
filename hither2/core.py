@@ -144,7 +144,7 @@ class _JobManager:
                 if  self._job_is_ready_to_run(job):
                     del self._queued_jobs[id]
                     if _some_jobs_have_status(job._kwargs, ['error']):
-                        exc = _get_job_exception_in_item(job._kwargs)
+                        exc = _get_first_job_exception_in_item(job._kwargs)
                         job._status = 'error'
                         job._exception = Exception(f'Exception in argument. {str(exc)}')
                     else:
@@ -199,11 +199,6 @@ class _JobManager:
             return True
         if _some_jobs_have_status(job._kwargs, ['pending', 'queued', 'running']):
             return False
-        if not job._job_handler.is_remote:
-            # it's a local job handler, so we need to make sure the input files are available locally
-            if not _files_are_available_locally_in_item(job._kwargs):
-                job._kwargs = _replace_unavailable_files_by_retrieval_jobs(job._kwargs)
-                return False
         return True
     
 def _files_are_available_locally_in_item(x):
@@ -228,33 +223,6 @@ def _files_are_available_locally_in_item(x):
     else:
         pass
     return True
-
-def _replace_unavailable_files_by_retrieval_jobs(x):
-    if isinstance(x, File):
-        info0 = ka.get_file_info(x._sha1_path, fr=None)
-        if info0 is None:
-            return _create_file_retrieval_job(x)
-        else:
-            return x
-    elif type(x) == dict:
-        ret = dict()
-        for k, v in x.items():
-            ret[k] = _replace_unavailable_files_by_retrieval_jobs(v)
-        return ret
-    elif type(x) == list:
-        return [_replace_unavailable_files_by_retrieval_jobs(v) for v in x]
-    elif type(x) == tuple:
-        return tuple([_replace_unavailable_files_by_retrieval_jobs(v) for v in x])
-    else:
-        return x
-
-def _create_file_retrieval_job(x: File):
-    from ._identity import identity
-    if not hasattr(x, '_remote_job_handler'):
-        raise Exception('Cannot retrieve input file when there is no remote job handler associated with file.')
-    with config(job_handler=getattr(x, '_remote_job_handler'), download_results=True, container=True):
-        from ._identity import identity
-        return identity.run(x=x)
 
 _global_job_manager = _JobManager()
 
@@ -326,6 +294,13 @@ def function(name, version):
         return f
     return wrap
 
+# TODO: replace all this recursive dict-traversing functionality with a utility, perhaps of this form:
+# def traverse_dict(x, func):
+#    .... execute the function on every item, recursively
+# We'll also need something like
+# def filt_dict(x, func):
+#    .... same as above except returns a new dict
+# This will greatly improve code coverage
 def _download_files_as_needed_in_item(x):
     if isinstance(x, File):
         info0 = ka.get_file_info(x._sha1_path, fr=None)
@@ -595,23 +570,23 @@ def _some_jobs_have_status(x, status_list):
                 return True
     return False
 
-def _get_job_exception_in_item(x):
+def _get_first_job_exception_in_item(x):
     if isinstance(x, Job):
         if x._status == 'error':
             return f'{x._label}: {str(x._exception)}'
     elif type(x) == dict:
         for v in x.values():
-            exc = _get_job_exception_in_item(v)
+            exc = _get_first_job_exception_in_item(v)
             if exc is not None:
                 return exc
     elif type(x) == list:
         for v in x:
-            exc = _get_job_exception_in_item(v)
+            exc = _get_first_job_exception_in_item(v)
             if exc is not None:
                 return exc
     elif type(x) == tuple:
         for v in x:
-            exc = _get_job_exception_in_item(v)
+            exc = _get_first_job_exception_in_item(v)
             if exc is not None:
                 return exc
     return None

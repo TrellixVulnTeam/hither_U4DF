@@ -31,7 +31,7 @@ A hither2 function `fun` is called valid if...
 
 ### Equivalence of calling and running
 
-Let `fun` be a valid hither2 function and `args` be a Python dict.
+Let `fun` be a valid hither2 function and `args` be a Python dict [qualify what `args` can be].
 Then, in any hither2 context, the following two functions produce the same result, or the `run` function returns a hither2 exception.
 
 ```python
