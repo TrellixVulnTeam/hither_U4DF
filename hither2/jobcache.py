@@ -1,6 +1,7 @@
 import kachery as ka
 from .database import Database
 from ._util import _deserialize_item
+from ._enums import JobStatus
 from .file import File
 
 class JobCache:
@@ -20,20 +21,20 @@ class JobCache:
         doc = db.find_one(query)
         if doc is None:
             return False
-        if doc['status'] == 'finished':
+        if doc['status'] == JobStatus.FINISHED:
             result0 = _deserialize_item(doc['result'])
             if not _check_files_all_exist_locally_in_item(result0):
                 print(f'Found result in cache, but files do not exist locally: {job._label}')
                 return False
-            job._status = 'finished'
+            job._status = JobStatus.FINISHED
             job._result = result0
             job._runtime_info = doc['runtime_info']
             job._exception = None
             print(f'Using cached result for job: {job._label} ({job._function_name} {job._function_version})')
             return True
-        elif doc['status'] == 'error':
+        elif doc['status'] == JobStatus.ERROR:
             if self._cache_failing and (not self._rerun_failing):
-                job._status = 'error'
+                job._status = JobStatus.ERROR
                 job._result = None
                 job._runtime_info = doc['runtime_info']
                 job._exception = Exception(doc['exception'])
@@ -42,7 +43,8 @@ class JobCache:
         return False
     def cache_job_result(self, job):
         from .core import _serialize_item
-        if job._status == 'error':
+        assert isinstance(job._status, JobStatus)
+        if job._status == JobStatus.ERROR:
             if not self._cache_failing:
                 return
         hash0 = self._compute_job_hash(job)
@@ -53,7 +55,7 @@ class JobCache:
         update = {
             '$set': dict(
                 hash=hash0,
-                status=job._status,
+                status=job._status.value,
                 result=_serialize_item(job._result),
                 runtime_info=job._runtime_info,
                 exception='{}'.format(job._exception)

@@ -13,6 +13,7 @@ from ._util import _random_string, _docker_form_of_container_string, _deserializ
 from .jobcache import JobCache
 from .file import File
 from ._resolve_files_in_item import _resolve_files_in_item, _deresolve_files_in_item
+from ._enums import JobStatus
 
 # TODO: think about splitting this file into pieces
 
@@ -22,17 +23,6 @@ _default_global_config = dict(
     job_cache=None,
     download_results=None,
     job_timeout=None
-    # cache=None,
-    # cache_failing=None,
-    # rerun_failing=None,
-    # force_run=None,
-    # gpu=None,
-    # exception_on_fail=None, # None means True
-    # job_handler=None,
-    # show_console=None, # None means True
-    # show_cached_console=None, # None means False
-    # job_timeout=None,
-    # log_path=None
 )
 
 _global_config = ETConf(
@@ -117,7 +107,7 @@ class _JobManager:
         self._queued_jobs = dict()
         self._running_jobs = dict()
     def queue_job(self, job):
-        job._status = 'queued'
+        job._status = JobStatus.QUEUED
         self._queued_jobs[job._job_id] = job
     def iterate(self):
         # Called periodically during wait()
@@ -133,20 +123,20 @@ class _JobManager:
                     try:
                         _prepare_container(job._container)
                     except:
-                        job._status = 'error'
+                        job._status = JobStatus.ERROR
                         job._exception = Exception(f'Unable to prepare container for job {job._label}: {job._container}')
 
         # Check which queued jobs are ready to run (and remove jobs where status!='queued')
         for id in queued_job_ids:
             job: Job = self._queued_jobs[id]
-            if job._status != 'queued':
+            if job._status != JobStatus.QUEUED:
                 del self._queued_jobs[id]
             elif not hasattr(job, '_same_hash_as'):
                 if  self._job_is_ready_to_run(job):
                     del self._queued_jobs[id]
-                    if _some_jobs_have_status(job._kwargs, ['error']):
+                    if _some_jobs_have_status(job._kwargs, [JobStatus.ERROR]):
                         exc = _get_first_job_exception_in_item(job._kwargs)
-                        job._status = 'error'
+                        job._status = JobStatus.ERROR
                         job._exception = Exception(f'Exception in argument. {str(exc)}')
                     else:
                         self._running_jobs[id] = job
@@ -154,21 +144,21 @@ class _JobManager:
                         if job._job_cache is not None:
                             if not job._job_handler.is_remote:
                                 job._job_cache.check_job(job)
-                        if job._status == 'queued':
+                        if job._status == JobStatus.QUEUED:
                             # still queued even after checking the cache
                             print(f'')
                             print(f'Handling job: {job._label}')
-                            job._status = 'running'
+                            job._status = JobStatus.RUNNING
                             job._job_handler.handle_job(job)
 
         # Check which running jobs are finished and iterate job handlers of running or preparing jobs
         running_job_ids = list(self._running_jobs.keys())
         for id in running_job_ids:
             job: Job = self._running_jobs[id]
-            if job._status == 'running':
+            if job._status == JobStatus.RUNNING:
                 # Note: we effectively iterate the same job handler potentially many times here -- I think that's okay but not 100% sure.
                 job._job_handler.iterate()
-            if job._status in ['error', 'finished']:
+            if job._status in JobStatus.get_complete_statuses():
                 if job._download_results:
                     _download_files_as_needed_in_item(job._result)
                 if job._job_cache is not None:
@@ -194,11 +184,11 @@ class _JobManager:
                 return
     
     def _job_is_ready_to_run(self, job):
-        assert job._status == 'queued'
-        if _some_jobs_have_status(job._kwargs, ['error']):
+        assert job._status == JobStatus.QUEUED
+        if _some_jobs_have_status(job._kwargs, [JobStatus.ERROR]):
             # In this case the job will error due to an error input
             return True
-        if _some_jobs_have_status(job._kwargs, ['pending', 'queued', 'running']):
+        if _some_jobs_have_status(job._kwargs, JobStatus.get_incomplete_statuses()):
             return False
         return True
     
@@ -371,7 +361,7 @@ class Job:
         self._download_results = download_results
         self._job_timeout = None
 
-        self._status = 'pending'
+        self._status = JobStatus.PENDING
         self._result = None
         self._runtime_info = None
         self._exception: Union[Exception, None] = None
@@ -409,7 +399,7 @@ class Job:
         if resolve_files and self._job_handler.is_remote:
             # in this case, we need to make sure that files are downloaded from the remote resource
             if not self._download_results:
-                if self._status in ['pending', 'queued']:
+                if self._status in JobStatus.get_prerun_statuses():
                     # it's not too late. Let's just request download now
                     self._download_results = True
                 else:
@@ -433,17 +423,17 @@ class Job:
                         return _resolve_files_in_item(self._result)
         while True:
             self._job_manager.iterate()
-            if self._status == 'finished':
+            if self._status == JobStatus.FINISHED:
                 if resolve_files:
                     return _resolve_files_in_item(self._result)
                 else:
                     return self._result
-            elif self._status == 'error':
+            elif self._status == JobStatus.ERROR:
                 assert self._exception is not None
                 raise self._exception
-            elif self._status == 'queued':
+            elif self._status == JobStatus.QUEUED:
                 pass
-            elif self._status == 'running':
+            elif self._status == JobStatus.RUNNING:
                 pass
             else:
                 raise Exception(f'Unexpected status: {self._status}') # pragma: no cover
@@ -457,11 +447,11 @@ class Job:
     def status(self):
         return self._status
     def result(self):
-        if self._status == 'finished':
+        if self._status == JobStatus.FINISHED:
             return self._result
         raise Exception('Cannot get result of job that is not yet finished.')
     def exception(self):
-        if self._status == 'error':
+        if self._status == JobStatus.ERROR:
             assert self._exception is not None
         return self._exception
     def set(self, *, label=None):
@@ -477,12 +467,12 @@ class Job:
             self._runtime_info = runtime_info
             if success:
                 self._result = result
-                self._status = 'finished'
+                self._status = JobStatus.FINISHED
             else:
                 assert error is not None
                 assert error != 'None'
                 self._exception = Exception(error)
-                self._status = 'error'
+                self._status = JobStatus.ERROR
         else:
             assert self._f is not None, 'Cannot execute job outside of container when function is not available'
             try:
@@ -493,9 +483,9 @@ class Job:
                 ret = self._f(**kwargs)
                 self._result = _deresolve_files_in_item(ret)
                 # self._result = _deserialize_item(_serialize_item(ret))
-                self._status = 'finished'
+                self._status = JobStatus.FINISHED
             except Exception as e:
-                self._status = 'error'
+                self._status = JobStatus.ERROR
                 self._exception = e
     def _serialize(self, generate_code):
         function_name = self._function_name
@@ -590,7 +580,7 @@ def _some_jobs_have_status(x, status_list):
 
 def _get_first_job_exception_in_item(x):
     if isinstance(x, Job):
-        if x._status == 'error':
+        if x._status == JobStatus.ERROR:
             return f'{x._label}: {str(x._exception)}'
     elif type(x) == dict:
         for v in x.values():
@@ -615,7 +605,7 @@ def _mark_download_results_for_remote_jobs_in_item(x):
     # In that case, we need to insert another 'identity' job
     if isinstance(x, Job):
         if x._job_handler.is_remote:
-            if x._status in ['pending', 'queued']:
+            if x._status in JobStatus.get_prerun_statuses():
                 x._download_results = True
                 return x
             else:

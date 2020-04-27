@@ -5,6 +5,7 @@ import kachery as ka
 from hither2 import _deserialize_item
 from ._util import _random_string, _utctime
 from .database import Database
+from ._enums import JobStatus
 from .file import File
 from ._load_config import _load_preset_config_from_github
 
@@ -65,8 +66,8 @@ class RemoteJobHandler:
             handler_id=self._handler_id,
             job_id=job._job_id,
             job_serialized=job_serialized,
-            status='queued',
-            compute_resource_status='pending',
+            status=JobStatus.QUEUED.value,
+            compute_resource_status=JobStatus.PENDING.value,
             runtime_info=None,
             result=None,
             last_modified_by_compute_resource=False,
@@ -106,24 +107,24 @@ class RemoteJobHandler:
                 job_id = doc['job_id']
                 if job_id in self._jobs:
                     j = self._jobs[job_id]
-                    compute_resource_status = doc['compute_resource_status']
-                    if compute_resource_status == 'queued':
+                    compute_resource_status = JobStatus(doc['compute_resource_status'])
+                    if compute_resource_status == JobStatus.QUEUED:
                         print(f'Job queued: {job_id}')
-                    elif compute_resource_status == 'running':
+                    elif compute_resource_status == JobStatus.RUNNING:
                         print(f'Job running: {job_id}')
-                    elif compute_resource_status == 'finished':
+                    elif compute_resource_status == JobStatus.FINISHED:
                         print(f'Job finished: {job_id}')
                         self._internal_counts.num_finished_jobs += 1
                         j._runtime_info = doc['runtime_info']
-                        j._status = 'finished'
+                        j._status = JobStatus.FINISHED
                         j._result = _deserialize_item(doc['result'])
                         self._attach_remote_job_handler_to_files_in_item(j._result)
                         del self._jobs[job_id]
-                    elif compute_resource_status == 'error':
+                    elif compute_resource_status == JobStatus.ERROR:
                         print(f'Job error: {job_id}')
                         self._internal_counts.num_errored_jobs += 1
                         j._runtime_info = doc['runtime_info']
-                        j._status = 'error'
+                        j._status = JobStatus.ERROR
                         j._exception = Exception(doc['exception'])
                         del self._jobs[job_id]
                     else:

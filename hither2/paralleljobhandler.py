@@ -5,6 +5,8 @@ from multiprocessing.connection import Connection
 import time
 import hither2 as hi
 
+from ._enums import JobStatus
+
 class ParallelJobHandler:
     def __init__(self, num_workers):
         self.is_remote = False
@@ -21,25 +23,25 @@ class ParallelJobHandler:
             job=job,
             process=process,
             pipe_to_child=pipe_to_child,
-            pjh_status='pending'
+            pjh_status=JobStatus.PENDING
         ))
     
     def cancel_job(self, job_id):
         for p in self._processes:
             if p['job']._job_id == job_id:
-                if p['pjh_status'] == 'running':
+                if p['pjh_status'] == JobStatus.RUNNING:
                     pp = p['process']
                     print(f'Terminating process.')
                     pp.terminate()
                     pp.join()
-                p['pjh_status'] = 'canceled'
+                p['pjh_status'] = JobStatus.CANCELED
     
     def iterate(self):
         if self._halted:
             return
 
         for p in self._processes:
-            if p['pjh_status'] == 'running':
+            if p['pjh_status'] == JobStatus.RUNNING:
                 if p['pipe_to_child'].poll():
                     ret = p['pipe_to_child'].recv()
                     p['pipe_to_child'].send('okay!')
@@ -47,18 +49,18 @@ class ParallelJobHandler:
                     p['job']._status = ret['status']
                     p['job']._exception = ret['exception']
                     p['job']._runtime_info = ret['runtime_info']
-                    p['pjh_status'] = 'finished'
+                    p['pjh_status'] = JobStatus.FINISHED
         
         num_running = 0
         for p in self._processes:
-            if p['pjh_status'] == 'running':
+            if p['pjh_status'] == JobStatus.RUNNING:
                 num_running = num_running + 1
 
         for p in self._processes:
-            if p['pjh_status'] == 'pending':
+            if p['pjh_status'] == JobStatus.PENDING:
                 if num_running < self._num_workers:
-                    p['pjh_status'] = 'running'
-                    p['job']._status = 'running'
+                    p['pjh_status'] = JobStatus.RUNNING
+                    p['job']._status = JobStatus.RUNNING
                     p['process'].start()
                     num_running = num_running + 1
         

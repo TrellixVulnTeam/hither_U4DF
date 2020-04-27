@@ -3,7 +3,11 @@ import kachery as ka
 from .core import _serialize_item, _deserialize_job, _prepare_container
 from ._util import _random_string, _utctime
 from .database import Database
+from ._enums import JobStatus
 from .file import File
+
+# TODO: Functionalize, tighten.
+# TODO: Consider filtering db query/filter/update statements through an interface function.
 
 class ComputeResource:
     def __init__(self, *, database: Database, compute_resource_id, kachery, job_handler, job_cache=None):
@@ -42,8 +46,8 @@ class ComputeResource:
             query = dict(
                 compute_resource_id=self._compute_resource_id,
                 last_modified_by_compute_resource=False,
-                status='queued',
-                compute_resource_status='pending'
+                status=JobStatus.QUEUED.value,
+                compute_resource_status=JobStatus.PENDING.value  # status on the compute resource
             )
             for doc in db.find(query):
                 self._report_action()
@@ -54,8 +58,8 @@ class ComputeResource:
         for job_id in job_ids:
             job = self._jobs[job_id]
             reported_status = getattr(job, '_reported_status')
-            if job._status == 'running':
-                if reported_status != 'running':
+            if job._status == JobStatus.RUNNING:
+                if reported_status != JobStatus.RUNNING:
                     print(f'Job running: {job_id}')
                     filter0 = dict(
                         compute_resource_id=self._compute_resource_id,
@@ -63,21 +67,21 @@ class ComputeResource:
                     )
                     update = {
                         '$set': dict(
-                            status='running',
-                            compute_resource_status='running',
+                            status=JobStatus.RUNNING.value,
+                            compute_resource_status=JobStatus.RUNNING.value,
                             last_modified_by_compute_resource=True
                         )
                     }
                     db.update_one(filter0, update=update)
                     self._report_action()
-                    setattr(job, '_reported_status', 'running')
-            elif job._status == 'finished':
+                    setattr(job, '_reported_status', JobStatus.RUNNING)
+            elif job._status == JobStatus.FINISHED:
                 print(f'Job finished: {job_id}')
                 self._handle_finished_job(job)
                 if self._job_cache is not None:
                     self._job_cache.cache_job_result(job)
                 del self._jobs[job_id]
-            elif job._status == 'error':
+            elif job._status == JobStatus.ERROR:
                 # _print_console_out(job._runtime_info['console_out'])
                 print(job._exception)
                 print(f'Job error: {job_id}')
@@ -126,17 +130,14 @@ class ComputeResource:
         if job_serialized['code'] is not None:
             try:
                 code_obj = ka.load_object(job_serialized['code'], fr=self._kachery)
+                if code_obj is None:
+                    raise Exception("Kachery returned no serialized code for function.")
+                job_serialized['code'] = code_obj
             except Exception as e:
                 exc = f'Error loading code for function {label}: {job_serialized["code"]} ({str(e)})'
                 print(exc)
                 self._mark_job_as_error(job_id=job_id, exception=Exception(exc), runtime_info=None)
                 return
-            if code_obj is None:
-                exc = f'Unable to load code for function {label}: {job_serialized["code"]}'
-                print(exc)
-                self._mark_job_as_error(job_id=job_id, exception=Exception(exc), runtime_info=None)
-                return
-            job_serialized['code'] = code_obj
         container = job_serialized['container']
         if container is None:
             exc = f'Cannot run serialized job outside of container: {label}'
@@ -159,10 +160,10 @@ class ComputeResource:
             compute_resource_id=self._compute_resource_id,
             job_id=doc['job_id']
         )
-        if job._status == 'finished':
+        if job._status == JobStatus.FINISHED:
             print(f'Found job in cache: {label}')
             self._handle_finished_job(job)
-        elif job._status == 'error':
+        elif job._status == JobStatus.ERROR:
             print(f'Found error job in cache: {label}')
             self._mark_job_as_error(job_id=job_id, exception=job._exception, runtime_info=job._runtime_info)
         else:
@@ -177,12 +178,12 @@ class ComputeResource:
             self._job_handler.handle_job(job)
             update = {
                 '$set': dict(
-                    compute_resource_status='queued',
+                    compute_resource_status=JobStatus.QUEUED.value,
                     last_modified_by_compute_resource=True
                 )
             }
             db.update_one(filter0, update=update)
-            setattr(job, '_reported_status', 'queued')
+            setattr(job, '_reported_status', JobStatus.QUEUED)
             setattr(job, '_handler_id', doc['handler_id'])
     
     def _handle_finished_job(self, job):
@@ -199,8 +200,8 @@ class ComputeResource:
         )
         update = {
             '$set': dict(
-                status='error',
-                compute_resource_status='error',
+                status=JobStatus.ERROR.value,
+                compute_resource_status=JobStatus.ERROR.value,
                 result=None,
                 runtime_info=runtime_info,
                 exception='{}'.format(exception),
@@ -218,8 +219,8 @@ class ComputeResource:
         )
         update = {
             '$set': dict(
-                status='finished',
-                compute_resource_status='finished',
+                status=JobStatus.FINISHED.value,
+                compute_resource_status=JobStatus.FINISHED.value,
                 result=_serialize_item(result),
                 runtime_info=runtime_info,
                 exception=None,
