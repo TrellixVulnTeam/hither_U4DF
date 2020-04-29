@@ -1,3 +1,4 @@
+from typing import Union, List, Any, Callable
 import random
 from .file import File
 
@@ -26,7 +27,8 @@ def _serialize_item(x):
         if _is_jsonable(x):
             # this will capture int, float, str, bool
             return x
-        raise Exception(f'Unable to serialize item of type: {type(x)}')
+    # Did not return on any previous statement
+    raise Exception(f'Unable to serialize item of type: {type(x)}')
 
 def _is_jsonable(x):
     import json
@@ -54,7 +56,7 @@ def _deserialize_item(x):
         if _is_jsonable(x):
             # this will capture int, float, str, bool
             return x
-        raise Exception(f'Unable to deserialize item of type: {type(x)}')
+    raise Exception(f'Unable to deserialize item of type: {type(x)}')
 
 # Might be useful to keep these around even though we don't use them any more
 # def _npy_to_b64(x):
@@ -81,3 +83,58 @@ def _random_string(num: int):
     """Generate random string of a given length.
     """
     return ''.join(random.choices('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ', k=num))
+
+def _flatten_nested_collection(item: Any) -> List[Any]:
+    """Return a single list of the base items in a nested data structure consisting of an
+    arbitrary combination of dicts, lists, and tuples.
+
+    Arguments:
+        item {Any} -- (Potentially arbitrarily) nested data structure to flatten. May contain
+        base items and sub-collections at the same level.
+
+    Returns:
+        List[Any] -- Every content (leaf) item of the input structure.
+    """
+    itemtype = type(item)
+    if itemtype not in [dict, list, tuple]:
+        return [item]
+    elements = []
+    if itemtype == dict:
+        for value in item.values():
+            elements.extend(_flatten_nested_collection(value))
+    else: # item is a list or tuple
+        for value in item:
+            elements.extend(_flatten_nested_collection(value))
+        # equivalent to the briefer, but more confusing, version:
+        # elements.extend(value for i in item for value in _flatten_nested_collection(i))
+        # (which is read as "return `value`, for i in item: for value in _fnc(i):")
+    return elements
+
+def _replace_values_in_structure(structure: Any, replacement_function: Callable[..., Any]) -> Any:
+    """Modify values of input data structure in place, according to function.
+
+    Arguments:
+        structure {Any} -- Structure to be modified (dict, list, nested dicts...)
+        replacement_function {Callable[..., Any]} -- Function which applies mutations to
+        the elements of <structure> and returns a new value to be stored in the original
+        data structure. This function should perform whatever type inspection is necessary
+        to ensure it only operates on specific types, and should return, unmodified, any
+        values which it does not operate on.
+
+    Returns:
+        Any -- The original structure, as modified in-place.
+    """
+    entrytype = type(structure)
+    # ignore cases where there is no data structure to modify
+    if entrytype not in [dict, list, tuple]:
+        return replacement_function(structure)
+    if entrytype == dict:
+        for k, v in structure.items():
+            structure[k] = _replace_values_in_structure(v, replacement_function)
+    elif entrytype == list:
+        structure = [_replace_values_in_structure(v, replacement_function) for v in structure]
+    elif entrytype == tuple:
+        structure = tuple([_replace_values_in_structure(v, replacement_function) for v in structure])
+    return structure
+
+

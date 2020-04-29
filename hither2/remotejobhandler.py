@@ -54,7 +54,7 @@ class RemoteJobHandler:
         self._internal_counts.num_jobs += 1
         self._report_active()
 
-        self._send_files_as_needed_in_item(job._kwargs)
+        self._send_files_as_needed_in_item(job._wrapped_function_arguments)
 
         job_serialized = job._serialize(generate_code=True)
         # send the code to the kachery

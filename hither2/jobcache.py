@@ -4,6 +4,7 @@ from ._util import _deserialize_item
 from ._enums import JobStatus
 from .file import File
 
+# TODO: provide wrapper for calls to Database
 class JobCache:
     def __init__(self, database: Database, cache_failing=False, rerun_failing=False, force_run=False):
         self._database = database
@@ -67,7 +68,7 @@ class JobCache:
         hash_object = dict(
             function_name=job._function_name,
             function_version=job._function_version,
-            kwargs=_serialize_item(job._kwargs)
+            kwargs=_serialize_item(job._wrapped_function_arguments)
         )
         if job._no_resolve_input_files:
             hash_object['no_resolve_input_files'] = True

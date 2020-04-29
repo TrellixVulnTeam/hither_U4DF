@@ -168,7 +168,7 @@ class ComputeResource:
             self._mark_job_as_error(job_id=job_id, exception=job._exception, runtime_info=job._runtime_info)
         else:
             try:
-                _download_files_as_needed_in_item(job._kwargs, kachery=self._kachery)
+                _download_files_as_needed_in_item(job._wrapped_function_arguments, kachery=self._kachery)
             except Exception as e:
                 print(f'Error downloading input files for job: {label}')
                 print(e)
