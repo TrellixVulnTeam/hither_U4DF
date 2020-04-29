@@ -17,3 +17,6 @@ from .computeresource import ComputeResource
 from .database import Database
 from .jobcache import JobCache
 from .file import File
+
+# Run a function by name
+from .core import run

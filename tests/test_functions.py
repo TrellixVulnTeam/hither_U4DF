@@ -87,6 +87,10 @@ def test_run_functions(general):
     with hi.config(container=False):
         do_test_run_functions()
 
+def test_run_function_by_name(general):
+    x = hi.run('add', x=1, y=2).wait()
+    assert x is 3
+
 @pytest.mark.container
 def test_run_functions_in_container(general):
     with hi.config(container=True, job_handler=hi.ParallelJobHandler(num_workers=20)):

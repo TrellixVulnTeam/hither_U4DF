@@ -2,6 +2,7 @@ import time
 from typing import Union, Any
 import os
 import sys
+import inspect
 import kachery as ka
 from copy import deepcopy
 from ._etconf import ETConf
@@ -260,10 +261,27 @@ def local_modules(local_modules):
 def wait(timeout: Union[float, None]=None):
     _global_job_manager.wait(timeout)
 
+_global_registered_functions_by_name = dict()
+
+# run a registered function by name
+def run(function_name, **kwargs):
+    assert function_name in _global_registered_functions_by_name, 'Hither function {function_name} not registered'
+    f = _global_registered_functions_by_name[function_name]
+    return f.run(**kwargs)
+
 ############################################################
 def function(name, version):
     def wrap(f):
+        # register the function
         assert f.__name__ == name, f"Name does not match function name: {name} <> {f.__name__}"
+        if name in _global_registered_functions_by_name:
+            path1 = _function_path(f)
+            path2 = _function_path(_global_registered_functions_by_name[name])
+            if path1 != path2:
+                print(f"Warning: Hither function with name {name} is registered in two different files: {path1} {path2}")
+        else:
+            _global_registered_functions_by_name[name] = f
+        
         def run(**kwargs):
             if _global_config.get('container') is True:
                 container = getattr(f, '_hither_container', None)
@@ -678,3 +696,5 @@ def _do_pull_docker_image(container):
     if retcode != 0:
         raise Exception(f'Problem pulling container {container}')
 
+def _function_path(f):
+    return os.path.abspath(inspect.getfile(f))

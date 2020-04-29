@@ -11,7 +11,7 @@ from .do_nothing import do_nothing
 from .bad_container import bad_container
 from .additional_file import additional_file
 from .local_module import local_module
-from .identity import identity
+from .identity import identity2
 
 functions = SimpleNamespace(
     zeros=zeros,

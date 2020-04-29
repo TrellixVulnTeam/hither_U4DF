@@ -2,9 +2,9 @@ import os
 import hither2 as hi
 import numpy as np
 
-@hi.function('identity', '0.1.1')
+@hi.function('identity2', '0.1.1')
 @hi.container('docker://jupyter/scipy-notebook:678ada768ab1')
-def identity(x):
+def identity2(x):
     if type(x) == str:
         if x.startswith('/') and os.path.exists(x):
             return hi.File(x)
@@ -13,12 +13,12 @@ def identity(x):
     elif type(x) == dict:
         ret = dict()
         for key, val in x.items():
-            ret[key] = identity(val)
+            ret[key] = identity2(val)
         return ret
     elif type(x) == list:
-        return [identity(a) for a in x]
+        return [identity2(a) for a in x]
     elif type(x) == tuple:
-        return tuple([identity(a) for a in x])
+        return tuple([identity2(a) for a in x])
     else:
         return x
 
@@ -39,4 +39,4 @@ def test_calls():
         ]
     ]
 
-identity.test_calls = test_calls
+identity2.test_calls = test_calls
