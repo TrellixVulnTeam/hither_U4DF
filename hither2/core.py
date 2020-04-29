@@ -265,7 +265,7 @@ _global_registered_functions_by_name = dict()
 
 # run a registered function by name
 def run(function_name, **kwargs):
-    assert function_name in _global_registered_functions_by_name, 'Hither function {function_name} not registered'
+    assert function_name in _global_registered_functions_by_name, f'Hither function {function_name} not registered'
     f = _global_registered_functions_by_name[function_name]
     return f.run(**kwargs)
 
