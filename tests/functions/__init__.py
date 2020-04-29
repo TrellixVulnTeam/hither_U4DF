@@ -25,6 +25,6 @@ functions = SimpleNamespace(
     bad_container=bad_container,
     additional_file=additional_file,
     local_module=local_module,
-    identity=identity
+    identity=identity2
 )
 
