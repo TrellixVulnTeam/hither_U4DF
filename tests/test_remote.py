@@ -26,7 +26,7 @@ def test_remote_1b(general, mongodb, kachery_server, compute_resource):
         assert np.array_equal(a, np.ones((4, 3)))
         assert jh._internal_counts.num_jobs == 2, f'Unexpected number of jobs: {jh._internal_counts.num_jobs}'
 
-# @pytest.mark.remote
+@pytest.mark.remote
 def test_remote_2(general, mongodb, kachery_server, compute_resource):
     db = hi.Database(mongo_url=f'mongodb://localhost:{MONGO_PORT}', database=DATABASE_NAME)
     jh = hi.RemoteJobHandler(database=db, compute_resource_id=COMPUTE_RESOURCE_ID)
