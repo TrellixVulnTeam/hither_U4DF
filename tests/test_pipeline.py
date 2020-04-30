@@ -14,5 +14,5 @@ def test_pipeline(general):
 
 @pytest.mark.container
 def test_pipeline_in_container(general):
-    with hi.config(container=True):
+    with hi.Config(container=True):
         do_test_pipeline()

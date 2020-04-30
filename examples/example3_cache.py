@@ -30,7 +30,7 @@ def main():
     mongo_url = os.getenv('MONGO_URL', 'mongodb://localhost:27017')
     db = hi.Database(mongo_url=mongo_url, database='hither2')
     cache = hi.JobCache(database=db, force_run=True)
-    with hi.config(job_handler=hi.ParallelJobHandler(num_workers=8), container=False, job_cache=cache):
+    with hi.Config(job_handler=hi.ParallelJobHandler(num_workers=8), container=False, job_cache=cache):
         delay = 1
         val1 = sumsqr_with_delay.run(x=np.array([1]), delay=delay)
         val2 = sumsqr_with_delay.run(x=np.array([1,2]), delay=delay)
@@ -43,7 +43,7 @@ def main():
         assert val4.wait() == 20
     
     cache = hi.JobCache(database=db, force_run=False)
-    with hi.config(job_handler=hi.ParallelJobHandler(num_workers=8), container=False, job_cache=cache):
+    with hi.Config(job_handler=hi.ParallelJobHandler(num_workers=8), container=False, job_cache=cache):
         delay = 1
         val1 = sumsqr_with_delay.run(x=np.array([1]), delay=delay)
         val2 = sumsqr_with_delay.run(x=np.array([1,2]), delay=delay)

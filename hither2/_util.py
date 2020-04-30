@@ -84,9 +84,9 @@ def _random_string(num: int):
     """
     return ''.join(random.choices('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ', k=num))
 
-def _flatten_nested_collection(item: Any) -> List[Any]:
+def _flatten_nested_collection(item: Any, _type: Union[type, None] = None) -> List[Any]:
     """Return a single list of the base items in a nested data structure consisting of an
-    arbitrary combination of dicts, lists, and tuples.
+    arbitrary combination of dicts, lists, and tuples.s
 
     Arguments:
         item {Any} -- (Potentially arbitrarily) nested data structure to flatten. May contain
@@ -96,8 +96,9 @@ def _flatten_nested_collection(item: Any) -> List[Any]:
         List[Any] -- Every content (leaf) item of the input structure.
     """
     itemtype = type(item)
-    if itemtype not in [dict, list, tuple]:
-        return [item]
+    if _type is not None and itemtype != _type: return []
+    if itemtype not in [dict, list, tuple]: return [item]
+    
     elements = []
     if itemtype == dict:
         for value in item.values():

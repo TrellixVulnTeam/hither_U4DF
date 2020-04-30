@@ -1,3 +1,5 @@
+from typing import Dict, List, Union, Any
+
 import kachery as ka
 from .database import Database
 from ._util import _deserialize_item
@@ -5,13 +7,15 @@ from ._enums import JobStatus
 from .file import File
 
 # TODO: provide wrapper for calls to Database
+# TODO: Handle checking for locality of files (may need to pull out that function from Job.py)
 class JobCache:
     def __init__(self, database: Database, cache_failing=False, rerun_failing=False, force_run=False):
         self._database = database
         self._cache_failing = cache_failing
         self._rerun_failing = rerun_failing
         self._force_run = force_run
-    def check_job(self, job):
+
+    def check_job(self, job) -> bool:
         if self._force_run:
             return False
         hash0 = self._compute_job_hash(job)
@@ -42,6 +46,7 @@ class JobCache:
                 print(f'Using cached error for job: {job._label} ({job._function_name} {job._function_version})')
                 return True
         return False
+
     def cache_job_result(self, job):
         from .core import _serialize_item
         assert isinstance(job._status, JobStatus)
@@ -63,6 +68,7 @@ class JobCache:
             )
         }
         db.update_one(query, update, upsert=True)
+
     def _compute_job_hash(self, job):
         from .core import _serialize_item
         hash_object = dict(

@@ -8,6 +8,7 @@ from .file import File
 
 # TODO: Functionalize, tighten.
 # TODO: Consider filtering db query/filter/update statements through an interface function.
+# TODO: Inject a JobManager into this instead of relying on redirection through core._prepare_container
 
 class ComputeResource:
     def __init__(self, *, database: Database, compute_resource_id, kachery, job_handler, job_cache=None):

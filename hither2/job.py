@@ -1,14 +1,15 @@
 import os
 import sys
 import time
-from typing import Union, Any
+from typing import Dict, List, Union, Any
 from copy import deepcopy
 
 import kachery as ka
-from ._config import config
+from ._Config import Config
 from ._enums import JobStatus
 from .file import File
 from ._generate_source_code_for_function import _generate_source_code_for_function
+from .remotejobhandler import RemoteJobHandler
 from ._resolve_files_in_item import _resolve_files_in_item, _deresolve_files_in_item
 from ._run_serialized_job_in_container import _run_serialized_job_in_container
 from ._util import _random_string, _docker_form_of_container_string, _deserialize_item, _serialize_item, _flatten_nested_collection, _replace_values_in_structure
@@ -62,7 +63,7 @@ class Job:
         if resolve_files and self._job_handler.is_remote:
             # in this case, we need to make sure that files are downloaded from the remote resource
             if not self._download_results:
-                if self._status in JobStatus.get_prerun_statuses():
+                if not self._status in JobStatus.prerun_statuses():
                     # it's not too late. Let's just request download now
                     self._download_results = True
                 else:
@@ -74,7 +75,7 @@ class Job:
                     if not self.result_files_are_available_locally(result):
                         from ._identity import identity
                         assert self._substitute_job_for_wait is None, 'Unexpected at this point in the code: self._substitute_job_for_wait is not None'
-                        with config(job_handler=self._job_handler, download_results=True):
+                        with Config(job_handler=self._job_handler, download_results=True):
                             self._substitute_job_for_wait = identity.run(x=result)
                         # compute the remainder timeout for this call to wait()
                         timeout2 = timeout
@@ -112,7 +113,15 @@ class Job:
         return self._status
 
     def has_been_submitted(self) -> bool:
-        return not self._status in JobStatus.get_prerun_statuses()
+        return not self._status in JobStatus.prerun_statuses()
+
+    def run_self(self):
+        if self._status == JobStatus.QUEUED:
+            # still queued even after checking the cache
+            print(f"\nHandling job: {self._label}")
+            self._status = JobStatus.RUNNING
+            self._job_handler.handle_job(self) 
+    
 
     def result_files_are_available_locally(self, results: Any = None) -> bool:
         """Indicates whether the File-type objects in `results` have been loaded into kachery.
@@ -159,7 +168,7 @@ class Job:
             # replace this job with one that just reads the old job's results, and has
             # the "download me" bit set.
             from ._identity import identity
-            with config(job_handler=job._job_handler, download_results=True, container=True):
+            with Config(job_handler=job._job_handler, download_results=True, container=True):
                 return identity.run(x=job)
 
     def flag_remote_file_results_for_download(self) -> None:
@@ -241,8 +250,98 @@ class Job:
         )
         self._efficiency_job_hash_ = ka.get_object_hash(efficiency_job_hash_obj)
         return self._efficiency_job_hash_
+
+    # TODO: is str the correct type for kachery parameter?
+    def download_results_if_needed(self, kachery:str = '') -> None:
+        results = _flatten_nested_collection(self._result)
+        for r in results:
+            self._download_file_as_needed(r, kachery)
+
+    def download_parameter_files_if_needed(self, kachery:str = '') -> None:
+        arguments = _flatten_nested_collection(self._wrapped_function_arguments)
+        for a in arguments:
+            self._download_file_as_needed(a, kachery)
+
+    def _download_file_as_needed(self, _file: Any, kachery_src:str = '') -> None:
+        if not isinstance(_file, File):
+            return
+        # look for file locally or in the specified remote, if any.
+        # If found locally, we're done; if found in the kachery source, this downloads it.
+        local_path = ka.load_file(_file._sha1_path, fr=kachery_src)
+        if local_path is not None:
+            return
+        # couldn't find it locally, try remote handler if it exists.
+        remote_handler: RemoteJobHandler = getattr(_file, '_remote_job_handler', None)
+        if remote_handler is None:
+            raise Exception(f"Unable to download file: {_file._sha1_path} locally or from " +
+                f"kachery source '{kachery_src}', and no remote_job_handler is attached to the file.")
+        # Remote handler does exist. See if it can find the file.
+        remote_path = remote_handler._load_file(_file.sha1_path)
+        assert remote_path is not None, f"Unable to load file {_file._sha1_path} " + \
+            f"from remote compute resource: {remote_handler._compute_resource_id}."
+
+    # TODO: What guarantee do we have that these are actually all complete?
+    def resolve_wrapped_job_values(self) -> None:
+        _replace_values_in_structure(self._wrapped_function_arguments,
+            lambda arg: arg.result() if isinstance(arg, Job) else arg)
+
+    def is_ready_to_run(self) -> bool:
+        """Checks current status and status of Jobs this Job depends on, to determine whether this
+        Job can be run.
+
+        Raises:
+            NotImplementedError: For _same_hash_as functionality.
+
+        Returns:
+            bool -- True if this Job can be run (or depends on an errored Job such that it will
+            never run successfully); False if it might run in the future and should wait further.
+        """
+        if hasattr(self, '_same_hash_as'):
+            raise NotImplementedError # TODO: this
+        if self._status not in [JobStatus.QUEUED, JobStatus.ERROR]: return False
+        # TODO: make the following line neater, confirm revised function works
+        wrapped_jobs: List[Job] = [job for job in _flatten_nested_collection(self._wrapped_function_arguments) if isinstance(job, Job)]
+        # Check if we depend on any Job that's in error status. If we do, we are in error status,
+        # since that dependency is now unresolvable
+        errored_jobs: List[Job] = [e for e in wrapped_jobs if e._status == JobStatus.ERROR]
+        if errored_jobs:
+            self.unwrap_error_from_wrapped_job()
+            return True
+
+        # If any job we depend on is still incomplete, we are not ready to run
+        incomplete_jobs: List[Job] = [j for j in wrapped_jobs if j._status in JobStatus.incomplete_statuses()]
+        if incomplete_jobs:
+            return False
+
+        # in the absence of any Job dependency issues, assume we are ready to run
+        return True
+
+    def unwrap_error_from_wrapped_job(self) -> None:
+        """If any Job this Job depends on has an error status, set own status to error and bubble up
+        the content of the error from an arbitrarily chosen inner Job.
+        Avoid overwriting any existing errors. If no depended-upon Job is in an error status, do nothing.
+        """
+        if self._exception is not None:
+            self._status = JobStatus.ERROR
+            return             # don't overwrite an existing error
+        wrapped_jobs: List[Job] = [j for j in _flatten_nested_collection(self._wrapped_function_arguments) if isinstance(j, Job)]
+        errored_jobs: List[Job] = [e for e in wrapped_jobs if e._status == JobStatus.ERROR]
+        if not errored_jobs: return
+        self._status = JobStatus.ERROR
+        self._exception = Exception(f'Exception in wrapped Job: {str(errored_jobs[0]._exception)}')
+
+    def needs_a_container_built(self) -> bool:
+        """Returns whether this Job needs to have a container built before it can be run.
+
+        Returns:
+            bool -- Whether this Job requires a container to be built before it can be run.
+        """
+        if self._container is None: return False
+        if self._job_handler.is_remote: return False
+        return True
+
     
-    def _serialize(self, generate_code):
+    def _serialize(self, generate_code:bool):
         function_name = self._function_name
         function_version = self._function_version
         if generate_code:

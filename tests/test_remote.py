@@ -9,7 +9,7 @@ def test_remote_1(general, mongodb, kachery_server, compute_resource):
     print("Entered test")
     db = hi.Database(mongo_url=f'mongodb://localhost:{MONGO_PORT}', database=DATABASE_NAME)
     jh = hi.RemoteJobHandler(database=db, compute_resource_id=COMPUTE_RESOURCE_ID)
-    with hi.config(job_handler=jh, container=True):
+    with hi.Config(job_handler=jh, container=True):
         a = fun.ones.run(shape=(4, 3))
         print("Point A")
         a = a.wait()
@@ -21,7 +21,7 @@ def test_remote_1(general, mongodb, kachery_server, compute_resource):
 def test_remote_1b(general, mongodb, kachery_server, compute_resource):
     db = hi.Database(mongo_url=f'mongodb://localhost:{MONGO_PORT}', database=DATABASE_NAME)
     jh = hi.RemoteJobHandler(database=db, compute_resource_id=COMPUTE_RESOURCE_ID)
-    with hi.config(job_handler=jh, container=True):
+    with hi.Config(job_handler=jh, container=True):
         a = fun.ones.run(shape=(4, 3))
         hi.wait()
         # we should get an implicit 'identity' job here
@@ -33,7 +33,7 @@ def test_remote_1b(general, mongodb, kachery_server, compute_resource):
 def test_remote_2(general, mongodb, kachery_server, compute_resource):
     db = hi.Database(mongo_url=f'mongodb://localhost:{MONGO_PORT}', database=DATABASE_NAME)
     jh = hi.RemoteJobHandler(database=db, compute_resource_id=COMPUTE_RESOURCE_ID)
-    with hi.config(job_handler=jh, container=True):
+    with hi.Config(job_handler=jh, container=True):
         a = fun.ones.run(shape=(4, 3))
         b = fun.add.run(x=a, y=a)
         b = b.wait()
@@ -44,7 +44,7 @@ def test_remote_2(general, mongodb, kachery_server, compute_resource):
 def test_remote_3(general, mongodb, kachery_server, compute_resource):
     db = hi.Database(mongo_url=f'mongodb://localhost:{MONGO_PORT}', database=DATABASE_NAME)
     jh = hi.RemoteJobHandler(database=db, compute_resource_id=COMPUTE_RESOURCE_ID)
-    with hi.config(job_handler=jh, container=True):
+    with hi.Config(job_handler=jh, container=True):
         a = fun.ones.run(shape=(4, 3))
     
     b = fun.add.run(x=a, y=a)
@@ -56,7 +56,7 @@ def test_remote_3(general, mongodb, kachery_server, compute_resource):
 def test_remote_4(general, mongodb, kachery_server, compute_resource):
     db = hi.Database(mongo_url=f'mongodb://localhost:{MONGO_PORT}', database=DATABASE_NAME)
     jh = hi.RemoteJobHandler(database=db, compute_resource_id=COMPUTE_RESOURCE_ID)
-    with hi.config(job_handler=jh, container=True, download_results=True):
+    with hi.Config(job_handler=jh, container=True, download_results=True):
         a = fun.ones.run(shape=(4, 3))
         b = fun.ones.run(shape=(4, 3))
         hi.wait()

@@ -7,7 +7,7 @@ from .jobcache import JobCache
 class Inherit(Enum):
     INHERIT = ''
 
-class config:
+class Config:
     config_stack: Deque[Dict[str, Any]] = deque()
 
 
@@ -24,7 +24,7 @@ class config:
         Example usage:
         ```
         import hither2 as hi
-        with hi.config(container=True):
+        with hi.Config(container=True):
             # code goes here
         ```
         
@@ -42,7 +42,7 @@ class config:
         job_timeout : Union[float, None], optional
             A timeout time (in seconds) for each function job, by default None
         """
-        old_config = config.config_stack[-1] # throws if no default set
+        old_config = Config.config_stack[-1] # throws if no default set
         self.new_config = dict()
         for k, v in old_config.items():
             # NOTE: per our typing, none of the objects are actually supposed to be dicts
@@ -68,16 +68,16 @@ class config:
                 raise Exception(f"Proposed default configuration is missing a value for {k}")
             if cfg[k] == Inherit.INHERIT:
                 raise Exception(f"Default configuration has no way to inherit the value of {k}.")
-        config.config_stack.clear()
-        config.config_stack.append(cfg)
+        Config.config_stack.clear()
+        Config.config_stack.append(cfg)
 
     @staticmethod
     def get_current_config() -> Dict[str, Any]:
-        return config.config_stack[-1]
+        return Config.config_stack[-1]
 
     @staticmethod
     def get_current_config_value(key: str) -> Any:
-        d = config.config_stack[-1]
+        d = Config.config_stack[-1]
         return d[key]
 
     def get_local_config(self) -> Dict[str, Any]:
@@ -87,9 +87,9 @@ class config:
         return self.new_config[key]
 
     def __enter__(self):
-        config.config_stack.append(self.new_config)
+        Config.config_stack.append(self.new_config)
     def __exit__(self, exc_type, exc_val, exc_tb):
-        config.config_stack.pop()
+        Config.config_stack.pop()
 
     def coalesce(self, name: str, val: Any) -> None:
         if val == Inherit.INHERIT:

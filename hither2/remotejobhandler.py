@@ -2,8 +2,8 @@ from types import SimpleNamespace
 import time
 from typing import Dict
 import kachery as ka
-from hither2 import _deserialize_item
-from ._util import _random_string, _utctime
+#from hither2 import _deserialize_item
+from ._util import _random_string, _utctime, _deserialize_item
 from .database import Database
 from ._enums import JobStatus
 from .file import File

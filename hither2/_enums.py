@@ -17,15 +17,15 @@ class JobStatus(Enum):
     CANCELED = 'canceled' # remote-only status (for compute resource/Slurm/etc)
 
     @classmethod
-    def get_complete_statuses(cls: Type['JobStatus']) -> List['JobStatus']:
+    def complete_statuses(cls: Type['JobStatus']) -> List['JobStatus']:
         return [JobStatus.ERROR, JobStatus.FINISHED, JobStatus.CANCELED]
 
     @classmethod
-    def get_incomplete_statuses(cls: Type['JobStatus']) -> List['JobStatus']:
+    def incomplete_statuses(cls: Type['JobStatus']) -> List['JobStatus']:
         return [JobStatus.QUEUED, JobStatus.RUNNING]
 
     @classmethod
-    def get_prerun_statuses(cls: Type['JobStatus']) -> List['JobStatus']:
+    def prerun_statuses(cls: Type['JobStatus']) -> List['JobStatus']:
         return [JobStatus.PENDING, JobStatus.QUEUED]
     
     
