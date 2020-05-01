@@ -190,14 +190,6 @@ def _get_first_job_exception_in_item(x):
                 return exc
     return None
 
-### TODO: I would like to move the container image preparation into the JobManager.
-# (This would be logical, since we then direct all accesses to the Job through the
-# object that's supposed to be managing it.)
-# However, it is also referenced from computeresource.py.
-# Does that function as a Job Manager? Can it have access to a Job Manager?
-_prepared_singularity_containers = dict()
-_prepared_docker_images = dict()
-
 def _prepare_container(container):
     _global_job_manager.prepare_container(container)
 
