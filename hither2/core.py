@@ -3,6 +3,7 @@ from typing import Union, Any
 import os
 
 from ._Config import Config
+from .defaultjobhandler import DefaultJobHandler
 from ._enums import JobStatus
 from .file import File
 from .job import Job
@@ -142,16 +143,7 @@ def function(name, version):
         setattr(f, 'run', run)
         return f
     return wrap
-
-class DefaultJobHandler:
-    def __init__(self):
-        self.is_remote = False
-    def handle_job(self, job):
-        job._execute()
-    def cancel_job(self, job_id):
-        print('Warning: not yet able to cancel job of defaultjobhandler')
-    def iterate(self):
-        pass
+    
 
 _global_job_handler = DefaultJobHandler()
 

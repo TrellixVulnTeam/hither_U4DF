@@ -3,11 +3,13 @@ import time
 import multiprocessing
 from multiprocessing.connection import Connection
 import time
+
 import hither2 as hi
 
+from ._basejobhandler import BaseJobHandler
 from ._enums import JobStatus
 
-class ParallelJobHandler:
+class ParallelJobHandler(BaseJobHandler):
     def __init__(self, num_workers):
         self.is_remote = False
         self._num_workers = num_workers
@@ -15,6 +17,7 @@ class ParallelJobHandler:
         self._halted = False
 
     def handle_job(self, job):
+        super(ParallelJobHandler, self).handle_job(job)
         import kachery as ka
         pipe_to_parent, pipe_to_child = multiprocessing.Pipe()
         serialized_job = job._serialize(generate_code=(job._container is not None))

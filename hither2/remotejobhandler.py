@@ -3,13 +3,14 @@ import time
 from typing import Dict
 import kachery as ka
 #from hither2 import _deserialize_item
-from ._util import _random_string, _utctime, _deserialize_item
+from ._basejobhandler import BaseJobHandler
 from .database import Database
 from ._enums import JobStatus
 from .file import File
 from ._load_config import _load_preset_config_from_github
+from ._util import _random_string, _utctime, _deserialize_item
 
-class RemoteJobHandler:
+class RemoteJobHandler(BaseJobHandler):
     def __init__(self, *, database: Database, compute_resource_id):
         self.is_remote = True
         
@@ -51,6 +52,7 @@ class RemoteJobHandler:
         return RemoteJobHandler(database=db, compute_resource_id=config['compute_resource_id'])
 
     def handle_job(self, job):
+        super(RemoteJobHandler, self).handle_job(job)
         self._internal_counts.num_jobs += 1
         self._report_active()
 

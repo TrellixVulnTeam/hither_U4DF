@@ -64,7 +64,7 @@ class _JobManager:
                 if not job._job_handler.is_remote:
                     job._job_cache.check_job(job)
             # TODO: Do we actually do anything with the results of that check?
-            job.run_self()
+            job._job_handler.handle_job(job)
 
     def finish_completed_job(self, job:Job) -> None:
         del self._running_jobs[job._job_id]

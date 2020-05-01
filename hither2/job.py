@@ -63,7 +63,7 @@ class Job:
         if resolve_files and self._job_handler.is_remote:
             # in this case, we need to make sure that files are downloaded from the remote resource
             if not self._download_results:
-                if not self._status in JobStatus.prerun_statuses():
+                if self._status in JobStatus.prerun_statuses():
                     # it's not too late. Let's just request download now
                     self._download_results = True
                 else:
@@ -109,19 +109,11 @@ class Job:
             if timeout is not None and elapsed > timeout:
                 return None
 
-    def status(self):
+    def status(self) -> JobStatus:
         return self._status
 
     def has_been_submitted(self) -> bool:
         return not self._status in JobStatus.prerun_statuses()
-
-    def run_self(self):
-        if self._status == JobStatus.QUEUED:
-            # still queued even after checking the cache
-            print(f"\nHandling job: {self._label}")
-            self._status = JobStatus.RUNNING
-            self._job_handler.handle_job(self) 
-    
 
     def result_files_are_available_locally(self, results: Any = None) -> bool:
         """Indicates whether the File-type objects in `results` have been loaded into kachery.
@@ -144,7 +136,7 @@ class Job:
                 return False
         return True
 
-    def _ensure_job_results_available_locally(self, job: Any) -> Any:
+    def ensure_job_results_available_locally(self, job: Any) -> Any:
         """Ensures that all results produced by Jobs that the present Job depends upon
         will be available locally.
 
@@ -185,7 +177,7 @@ class Job:
         # any are Jobs being run remotely, set to download their files.
         # In the event they've already run, replace those Jobs with a dummy job that will just
         # download the files (to make sure that result gets cached).
-        _replace_values_in_structure(self._wrapped_function_arguments, self._ensure_job_results_available_locally)
+        _replace_values_in_structure(self._wrapped_function_arguments, self.ensure_job_results_available_locally)
 
     def result(self):
         if self._status == JobStatus.FINISHED:
@@ -252,33 +244,15 @@ class Job:
         return self._efficiency_job_hash_
 
     # TODO: is str the correct type for kachery parameter?
-    def download_results_if_needed(self, kachery:str = '') -> None:
-        results = _flatten_nested_collection(self._result)
-        for r in results:
-            self._download_file_as_needed(r, kachery)
+    def download_results_if_needed(self, kachery:Union[str, None] = None) -> None:
+        for f in _flatten_nested_collection(self._result):
+            if isinstance(f, File):
+                f.ensure_local_availability(kachery)
 
-    def download_parameter_files_if_needed(self, kachery:str = '') -> None:
-        arguments = _flatten_nested_collection(self._wrapped_function_arguments)
-        for a in arguments:
-            self._download_file_as_needed(a, kachery)
-
-    def _download_file_as_needed(self, _file: Any, kachery_src:str = '') -> None:
-        if not isinstance(_file, File):
-            return
-        # look for file locally or in the specified remote, if any.
-        # If found locally, we're done; if found in the kachery source, this downloads it.
-        local_path = ka.load_file(_file._sha1_path, fr=kachery_src)
-        if local_path is not None:
-            return
-        # couldn't find it locally, try remote handler if it exists.
-        remote_handler: RemoteJobHandler = getattr(_file, '_remote_job_handler', None)
-        if remote_handler is None:
-            raise Exception(f"Unable to download file: {_file._sha1_path} locally or from " +
-                f"kachery source '{kachery_src}', and no remote_job_handler is attached to the file.")
-        # Remote handler does exist. See if it can find the file.
-        remote_path = remote_handler._load_file(_file.sha1_path)
-        assert remote_path is not None, f"Unable to load file {_file._sha1_path} " + \
-            f"from remote compute resource: {remote_handler._compute_resource_id}."
+    def download_parameter_files_if_needed(self, kachery:Union[str, None] = None) -> None:
+        for a in _flatten_nested_collection(self._wrapped_function_arguments):
+            if isinstance(a, File):
+                a.ensure_local_availability(kachery)
 
     # TODO: What guarantee do we have that these are actually all complete?
     def resolve_wrapped_job_values(self) -> None:

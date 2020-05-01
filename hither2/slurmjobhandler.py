@@ -5,7 +5,9 @@ import random
 import signal
 import shutil
 import traceback
+from ._basejobhandler import BaseJobHandler
 from ._shellscript import ShellScript
+from ._util import _random_string
 from ._filelock import FileLock
 from ._enums import JobStatus
 from typing import Optional, List, Union
@@ -15,7 +17,7 @@ from os import rename
 
 DEFAULT_JOB_TIMEOUT = 1200
 
-class SlurmJobHandler:
+class SlurmJobHandler(BaseJobHandler):
     is_remote = False
     def __init__(self, *,
         working_dir: str,
@@ -67,6 +69,7 @@ class SlurmJobHandler:
         job : hither job
             The job to run.
         """
+        super(SlurmJobHandler, self).handle_job(job)
         job_timeout = job._job_timeout
         if job_timeout is None:
             job_timeout = DEFAULT_JOB_TIMEOUT
@@ -824,8 +827,3 @@ def _rmdir_with_retries(dirname, num_retries, delay_between_tries=1):
             else:
                 raise Exception('Unable to remove directory after {} tries: {}'.format(num_retries, dirname))
 
-
-def _random_string(num: int):
-    """Generate random string of a given length.
-    """
-    return ''.join(random.choices('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ', k=num))
