@@ -127,10 +127,9 @@ class Job:
             bool -- True if all File objects in the result are in Kachery, else False.
         """
         actual_result = self._result if results is None else results
-        result_items = _flatten_nested_collection(actual_result)
+        result_items = _flatten_nested_collection(actual_result, _type=File)
         for item in result_items:
-            if not isinstance(item, File):
-                continue
+            assert isinstance(item, File), "Filter failed."
             info = ka.get_file_info(item._sha1_path, fr=None)
             if info is None:
                 return False
@@ -245,14 +244,14 @@ class Job:
 
     # TODO: is str the correct type for kachery parameter?
     def download_results_if_needed(self, kachery:Union[str, None] = None) -> None:
-        for f in _flatten_nested_collection(self._result):
-            if isinstance(f, File):
-                f.ensure_local_availability(kachery)
+        for f in _flatten_nested_collection(self._result, _type=File):
+            assert isinstance(f, File), "Filter failed."
+            f.ensure_local_availability(kachery)
 
     def download_parameter_files_if_needed(self, kachery:Union[str, None] = None) -> None:
-        for a in _flatten_nested_collection(self._wrapped_function_arguments):
-            if isinstance(a, File):
-                a.ensure_local_availability(kachery)
+        for a in _flatten_nested_collection(self._wrapped_function_arguments, _type=File):
+            assert isinstance(a, File), "Filter failed."
+            a.ensure_local_availability(kachery)
 
     # TODO: What guarantee do we have that these are actually all complete?
     def resolve_wrapped_job_values(self) -> None:
@@ -274,7 +273,7 @@ class Job:
             raise NotImplementedError # TODO: this
         if self._status not in [JobStatus.QUEUED, JobStatus.ERROR]: return False
         # TODO: make the following line neater, confirm revised function works
-        wrapped_jobs: List[Job] = [job for job in _flatten_nested_collection(self._wrapped_function_arguments) if isinstance(job, Job)]
+        wrapped_jobs: List[Job] = _flatten_nested_collection(self._wrapped_function_arguments, _type=Job)
         # Check if we depend on any Job that's in error status. If we do, we are in error status,
         # since that dependency is now unresolvable
         errored_jobs: List[Job] = [e for e in wrapped_jobs if e._status == JobStatus.ERROR]
@@ -298,7 +297,7 @@ class Job:
         if self._exception is not None:
             self._status = JobStatus.ERROR
             return             # don't overwrite an existing error
-        wrapped_jobs: List[Job] = [j for j in _flatten_nested_collection(self._wrapped_function_arguments) if isinstance(j, Job)]
+        wrapped_jobs: List[Job] = _flatten_nested_collection(self._wrapped_function_arguments, _type=Job)
         errored_jobs: List[Job] = [e for e in wrapped_jobs if e._status == JobStatus.ERROR]
         if not errored_jobs: return
         self._status = JobStatus.ERROR

@@ -84,7 +84,7 @@ def _random_string(num: int):
     """
     return ''.join(random.choices('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ', k=num))
 
-def _flatten_nested_collection(item: Any, _type: Union[type, None] = None) -> List[Any]:
+def _flatten_nested_collection(item: Any, _type: Union[Any, None] = None) -> List[Any]:
     """Return a single list of the base items in a nested data structure consisting of an
     arbitrary combination of dicts, lists, and tuples.s
 
@@ -96,16 +96,17 @@ def _flatten_nested_collection(item: Any, _type: Union[type, None] = None) -> Li
         List[Any] -- Every content (leaf) item of the input structure.
     """
     itemtype = type(item)
-    if _type is not None and itemtype != _type: return []
-    if itemtype not in [dict, list, tuple]: return [item]
-    
+    if itemtype not in [dict, list, tuple]: 
+        if _type is not None and not isinstance(item, _type): return []
+        return [item]
+
     elements = []
     if itemtype == dict:
         for value in item.values():
-            elements.extend(_flatten_nested_collection(value))
+            elements.extend(_flatten_nested_collection(value, _type))
     else: # item is a list or tuple
         for value in item:
-            elements.extend(_flatten_nested_collection(value))
+            elements.extend(_flatten_nested_collection(value, _type))
         # equivalent to the briefer, but more confusing, version:
         # elements.extend(value for i in item for value in _flatten_nested_collection(i))
         # (which is read as "return `value`, for i in item: for value in _fnc(i):")
