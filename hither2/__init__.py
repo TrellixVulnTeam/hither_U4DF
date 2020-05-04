@@ -8,8 +8,7 @@ from ._shellscript import ShellScript
 from ._filelock import FileLock
 from ._consolecapture import ConsoleCapture
 from .core import _deserialize_job
-from ._resolve_files_in_item import _resolve_files_in_item, _deresolve_files_in_item
-from ._util import _serialize_item, _deserialize_item
+from ._util import _serialize_item, _deserialize_item, _replace_values_in_structure
 from .paralleljobhandler import ParallelJobHandler
 from .slurmjobhandler import SlurmJobHandler
 from .remotejobhandler import RemoteJobHandler

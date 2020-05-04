@@ -1,5 +1,6 @@
 import inspect
 from typing import Union, Any
+from numpy import ndarray
 import os
 
 from ._Config import Config
@@ -148,48 +149,11 @@ def function(name, version):
 _global_job_handler = DefaultJobHandler()
 
 
+# TODO: Would be nice to avoid needing this
 def _deserialize_job(serialized_job):
     return Job._deserialize(serialized_job)
 
-def _some_jobs_have_status(x, status_list):
-    if isinstance(x, Job):
-        if x._status in status_list:
-            return True
-    elif type(x) == dict:
-        for v in x.values():
-            if _some_jobs_have_status(v, status_list):
-                return True
-    elif type(x) == list:
-        for v in x:
-            if _some_jobs_have_status(v, status_list):
-                return True
-    elif type(x) == tuple:
-        for v in x:
-            if _some_jobs_have_status(v, status_list):
-                return True
-    return False
-
-def _get_first_job_exception_in_item(x):
-    if isinstance(x, Job):
-        if x._status == JobStatus.ERROR:
-            return f'{x._label}: {str(x._exception)}'
-    elif type(x) == dict:
-        for v in x.values():
-            exc = _get_first_job_exception_in_item(v)
-            if exc is not None:
-                return exc
-    elif type(x) == list:
-        for v in x:
-            exc = _get_first_job_exception_in_item(v)
-            if exc is not None:
-                return exc
-    elif type(x) == tuple:
-        for v in x:
-            exc = _get_first_job_exception_in_item(v)
-            if exc is not None:
-                return exc
-    return None
-
+# TODO: Would be nice to avoid needing this
 def _prepare_container(container):
     _global_job_manager.prepare_container(container)
 

@@ -1,8 +1,9 @@
+from copy import deepcopy
+from numpy import ndarray
 import os
 import sys
 import time
 from typing import Dict, List, Union, Any
-from copy import deepcopy
 
 import kachery as ka
 from ._Config import Config
@@ -10,7 +11,6 @@ from ._enums import JobStatus
 from .file import File
 from ._generate_source_code_for_function import _generate_source_code_for_function
 from .remotejobhandler import RemoteJobHandler
-from ._resolve_files_in_item import _resolve_files_in_item, _deresolve_files_in_item
 from ._run_serialized_job_in_container import _run_serialized_job_in_container
 from ._util import _random_string, _docker_form_of_container_string, _deserialize_item, _serialize_item, _flatten_nested_collection, _replace_values_in_structure
 
@@ -27,7 +27,8 @@ class Job:
         self._function_version = function_version
         self._no_resolve_input_files = no_resolve_input_files
         self._label = label
-        self._wrapped_function_arguments = _deresolve_files_in_item(wrapped_function_arguments)
+        self._wrapped_function_arguments = \
+            _replace_values_in_structure(wrapped_function_arguments, File.kache_numpy_array)
         self._job_id = job_id
         if self._job_id is None:
             self._job_id = _random_string(15)
@@ -84,14 +85,13 @@ class Job:
                             timeout2 = max(0, timeout2 - elapsed)
                         return self._substitute_job_for_wait.wait(timeout=timeout2, resolve_files=resolve_files)
                     else:
-                        return _resolve_files_in_item(self._result)
+                        return self.resolve_files_in_result()
         while True:
             self._job_manager.iterate()
             if self._status == JobStatus.FINISHED:
                 if resolve_files:
-                    return _resolve_files_in_item(self._result)
-                else:
-                    return self._result
+                    self.resolve_files_in_result()
+                return self._result
             elif self._status == JobStatus.ERROR:
                 assert self._exception is not None
                 raise self._exception
@@ -213,11 +213,9 @@ class Job:
             assert self._f is not None, 'Cannot execute job outside of container when function is not available'
             try:
                 if not self._no_resolve_input_files:
-                    kwargs = _resolve_files_in_item(self._wrapped_function_arguments)
-                else:
-                    kwargs = self._wrapped_function_arguments
-                ret = self._f(**kwargs)
-                self._result = _deresolve_files_in_item(ret)
+                    self.resolve_files_in_wrapped_arguments()
+                ret = self._f(**self._wrapped_function_arguments)
+                self._result = _replace_values_in_structure(ret, File.kache_numpy_array)
                 # self._result = _deserialize_item(_serialize_item(ret))
                 self._status = JobStatus.FINISHED
             except Exception as e:
@@ -242,6 +240,18 @@ class Job:
         self._efficiency_job_hash_ = ka.get_object_hash(efficiency_job_hash_obj)
         return self._efficiency_job_hash_
 
+    # TODO: move this to 
+    def kache_results_if_needed(self, kachery:Union[str, None] = None) -> None:
+        """Upload File-type results to a Kachery server (as indicated by the "Kache" spelling).
+
+        Keyword Arguments:
+            kachery {Union[str, None]} -- Specific Kachery instance to push file to.
+            (default: {None})
+        """
+        if not self._download_results: return
+        for f in _flatten_nested_collection(self._result, _type=File):
+            f.kache(kachery_dest=kachery)
+
     # TODO: is str the correct type for kachery parameter?
     def download_results_if_needed(self, kachery:Union[str, None] = None) -> None:
         for f in _flatten_nested_collection(self._result, _type=File):
@@ -253,10 +263,32 @@ class Job:
             assert isinstance(a, File), "Filter failed."
             a.ensure_local_availability(kachery)
 
-    # TODO: What guarantee do we have that these are actually all complete?
+    def resolve_files_in_wrapped_arguments(self) -> None:
+        """Handles file availability and unboxing of numpy arrays from Kachery files for
+        items in the Job's wrapped function arguments.
+        """
+        # _replace_values replaces in-place for complex structures, but can't do so for
+        # simple ones (e.g. if _wrapped_function_args is just a File). Have to reassign in that case.
+        # The method is designed to modify the input in-place and also return it, for this reason.
+        self._wrapped_function_arguments = \
+            _replace_values_in_structure(self._wrapped_function_arguments,
+                lambda r: r.resolve() if isinstance(r, File) else r)
+
+    # TODO: Make this part of the .result() method? Would need to access info about
+    # the "don't-resolve-results" parameter.
+    def resolve_files_in_result(self) -> None:
+        """Handles file availability and unboxing of numpy arrays from Kachery files for
+        items in the Job's result.
+        """
+        self._result = _replace_values_in_structure(self._result,
+            lambda r: r.resolve() if isinstance(r, File) else r)
+
+    # TODO: What guarantee do we have that these are actually all complete? Should have a check for it
     def resolve_wrapped_job_values(self) -> None:
-        _replace_values_in_structure(self._wrapped_function_arguments,
-            lambda arg: arg.result() if isinstance(arg, Job) else arg)
+        self._wrapped_function_arguments = \
+            _replace_values_in_structure(self._wrapped_function_arguments,
+                lambda arg: arg.result() if isinstance(arg, Job) else arg)
+
 
     def is_ready_to_run(self) -> bool:
         """Checks current status and status of Jobs this Job depends on, to determine whether this
@@ -311,6 +343,7 @@ class Job:
         """
         if self._container is None: return False
         if self._job_handler.is_remote: return False
+        # TODO: Check if the container has *already* been built?
         return True
 
     

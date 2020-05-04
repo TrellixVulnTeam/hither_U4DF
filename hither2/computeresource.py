@@ -8,7 +8,7 @@ from .file import File
 
 # TODO: Functionalize, tighten.
 # TODO: Consider filtering db query/filter/update statements through an interface function.
-# TODO: Inject a JobManager into this instead of relying on redirection through core._prepare_container
+# TODO: Inject a JobManager into this instead of relying on redirection through core._prepare_container?
 
 class ComputeResource:
     def __init__(self, *, database: Database, compute_resource_id, kachery, job_handler, job_cache=None):
@@ -169,7 +169,7 @@ class ComputeResource:
             self._mark_job_as_error(job_id=job_id, exception=job._exception, runtime_info=job._runtime_info)
         else:
             try:
-                _download_files_as_needed_in_item(job._wrapped_function_arguments, kachery=self._kachery)
+                job.download_parameter_files_if_needed(kachery=self._kachery)
             except Exception as e:
                 print(f'Error downloading input files for job: {label}')
                 print(e)
@@ -188,8 +188,7 @@ class ComputeResource:
             setattr(job, '_handler_id', doc['handler_id'])
     
     def _handle_finished_job(self, job):
-        if job._download_results:
-            _upload_files_as_needed_in_item(job._result, kachery=self._kachery)
+        job.kache_results_if_needed(kachery=self._kachery)
         self._mark_job_as_finished(job_id=job._job_id, runtime_info=job._runtime_info, result=job._result)
     
     def _mark_job_as_error(self, *, job_id, runtime_info, exception):
@@ -260,39 +259,6 @@ class ComputeResource:
 
     def _get_db(self, collection='hither2_jobs'):
         return self._database.collection(collection)
-
-def _download_files_as_needed_in_item(x, *, kachery):
-    if isinstance(x, File):
-        p = ka.load_file(x._sha1_path, fr=kachery)
-        if p is None:
-            raise Exception(f'Unable to download file: {x._sha1_path}')
-    elif type(x) == dict:
-        for val in x.values():
-            _download_files_as_needed_in_item(val, kachery=kachery)
-    elif type(x) == list:
-        for val in x:
-            _download_files_as_needed_in_item(val, kachery=kachery)
-    elif type(x) == tuple:
-        for val in x:
-            _download_files_as_needed_in_item(val, kachery=kachery)
-    else:
-        pass
-
-def _upload_files_as_needed_in_item(x, *, kachery):
-    if isinstance(x, File):
-        if kachery is not None:
-            ka.store_file(x._sha1_path, to=kachery)
-    elif type(x) == dict:
-        for val in x.values():
-            _upload_files_as_needed_in_item(val, kachery=kachery)
-    elif type(x) == list:
-        for val in x:
-            _upload_files_as_needed_in_item(val, kachery=kachery)
-    elif type(x) == tuple:
-        for val in x:
-            _upload_files_as_needed_in_item(val, kachery=kachery)
-    else:
-        pass
 
 def _print_console_out(x):
     for a in x['lines']:

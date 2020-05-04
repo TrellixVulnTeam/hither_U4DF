@@ -1,3 +1,4 @@
+from numpy import ndarray
 from os import stat
 from os.path import basename
 from typing import Any, List, Union
@@ -21,8 +22,29 @@ class File:
         )
         return ret
 
+# TODO: Ths "item type" field should be replaced with an enum.
+    def resolve(self) -> Union[str, ndarray]:
+        """Ensure that this file is available in Kachery, if it is of type 'file',
+        and if it is a boxed numpy array, replace it with the actual numpy array representation.
+
+        Raises:
+            Exception: Thrown if an unrecognized item type exists for the item type.
+
+       Returns:
+            Union[str, ndarray] -- Path to the file, if this File represents a file
+            tracked by kachery; otherwise a numpy array, if this File represents a
+            numpy array that was boxed into a kachery file for inter-resource portability.
+        """
+        if self._item_type == 'file':
+            path = ka.load_file(self._sha1_path)
+            assert path is not None, f'Unable to load file: {self._sha1_path} from kachery.'
+            return path
+        elif self._item_type == 'ndarray':
+            return self.array()
+        else:
+            raise Exception(f'Unexpected item type: {self._item_type}')
+
     def array(self):
-#        import pdb;pdb.set_trace()
         if self._item_type != 'ndarray':
             raise Exception('This file is not of type ndarray')
         x = ka.load_npy(self._sha1_path)
@@ -47,17 +69,36 @@ class File:
         assert remote_path is not None, f"Unable to load file {self._sha1_path} " + \
             f"from remote compute resource: {remote_handler._compute_resource_id}."
 
+    def kache(self, kachery_dest:Union[str, None] = None) -> None:
+        """Push this File to the configured Kachery store, or the one specified in the
+        input parameter.
+
+        Keyword Arguments:
+            kachery_dest {Union[str, None]} -- Kachery store to store the file. (default: {None})
+        """
+        ka.store_file(self._sha1_path, to=kachery_dest)
+
     @staticmethod
-    def can_deserialize(x):
+    def can_deserialize(x: Any) -> bool:
         if type(x) != dict:
             return False
         return (x.get('_type', None) == 'hither2_file') and ('sha1_path' in x)
 
     @staticmethod
-    def deserialize(x):
+    def deserialize(x) -> 'File':
         return File(x['sha1_path'], item_type=x.get('item_type', 'file'))
 
-def _get_basename_from_path(path):
+    @staticmethod
+    def kache_numpy_array(x: Any) -> Any:
+        if not isinstance(x, ndarray): return x
+        return File._kache_numpy_array(x)
+
+    @staticmethod
+    def _kache_numpy_array(ary: ndarray) -> 'File':
+        path = ka.store_npy(ary)
+        return File(path, item_type = 'ndarray')
+
+def _get_basename_from_path(path: str) -> Union[str, None]:
     if path.startswith('sha1://'):
         return _get_basename_from_path(path[7:])
     elif path.startswith('sha1dir://'):
