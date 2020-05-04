@@ -8,7 +8,7 @@ from .database import Database
 from ._enums import JobStatus
 from .file import File
 from ._load_config import _load_preset_config_from_github
-from ._util import _random_string, _utctime, _deserialize_item
+from ._util import _random_string, _utctime, _deserialize_item, _flatten_nested_collection
 
 class RemoteJobHandler(BaseJobHandler):
     def __init__(self, *, database: Database, compute_resource_id):
@@ -56,7 +56,8 @@ class RemoteJobHandler(BaseJobHandler):
         self._internal_counts.num_jobs += 1
         self._report_active()
 
-        self._send_files_as_needed_in_item(job._wrapped_function_arguments)
+        for f in _flatten_nested_collection(job._wrapped_function_arguments, _type=File):
+            self._send_file_as_needed(f)
 
         job_serialized = job._serialize(generate_code=True)
         # send the code to the kachery
@@ -120,7 +121,8 @@ class RemoteJobHandler(BaseJobHandler):
                         j._runtime_info = doc['runtime_info']
                         j._status = JobStatus.FINISHED
                         j._result = _deserialize_item(doc['result'])
-                        self._attach_remote_job_handler_to_files_in_item(j._result)
+                        for f in _flatten_nested_collection(j._result, _type=File):
+                            setattr(f, '_remote_job_handler', self)
                         del self._jobs[job_id]
                     elif compute_resource_status == JobStatus.ERROR:
                         print(f'Job error: {job_id}')
@@ -135,49 +137,22 @@ class RemoteJobHandler(BaseJobHandler):
     def _load_file(self, sha1_path):
         return ka.load_file(sha1_path, fr=self._kachery)
 
-    def _send_files_as_needed_in_item(self, x):
-        if isinstance(x, File):
-            remote_handler = getattr(x, '_remote_job_handler', None)
-            if remote_handler is not None:
-                x_compute_resource_id = remote_handler._compute_resource_id
-            else:
-                x_compute_resource_id = None
-            if self._kachery is None:
-                pass
-            elif x_compute_resource_id == self._compute_resource_id:
-                pass
-            else:
-                if x_compute_resource_id is None:
-                    ka.store_file(x.path, to=self._kachery)
-                else:
-                    raise Exception('This case not yet supported (we need to transfer data from one compute resource to another)')
-        elif type(x) == dict:
-            for val in x.values():
-                self._send_files_as_needed_in_item(val)
-        elif type(x) == list:
-            for val in x:
-                self._send_files_as_needed_in_item(val)
-        elif type(x) == tuple:
-            for val in x:
-                self._send_files_as_needed_in_item(val)
-        else:
-            pass
-    
-    def _attach_remote_job_handler_to_files_in_item(self, x):
-        if isinstance(x, File):
-            setattr(x, '_remote_job_handler', self)
-        elif type(x) == dict:
-            for val in x.values():
-                self._attach_remote_job_handler_to_files_in_item(val)
-        elif type(x) == list:
-            for val in x:
-                self._attach_remote_job_handler_to_files_in_item(val)
-        elif type(x) == tuple:
-            for val in x:
-                self._attach_remote_job_handler_to_files_in_item(val)
-        else:
-            pass
+    def _send_file_as_needed(self, x:File) -> None:
+        if self._kachery is None: return # No file store; nothing we can do.
+        # TODO: Should this case raise an exception?
 
+        remote_handler = getattr(x, '_remote_job_handler', None)
+        if remote_handler is None:
+            if self._compute_resource_id is None: return
+            ka.store_file(x.path, to=self._kachery)
+
+        # A remote handler *is* configured.
+        x_compute_resource_id = remote_handler._compute_resource_id
+        #  If we *are* the remote handler, we don't need to do anything.
+        if x_compute_resource_id == self._compute_resource_id: return
+
+        raise Exception('This case not yet supported (we need to transfer data from one compute resource to another)')
+        
     def _report_active(self):
         db = self._get_db(collection='active_job_handlers')
         filter = dict(
