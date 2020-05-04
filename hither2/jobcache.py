@@ -2,7 +2,7 @@ from typing import Dict, List, Union, Any
 
 import kachery as ka
 from .database import Database
-from ._util import _deserialize_item
+from ._util import _deserialize_item, _flatten_nested_collection
 from ._enums import JobStatus
 from .file import File
 
@@ -26,26 +26,29 @@ class JobCache:
         doc = db.find_one(query)
         if doc is None:
             return False
+        if 'status' not in doc or doc['status'] not in JobStatus.complete_statuses():
+            return False
+
         if doc['status'] == JobStatus.FINISHED:
             result0 = _deserialize_item(doc['result'])
-            if not _check_files_all_exist_locally_in_item(result0):
+            if not _check_file_results_exist_locally(result0):
                 print(f'Found result in cache, but files do not exist locally: {job._label}')
+                # TODO: Is there a way we could recover from this situation? Like... try to download it?
                 return False
-            job._status = JobStatus.FINISHED
-            job._result = result0
-            job._runtime_info = doc['runtime_info']
+            job._result = result0 # TODO: Can combine this with below? See what happens if not set?
             job._exception = None
             print(f'Using cached result for job: {job._label} ({job._function_name} {job._function_version})')
-            return True
         elif doc['status'] == JobStatus.ERROR:
             if self._cache_failing and (not self._rerun_failing):
-                job._status = JobStatus.ERROR
                 job._result = None
-                job._runtime_info = doc['runtime_info']
-                job._exception = Exception(doc['exception'])
+                job._exception = Exception(doc['exception']) # TODO: Can combine with above? What if unset?
                 print(f'Using cached error for job: {job._label} ({job._function_name} {job._function_version})')
-                return True
-        return False
+            else:
+                return False
+        job._status = doc['status']
+        job._runtime_info = doc['runtime_info']
+        return True
+
 
     def cache_job_result(self, job):
         from .core import _serialize_item
@@ -80,23 +83,9 @@ class JobCache:
             hash_object['no_resolve_input_files'] = True
         return ka.get_object_hash(hash_object)
 
-def _check_files_all_exist_locally_in_item(x):
-    if isinstance(x, File):
-        a = ka.get_file_info(x._sha1_path, fr=None)
-        if a is None:
-            return False
-    elif type(x) == dict:
-        for val in x.values():
-            if not _check_files_all_exist_locally_in_item(val):
-                return False
-    elif type(x) == list:
-        for val in x:
-            if not _check_files_all_exist_locally_in_item(val):
-                return False
-    elif type(x) == tuple:
-        for val in x:
-            if not _check_files_all_exist_locally_in_item(val):
-                return False
-    else:
-        pass
+def _check_file_results_exist_locally(x):
+    files = _flatten_nested_collection(x, _type=File)
+    for f in files:
+        local_path = ka.get_file_info(f._sha1_path, fr=None)
+        if local_path is None: return False
     return True
