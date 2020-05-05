@@ -15,6 +15,7 @@ from .remotejobhandler import RemoteJobHandler
 from .computeresource import ComputeResource
 from .database import Database
 from .jobcache import JobCache
+from ._enums import JobStatus, HitherFileType
 from .file import File
 
 # Run a function by name

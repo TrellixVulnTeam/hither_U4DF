@@ -27,5 +27,10 @@ class JobStatus(Enum):
     @classmethod
     def prerun_statuses(cls: Type['JobStatus']) -> List['JobStatus']:
         return [JobStatus.PENDING, JobStatus.QUEUED]
+
+class HitherFileType(Enum):
+    FILE = 'file'
+    NUMPY = 'ndarray'
+    SERIALIZED_FILE = 'hither2_file'
     
     

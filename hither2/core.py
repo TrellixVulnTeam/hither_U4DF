@@ -1,6 +1,5 @@
 import inspect
 from typing import Union, Any
-from numpy import ndarray
 import os
 
 from ._Config import Config

@@ -3,6 +3,7 @@ from os import stat
 from os.path import basename
 from typing import Any, List, Union
 
+from ._enums import HitherFileType # TODO: Not yet used; hard-to-track errors in serialization
 import kachery as ka
 
 class File:

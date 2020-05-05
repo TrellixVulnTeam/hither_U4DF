@@ -1,5 +1,6 @@
 from typing import Union, List, Any, Callable
 import random
+from ._enums import HitherFileType
 from .file import File
 
 def _serialize_item(x):
@@ -10,6 +11,9 @@ def _serialize_item(x):
     #     return int(x)
     # elif isinstance(x, np.floating):
     #     return float(x)
+    # TODO: This will be required when file enums are working
+    # elif isinstance(x, HitherFileType):
+    #     return x.value
     elif type(x) == dict:
         ret = dict()
         for key, val in x.items():
