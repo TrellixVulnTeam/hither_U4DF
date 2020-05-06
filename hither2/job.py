@@ -373,7 +373,7 @@ class Job:
             job_timeout=self._job_timeout,
             no_resolve_input_files=self._no_resolve_input_files
         )
-        x = _serialize_item(x)
+        x = _serialize_item(x, raise_exception=False)
         return x
     
     @staticmethod
