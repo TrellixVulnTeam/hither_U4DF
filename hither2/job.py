@@ -86,7 +86,7 @@ class Job:
                     else:
                         return self.resolve_files_in_result()
         while True:
-            self._job_manager.iterate()
+            self._job_manager.update_job_statuses()
             if self._status == JobStatus.FINISHED:
                 if resolve_files:
                     self.resolve_files_in_result()
