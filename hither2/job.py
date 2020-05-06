@@ -239,7 +239,6 @@ class Job:
         self._efficiency_job_hash_ = ka.get_object_hash(efficiency_job_hash_obj)
         return self._efficiency_job_hash_
 
-    # TODO: move this to 
     def kache_results_if_needed(self, kachery:Union[str, None] = None) -> None:
         """Upload File-type results to a Kachery server (as indicated by the "Kache" spelling).
 
@@ -303,7 +302,6 @@ class Job:
         if hasattr(self, '_same_hash_as'):
             raise NotImplementedError # TODO: this
         if self._status not in [JobStatus.QUEUED, JobStatus.ERROR]: return False
-        # TODO: make the following line neater, confirm revised function works
         wrapped_jobs: List[Job] = _flatten_nested_collection(self._wrapped_function_arguments, _type=Job)
         # Check if we depend on any Job that's in error status. If we do, we are in error status,
         # since that dependency is now unresolvable

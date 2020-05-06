@@ -11,9 +11,7 @@ def test_remote_1(general, mongodb, kachery_server, compute_resource):
     jh = hi.RemoteJobHandler(database=db, compute_resource_id=COMPUTE_RESOURCE_ID)
     with hi.Config(job_handler=jh, container=True):
         a = fun.ones.run(shape=(4, 3))
-        print("Point A")
         a = a.wait()
-        print("Point B")
         assert np.array_equal(a, np.ones((4, 3)))
         assert jh._internal_counts.num_jobs == 1, f'Unexpected number of jobs: {jh._internal_counts.num_jobs}'
 

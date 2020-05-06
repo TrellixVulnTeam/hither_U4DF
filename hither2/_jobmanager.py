@@ -17,22 +17,12 @@ class _JobManager:
         job._status = JobStatus.QUEUED
         self._queued_jobs[job._job_id] = job
 
-    def iterate(self):
+    def update_job_statuses(self):
         # Called periodically during wait()
-    
         self.prune_job_queue()
         self.prepare_containers_for_queued_jobs()
         self.run_queued_jobs()
-
-        # Check which running jobs are finished and iterate job handlers of running or preparing jobs
-        running_job_ids = list(self._running_jobs.keys())
-        for _id in running_job_ids:
-            job: Job = self._running_jobs[_id]
-            if job._status == JobStatus.RUNNING:
-                # Note: we effectively iterate the same job handler potentially many times here -- I think that's okay but not 100% sure.
-                job._job_handler.iterate()
-            if job._status in JobStatus.complete_statuses():
-                self.finish_completed_job(job)
+        self.review_running_jobs()
 
     def prune_job_queue(self):
         for _id, job in list(self._queued_jobs.items()):
@@ -64,7 +54,20 @@ class _JobManager:
                 if not job._job_handler.is_remote:
                     job._job_cache.check_job(job)
             # TODO: Do we actually do anything with the results of that check?
+
             job._job_handler.handle_job(job)
+
+    def review_running_jobs(self):
+        # Check which running jobs are finished and iterate job handlers of running or preparing jobs
+        running_job_ids = list(self._running_jobs.keys())
+        for _id in running_job_ids:
+            job: Job = self._running_jobs[_id]
+            if job._status == JobStatus.RUNNING:
+                # Note: we effectively iterate the same job handler potentially many times here -- I think that's okay but not 100% sure.
+                # NOTE: I think it's okay, but any reason not to just move on to the next Job?
+                job._job_handler.iterate()
+            if job._status in JobStatus.complete_statuses():
+                self.finish_completed_job(job)
 
     def finish_completed_job(self, job:Job) -> None:
         del self._running_jobs[job._job_id]
@@ -81,7 +84,7 @@ class _JobManager:
     def wait(self, timeout: Union[float, None]=None):
         timer = time.time()
         while True:
-            self.iterate()
+            self.update_job_statuses()
             if self._queued_jobs == {} and self._running_jobs == {}:
                 return
             if timeout == 0:
