@@ -3,7 +3,7 @@ import random
 from ._enums import HitherFileType
 from .file import File
 
-def _serialize_item(x):
+def _serialize_item(x, require_jsonable=True):
     if isinstance(x, File):
         return x.serialize()
     # TODO: move these cases where they belong
@@ -17,22 +17,25 @@ def _serialize_item(x):
     elif type(x) == dict:
         ret = dict()
         for key, val in x.items():
-            ret[key] = _serialize_item(val)
+            ret[key] = _serialize_item(val, require_jsonable=require_jsonable)
         return ret
     elif type(x) == list:
-        return [_serialize_item(val) for val in x]
+        return [_serialize_item(val, require_jsonable=require_jsonable) for val in x]
     elif type(x) == tuple:
         # we need to distinguish between a tuple and list for json serialization
         return dict(
             _type='tuple',
-            data=_serialize_item(list(x))
+            data=_serialize_item(list(x), require_jsonable=require_jsonable)
         )
     else:
         if _is_jsonable(x):
             # this will capture int, float, str, bool
             return x
-    # Did not return on any previous statement
-    raise Exception(f'Unable to serialize item of type: {type(x)}')
+    if require_jsonable:
+        # Did not return on any previous statement
+        raise Exception(f'Unable to serialize item of type: {type(x)}')
+    else:
+        return x
 
 def _is_jsonable(x):
     import json
