@@ -1,5 +1,5 @@
 from .core import function, container, additional_files, local_modules, opts
-from .core import Config, set_config
+from .core import Config
 from .core import wait
 from .core import reset
 from ._identity import identity

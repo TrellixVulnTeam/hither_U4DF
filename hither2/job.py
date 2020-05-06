@@ -2,7 +2,7 @@ from copy import deepcopy
 import os
 import sys
 import time
-from typing import Dict, List, Union, Any
+from typing import Dict, List, Union, Any, Optional
 
 import kachery as ka
 from ._Config import Config
@@ -37,12 +37,16 @@ class Job:
 
         self._status = JobStatus.PENDING
         self._result = None
-        self._runtime_info = None
+        self._runtime_info: Optional[dict] = None
         self._exception: Union[Exception, None] = None
 
         self._job_handler = job_handler
         self._job_manager = job_manager
         self._job_cache = job_cache
+
+        # Used by computeresource manager
+        self._reported_status = None
+        self._handler_id = None
         
         # this is used by wait() in the case where results were not downloaded
         # and the job has already been sent to the remote compute resource
@@ -86,7 +90,7 @@ class Job:
                     else:
                         return self.resolve_files_in_result()
         while True:
-            self._job_manager.update_job_statuses()
+            self._job_manager.process_job_queues()
             if self._status == JobStatus.FINISHED:
                 if resolve_files:
                     self.resolve_files_in_result()
@@ -332,7 +336,7 @@ class Job:
         self._status = JobStatus.ERROR
         self._exception = Exception(f'Exception in wrapped Job: {str(errored_jobs[0]._exception)}')
 
-    def needs_a_container_built(self) -> bool:
+    def container_may_be_needed(self) -> bool:
         """Returns whether this Job needs to have a container built before it can be run.
 
         Returns:
@@ -340,7 +344,9 @@ class Job:
         """
         if self._container is None: return False
         if self._job_handler.is_remote: return False
-        # TODO: Check if the container has *already* been built?
+        # NOTE: We can't check whether the container is built or not, since we don't have
+        # visibility into those. If and when we have a globally-visible container store, then
+        # we could properly check that for it.
         return True
 
     

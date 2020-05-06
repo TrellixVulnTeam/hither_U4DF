@@ -92,12 +92,18 @@ def _random_string(num: int):
     return ''.join(random.choices('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ', k=num))
 
 def _flatten_nested_collection(item: Any, _type: Union[Any, None] = None) -> List[Any]:
-    """Return a single list of the base items in a nested data structure consisting of an
-    arbitrary combination of dicts, lists, and tuples.s
+    """Flattens the input data structure, returning a list of only the content (non-dict,
+    list, or tuple) elements.
 
     Arguments:
-        item {Any} -- (Potentially arbitrarily) nested data structure to flatten. May contain
-        base items and sub-collections at the same level.
+        item {Any} -- A data structure consisting of [0..n) elements, each of which may be
+        a list, dict, or tuple ("collection elements"), or a "content element." Collection
+        elements may be nested to any depth, and may contain both collection elements and
+        content elements at the same level.
+
+    Keyword Arguments:
+        _type {Union[Any, None]} -- If set, filter the content elements so that only those
+        matching the input type are returned. (default: {None})
 
     Returns:
         List[Any] -- Every content (leaf) item of the input structure.
@@ -119,6 +125,7 @@ def _flatten_nested_collection(item: Any, _type: Union[Any, None] = None) -> Lis
         # (which is read as "return `value`, for i in item: for value in _fnc(i):")
     return elements
 
+# TODO: REWRITE THIS to return a duplicate structure rather than mutating in-place.
 def _replace_values_in_structure(structure: Any, replacement_function: Callable[..., Any]) -> Any:
     """Modify values of input data structure in place, according to function.
 

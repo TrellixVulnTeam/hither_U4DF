@@ -18,6 +18,7 @@ def _run_serialized_job_in_container(job_serialized):
         label = name
     show_console = True
     gpu = False
+    # This variable is reserved for future use
     timeout: Union[None, float] = None
     
     code = job_serialized['code']
@@ -235,11 +236,12 @@ def _run_serialized_job_in_container(job_serialized):
                 if retcode is not None:
                     break
                 elapsed = time.time() - timer
-                if timeout is not None:
-                    if elapsed > timeout:
-                        print(f'Stopping job due to timeout {elapsed} > {timeout}')
-                        did_timeout = True
-                        ss.stop()
+                # TODO: this code is currently unreachable but should be uncommented when `timeout` is used.
+                # if timeout is not None:
+                #     if elapsed > timeout:
+                #         print(f'Stopping job due to timeout {elapsed} > {timeout}')
+                #         did_timeout = True
+                #         ss.stop()
         finally:
             if docker_container_name is not None:
                 ss_cleanup = ShellScript(f"""
