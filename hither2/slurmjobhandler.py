@@ -5,8 +5,11 @@ import random
 import signal
 import shutil
 import traceback
+from ._basejobhandler import BaseJobHandler
 from ._shellscript import ShellScript
+from ._util import _random_string
 from ._filelock import FileLock
+from ._enums import JobStatus
 from typing import Optional, List, Union
 import json
 from .core import Job, _deserialize_item
@@ -14,7 +17,7 @@ from os import rename
 
 DEFAULT_JOB_TIMEOUT = 1200
 
-class SlurmJobHandler:
+class SlurmJobHandler(BaseJobHandler):
     is_remote = False
     def __init__(self, *,
         working_dir: str,
@@ -66,6 +69,7 @@ class SlurmJobHandler:
         job : hither job
             The job to run.
         """
+        super(SlurmJobHandler, self).handle_job(job)
         job_timeout = job._job_timeout
         if job_timeout is None:
             job_timeout = DEFAULT_JOB_TIMEOUT
@@ -206,7 +210,7 @@ class _Batch():
             A label for display purposes
         """
         os.mkdir(working_dir)
-        self._status = 'pending'
+        self._status = JobStatus.PENDING
         self._time_started: Optional[float] = None
         self._working_dir = working_dir
         self._batch_label = batch_label
@@ -233,16 +237,16 @@ class _Batch():
         )
 
     def isPending(self) -> bool:
-        return self._status == 'pending'
+        return self._status == JobStatus.PENDING
 
     def isWaitingToStart(self) -> bool:
-        return self._status == 'waiting'
+        return self._status == JobStatus.WAITING
 
     def isRunning(self) -> bool:
-        return self._status == 'running'
+        return self._status == JobStatus.RUNNING
 
     def isFinished(self) -> bool:
-        return self._status == 'finished'
+        return self._status == JobStatus.FINISHED
 
     def timeStarted(self) -> Optional[float]:
         return self._time_started
@@ -268,7 +272,7 @@ class _Batch():
                 w.iterate()
             if os.path.exists(self._working_dir):
                 if os.path.exists(os.path.join(self._working_dir, 'slurm_started.txt')):
-                    self._status = 'running'
+                    self._status = JobStatus.RUNNING
                     self._time_started = time.time()
                 # else:
                 #     # the following is probably not needed
@@ -360,7 +364,7 @@ class _Batch():
         -------
         None
         """
-        if self._status != 'running':
+        if self._status != JobStatus.RUNNING:
             raise Exception('Cannot add job to batch that is not running.')
 
         # Determine number running, for display information
@@ -391,7 +395,7 @@ class _Batch():
         -------
         None
         """
-        assert self._status == 'pending', "Unexpected... cannot start a batch that is not pending."
+        assert self._status == JobStatus.PENDING, "Unexpected... cannot start a batch that is not pending."
 
         # Write the running.txt file
         running_fname = self._working_dir + '/running.txt'
@@ -403,7 +407,7 @@ class _Batch():
         self._slurm_process.start()
         self._timestamp_slurm_process_started = time.time()
 
-        self._status = 'waiting'
+        self._status = JobStatus.WAITING
         # self._time_started = time.time()  # instead of doing it here, let's wait until a worker has actually started.
 
     def halt(self) -> None:
@@ -414,7 +418,7 @@ class _Batch():
         if os.path.exists(running_fname):
             with FileLock(running_fname + '.lock', exclusive=True):
                 os.remove(self._working_dir + '/running.txt')
-        self._status = 'finished'
+        self._status = JobStatus.FINISHED
         # wait a bit for it to resolve on its own (because we removed the running.txt)
         if not self._slurm_process.wait(5):
             print('Waiting for slurm process to end.')
@@ -823,8 +827,3 @@ def _rmdir_with_retries(dirname, num_retries, delay_between_tries=1):
             else:
                 raise Exception('Unable to remove directory after {} tries: {}'.format(num_retries, dirname))
 
-
-def _random_string(num: int):
-    """Generate random string of a given length.
-    """
-    return ''.join(random.choices('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ', k=num))

@@ -32,10 +32,10 @@ def main():
     mongo_url = os.getenv('MONGO_URL', 'mongodb://localhost:27017')
     db = hi.Database(mongo_url=mongo_url, database='hither2')
     cache = hi.JobCache(database=db)
-    with hi.config(job_cache=cache):
+    with hi.Config(job_cache=cache):
         f = make_zeros_npy.run(shape=(6, 3))
-        with hi.config(job_handler=hi.RemoteJobHandler(database=db, compute_resource_id='resource1'), container=True):
-            with hi.config(download_results=True):
+        with hi.Config(job_handler=hi.RemoteJobHandler(database=db, compute_resource_id='resource1'), container=True):
+            with hi.Config(download_results=True):
                 g = add_one_npy.run(x=f)
         a = readnpy.run(x=g)
     print(a.wait())

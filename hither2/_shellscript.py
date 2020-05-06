@@ -239,6 +239,7 @@ def _rmdir_with_retries(dirname, num_retries, delay_between_tries=1):
             else:
                 raise Exception('Unable to remove directory after {} tries: {}'.format(num_retries, dirname))
 
+# TODO: Move these tests into test directory?
 def _test_error_handling_1():
     import pytest
     with pytest.raises(Exception):

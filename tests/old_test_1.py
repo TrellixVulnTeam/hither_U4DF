@@ -11,7 +11,7 @@ from .fixtures import MONGO_PORT, DATABASE_NAME, COMPUTE_RESOURCE_ID, KACHERY_CO
 def _run_pipeline(*, delay=None, shape=(6, 3)):
     f = fun.zeros.run(shape=(6, 3))
     g = fun.add.run(x=f, y=1)
-    with hi.config(download_results=True):
+    with hi.Config(download_results=True):
         A = fun.identity.run(x=g)
     A.wait(0.1) # For code coverage
     a = A.wait().array()
@@ -23,7 +23,7 @@ def _run_pipeline(*, delay=None, shape=(6, 3)):
 
 def _run_short_pipeline(*, delay=None, shape=(6, 3)):
     f = fun.zeros.run(shape=(6, 3))
-    with hi.config(download_results=True):
+    with hi.Config(download_results=True):
         A = fun.identity.run(x=f)
     A.wait(0.1) # For code coverage
     a = A.wait().array()
@@ -35,7 +35,7 @@ def test_1(general, mongodb):
     with hi.ConsoleCapture(label='[test_1]') as cc:
         db = hi.Database(mongo_url=f'mongodb://localhost:{MONGO_PORT}', database=DATABASE_NAME)
         jc = hi.JobCache(database=db)
-        with hi.config(container=True, job_cache=jc):
+        with hi.Config(container=True, job_cache=jc):
             for num in range(2):
                 timer = time.time()
                 _run_pipeline()
@@ -51,7 +51,7 @@ def test_2(general, compute_resource, mongodb, kachery):
     with hi.ConsoleCapture(label='[test_2]'):
         db = hi.Database(mongo_url=f'mongodb://localhost:{MONGO_PORT}', database=DATABASE_NAME)
         rjh = hi.RemoteJobHandler(database=db, compute_resource_id=COMPUTE_RESOURCE_ID)
-        with hi.config(job_handler=rjh, container=True):
+        with hi.Config(job_handler=rjh, container=True):
             for num in range(2):
                 timer = time.time()
                 _run_short_pipeline(delay=1)
@@ -59,7 +59,7 @@ def test_2(general, compute_resource, mongodb, kachery):
                 print(f'Elapsed for pass {num}: {elapsed}')
                 if num == 1:
                     assert elapsed < 2
-            with hi.config(download_results=True):
+            with hi.Config(download_results=True):
                 _run_pipeline(shape=(6, 3))
         hi.wait() # for code coverage
 
@@ -94,14 +94,14 @@ def test_job_error(general, compute_resource, mongodb, kachery):
 
         db = hi.Database(mongo_url=f'mongodb://localhost:{MONGO_PORT}', database=DATABASE_NAME)
         rjh = hi.RemoteJobHandler(database=db, compute_resource_id=COMPUTE_RESOURCE_ID)
-        with hi.config(job_handler=rjh, container=True):
+        with hi.Config(job_handler=rjh, container=True):
             for _ in range(2):
                 x = fun.intentional_error.run()
                 with pytest.raises(Exception):
                     a = x.wait()
                 assert str(x.exception()) == 'intentional-error'
         jc = hi.JobCache(database=db, cache_failing=True)
-        with hi.config(job_cache=jc, container=True):
+        with hi.Config(job_cache=jc, container=True):
             for _ in range(2):
                 x = fun.intentional_error.run()
                 with pytest.raises(Exception):
@@ -118,12 +118,12 @@ def test_bad_container(general, compute_resource, mongodb, kachery):
 
         fun.bad_container.run().wait()
 
-        with hi.config(container=True):
+        with hi.Config(container=True):
             x = fun.bad_container.run()
             with pytest.raises(Exception):
                 x.wait()
         
-        with hi.config(job_handler=rjh, container=True):
+        with hi.Config(job_handler=rjh, container=True):
             x = fun.bad_container.run()
             with pytest.raises(Exception):
                 x.wait()
@@ -140,14 +140,14 @@ def test_job_arg_error(general, compute_resource, mongodb, kachery):
 
 def test_wait(general):
     pjh = hi.ParallelJobHandler(num_workers=4)
-    with hi.config(job_handler=pjh):
+    with hi.Config(job_handler=pjh):
         a = fun.do_nothing.run(x=None, delay=0.2)
         hi.wait(0.1)
         hi.wait()
         assert a.result() == None
 
 def test_extras(general):
-    with hi.config(container='docker://jupyter/scipy-notebook:678ada768ab1'):
+    with hi.Config(container='docker://jupyter/scipy-notebook:678ada768ab1'):
         a = fun.additional_file.run()
         assert a.wait().array().shape == (2, 3)
 
@@ -163,14 +163,14 @@ def test_missing_input_file(general, compute_resource, mongodb, kachery):
         false_path = path.replace('0', '1')
         assert path != false_path
 
-        with hi.config(container=True):
+        with hi.Config(container=True):
             a = fun.do_nothing.run(x=[dict(some_file=hi.File(path))]).set(label='do-nothing-1')
             a.wait()
             b = fun.do_nothing.run(x=[dict(some_file=hi.File(false_path))]).set(label='do-nothing-2')
             with pytest.raises(Exception):
                 b.wait()
         
-        with hi.config(job_handler=rjh, container=True):
+        with hi.Config(job_handler=rjh, container=True):
             a = fun.do_nothing.run(x=[dict(some_file=hi.File(path))]).set(label='do-nothing-remotely-1')
             a.wait()
             b = fun.do_nothing.run(x=[dict(some_file=hi.File(false_path))]).set(label='do-nothing-remotely-2')
@@ -185,12 +185,12 @@ def test_identity(general, compute_resource, mongodb, kachery):
         rjh = hi.RemoteJobHandler(database=db, compute_resource_id=COMPUTE_RESOURCE_ID)
         path = ka.store_text('test-text-2')
 
-        with hi.config(container=True):
+        with hi.Config(container=True):
             a = ([dict(file=hi.File(path))],)
             b = fun.identity.run(x=a).wait()
             assert ka.get_file_hash(b[0][0]['file'].path) == ka.get_file_hash(path)
         
-        with hi.config(job_handler=rjh, container=True, download_results=True):
+        with hi.Config(job_handler=rjh, container=True, download_results=True):
             a = ([dict(file=hi.File(path))],)
             b = fun.identity.run(x=a).wait()
             assert ka.get_file_hash(b[0][0]['file'].path) == ka.get_file_hash(path)
@@ -207,7 +207,7 @@ def test_slurm_job_handler(general, tmp_path):
         additional_srun_opts=[]
     )
     with hi.ConsoleCapture(label='[slurm_job_handler]'):
-        with hi.config(container=True, job_handler=sjh):
+        with hi.Config(container=True, job_handler=sjh):
             shapes = [(j, 3) for j in range(1, 8)]
             results = []
             for shape in shapes:
@@ -227,8 +227,8 @@ def test_combo_local_remote(general, compute_resource, mongodb, kachery):
         
         A = np.ones((5, 5))
 
-        with hi.config(container=True, job_handler=rjh):
-            with hi.config(download_results=True):
+        with hi.Config(container=True, job_handler=rjh):
+            with hi.Config(download_results=True):
                 B = fun.add.run(x=A, y=1)
         b = B.wait().array()
         assert np.allclose(A + 1, b)
@@ -241,7 +241,7 @@ def test_spikeforest_remote_compute_resource(general):
 
     db = hi.Database.preset('spikeforest_readwrite')
     rjh = hi.RemoteJobHandler(database=db, compute_resource_id='spikeforest1')
-    with hi.config(container=True, job_handler=rjh):
+    with hi.Config(container=True, job_handler=rjh):
         _run_pipeline()
 
 def test_preset_config(general):
@@ -287,7 +287,7 @@ def test_bin(general, tmp_path, mongodb, kachery):
         database=db,
         compute_resource_id='test_resource_1',
     )
-    with hi.config(container=True, job_handler=rjh):
+    with hi.Config(container=True, job_handler=rjh):
         _run_short_pipeline()
         hi.wait()
     ss2.kill()

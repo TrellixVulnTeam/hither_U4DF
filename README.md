@@ -51,7 +51,7 @@ job_cache = hi.JobCache(
 def sumsqr(x):
     return np.sum(x**2)
 
-with hi.config(
+with hi.Config(
     job_handler=job_handler,
     job_cache=job_cache,
     container=use_container

@@ -28,17 +28,17 @@ def addem(x):
 def main():
     a = sumsqr(np.array([2, 3, 4]))
     print(a)
-    with hi.config(container=True):
+    with hi.Config(container=True):
         b = sumsqr.run(x=np.array([2, 3, 4]))
     print(b.wait())
-    # with hi.config(container=True):
+    # with hi.Config(container=True):
     #     val1 = sumsqr.run(x=np.array([1,2,3]))
     # val2 = addone.run(x=val1)
     # val3 = addem.run(x=[val1, val2])
     # print(val3.wait())
     # print(val1.wait(), val2.wait(), val3.wait())
 
-    # with hi.config(job_handler=hi.ParallelJobHandler(num_workers=8), container=False):
+    # with hi.Config(job_handler=hi.ParallelJobHandler(num_workers=8), container=False):
     #     delay = 1
     #     val1 = sumsqr_with_delay.run(x=np.array([1]), delay=delay)
     #     val2 = sumsqr_with_delay.run(x=np.array([1,2]), delay=delay)

@@ -35,7 +35,8 @@ def test_call_functions_directly(general):
                 if not test_call.get('container_only'):
                     args = test_call.get('args')
                     # the following is needed for the case where we send in a hi.File object
-                    args = hi._resolve_files_in_item(args)
+                    args = hi._replace_values_in_structure(args,
+                        lambda r: r.resolve() if isinstance(r, hi.File) else r)
                     print(f'Calling {function.__name__} {args}')
                     try:
                         result = function(**args)
@@ -84,7 +85,7 @@ def do_test_run_functions(container=False):
                     assert_same_exception(e, test_call['exception'])
 
 def test_run_functions(general):
-    with hi.config(container=False):
+    with hi.Config(container=False):
         do_test_run_functions()
 
 def test_run_function_by_name(general):
@@ -93,5 +94,5 @@ def test_run_function_by_name(general):
 
 @pytest.mark.container
 def test_run_functions_in_container(general):
-    with hi.config(container=True, job_handler=hi.ParallelJobHandler(num_workers=20)):
+    with hi.Config(container=True, job_handler=hi.ParallelJobHandler(num_workers=20)):
         do_test_run_functions()

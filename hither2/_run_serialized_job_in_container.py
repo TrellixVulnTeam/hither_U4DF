@@ -66,7 +66,8 @@ def _run_serialized_job_in_container(job_serialized):
 
                 if ok_import_hither2:
                     from hither2 import ConsoleCapture
-                    from hither2 import _deserialize_item, _serialize_item, _resolve_files_in_item, _deresolve_files_in_item
+                    from hither2 import _deserialize_item, _serialize_item, _replace_values_in_structure
+                    from hither2 import File
 
                     kwargs = json.loads('{kwargs_json}')
                     kwargs = _deserialize_item(kwargs)
@@ -75,9 +76,10 @@ def _run_serialized_job_in_container(job_serialized):
                         try:
                             from function_src import {function_name}
                             if not {no_resolve_input_files}:
-                                kwargs = _resolve_files_in_item(kwargs)
+                                kwargs = _replace_values_in_structure(kwargs,
+                                    lambda arg: arg.resolve() if isinstance(arg, File) else arg)
                             retval = {function_name}(**kwargs)
-                            retval = _deresolve_files_in_item(retval)
+                            retval = _replace_values_in_structure(retval, File.kache_numpy_array)
                             success = True
                             error = None
                         except Exception as e:

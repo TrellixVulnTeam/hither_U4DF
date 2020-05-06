@@ -26,13 +26,13 @@ def main():
     db = hi.Database(mongo_url=mongo_url, database='hither2')
 
     cache = hi.JobCache(database=db, force_run=True)
-    with hi.config(job_handler=hi.ParallelJobHandler(num_workers=8), container=False, job_cache=cache):
+    with hi.Config(job_handler=hi.ParallelJobHandler(num_workers=8), container=False, job_cache=cache):
         f = make_zeros_npy.run(shape=(5, 2)).wait()
         a = readnpy.run(x=f).wait()
         print(a)
     
     cache = hi.JobCache(database=db, force_run=False)
-    with hi.config(job_handler=hi.ParallelJobHandler(num_workers=8), container=False, job_cache=cache):
+    with hi.Config(job_handler=hi.ParallelJobHandler(num_workers=8), container=False, job_cache=cache):
         f = make_zeros_npy.run(shape=(5, 2)).wait()
         a = readnpy.run(x=f).wait()
         print(a)

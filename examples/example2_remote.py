@@ -30,7 +30,7 @@ def addem(x):
 def main():
     mongo_url = os.getenv('MONGO_URL', 'mongodb://localhost:27017')
     db = hi.Database(mongo_url=mongo_url, database='hither2')
-    with hi.config(job_handler=hi.RemoteJobHandler(database=db, compute_resource_id='resource1'), container=True):
+    with hi.Config(job_handler=hi.RemoteJobHandler(database=db, compute_resource_id='resource1'), container=True):
         delay = 15
         val1 = sumsqr_with_delay.run(x=np.array([1]), delay=delay)
         val2 = sumsqr_with_delay.run(x=np.array([1,2]), delay=delay)

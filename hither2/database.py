@@ -23,3 +23,6 @@ class Database:
             self._client = pymongo.MongoClient(url, retryWrites=False)
             self._client_db_url = url
         return self._client[self._database][collection_name]
+
+    # TODO: Have this class be more responsible for mediating access to the jobs stored in the Mongo db.
+    # Can serve as a Job-class-aware interface.
