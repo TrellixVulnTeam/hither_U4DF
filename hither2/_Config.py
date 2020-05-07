@@ -3,6 +3,7 @@ from copy import deepcopy
 from enum import Enum
 from typing import Any, Deque, Dict, Union
 from .jobcache import JobCache
+from ._basejobhandler import BaseJobHandler
 
 class Inherit(Enum):
     INHERIT = ''
@@ -13,7 +14,7 @@ class Config:
 
     def __init__(self,
         container: Union[str, bool, Inherit, None]=Inherit.INHERIT,
-        job_handler: Any=Inherit.INHERIT, # TODO: ABC
+        job_handler: Union[BaseJobHandler, Inherit]=Inherit.INHERIT,
         job_cache: Union[JobCache, Inherit, None]=Inherit.INHERIT,
         download_results: Union[bool, Inherit, None]=Inherit.INHERIT,
         job_timeout: Union[float, Inherit, None]=Inherit.INHERIT
