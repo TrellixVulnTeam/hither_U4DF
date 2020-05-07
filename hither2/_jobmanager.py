@@ -17,7 +17,7 @@ class _JobManager:
         job._status = JobStatus.QUEUED
         self._queued_jobs[job._job_id] = job
 
-    def update_job_statuses(self):
+    def process_job_queues(self):
         # Called periodically during wait()
         self.prune_job_queue()
         self.prepare_containers_for_queued_jobs()
@@ -31,8 +31,11 @@ class _JobManager:
 
     def prepare_containers_for_queued_jobs(self):
         for job in self._queued_jobs.values():
-            if not job.needs_a_container_built(): continue
+            if not job.container_may_be_needed(): continue
             # TODO: Push this back to the Job
+            # TODO: This would require a container collection that lives independently,
+            # like the Configs, rather than as a property of a particular JobManager.
+            # We'll explore this later.
             try:
                 self.prepare_container(job._container)
             except:
@@ -84,7 +87,7 @@ class _JobManager:
     def wait(self, timeout: Union[float, None]=None):
         timer = time.time()
         while True:
-            self.update_job_statuses()
+            self.process_job_queues()
             if self._queued_jobs == {} and self._running_jobs == {}:
                 return
             if timeout == 0:
@@ -96,6 +99,13 @@ class _JobManager:
 
     _prepared_singularity_containers = dict()
     _prepared_docker_images = dict()
+    
+    # NOTE: What these 'container preparation' methods actually do is make sure that
+    # whatever container configuration has been attached to a Job's function `f`
+    # has been pulled from a global container store and is available wherever the
+    # job wants to run, before it runs.
+    # The value of f._hither_container is added in core.py if the `container` param
+    # is passed, and should be a docker:// URL.
 
     def prepare_container(self, container):
         if os.getenv('HITHER_USE_SINGULARITY', None) == 'TRUE':

@@ -92,12 +92,18 @@ def _random_string(num: int):
     return ''.join(random.choices('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ', k=num))
 
 def _flatten_nested_collection(item: Any, _type: Union[Any, None] = None) -> List[Any]:
-    """Return a single list of the base items in a nested data structure consisting of an
-    arbitrary combination of dicts, lists, and tuples.s
+    """Flattens the input data structure, returning a list of only the content (non-dict,
+    list, or tuple) elements.
 
     Arguments:
-        item {Any} -- (Potentially arbitrarily) nested data structure to flatten. May contain
-        base items and sub-collections at the same level.
+        item {Any} -- A data structure consisting of [0..n) elements, each of which may be
+        a list, dict, or tuple ("collection elements"), or a "content element." Collection
+        elements may be nested to any depth, and may contain both collection elements and
+        content elements at the same level.
+
+    Keyword Arguments:
+        _type {Union[Any, None]} -- If set, filter the content elements so that only those
+        matching the input type are returned. (default: {None})
 
     Returns:
         List[Any] -- Every content (leaf) item of the input structure.
@@ -119,31 +125,58 @@ def _flatten_nested_collection(item: Any, _type: Union[Any, None] = None) -> Lis
         # (which is read as "return `value`, for i in item: for value in _fnc(i):")
     return elements
 
-def _replace_values_in_structure(structure: Any, replacement_function: Callable[..., Any]) -> Any:
-    """Modify values of input data structure in place, according to function.
+def _copy_structure_with_changes(structure: Any, replacement_function: Callable[..., Any],
+        _as_side_effect:bool = False,
+        _type: Union[Any, None] = None) -> Any:
+    """Create a copy of the input data structure, with certain values modified by <replacement_function>.
+    Note that care must be taken to keep a separate reference to the original data structure if you
+    wish to keep it as well as the replacement. Additionally, objects in <structure> are not
+    deep-copied, so if <replacement_function> makes a modification to an object in <structure>,
+    the original reference will still point to the modified object.
 
     Arguments:
         structure {Any} -- Structure to be modified (dict, list, nested dicts...)
         replacement_function {Callable[..., Any]} -- Function which applies mutations to
-        the elements of <structure> and returns a new value to be stored in the original
-        data structure. This function should perform whatever type inspection is necessary
-        to ensure it only operates on specific types, and should return, unmodified, any
-        values which it does not operate on.
+        the elements of <structure> and returns a new value. If the <_type> parameter is not
+        set, this function must perform whatever type inspection is necessary to ensure
+        it only operates on specific types and return without modification any
+        values of types it does not operate on.
+
+    Keyword Arguments:
+        _as_side_effect {bool} -- If True, we assume that <replacement_function> will be called
+        for its side effects (perhaps by calling a method on an object that does not have any
+        return of its own), and so will return the original value of its target even if the
+        target is of the selected type. For instance, in a replacement function of the form
+        'lambda x: x.copy_to_server()' (where the method `copy_to_server(self)` causes self
+        to take some action but does not return self), setting <_as_side_effect> ensures that
+        the value of `x` appears in the returned data structure; if <_as_side_effect> were
+        set to False, then the return of `x.copy_to_server()` would be used, resulting in
+        the object being replaced with None in the copied structure. (default: {False})
+
+        _type {Union[Any, None]} -- If set, only elements of the matching type will be passed
+        to <replacement_function>; others will be put into place unmodified. (default: {None})
 
     Returns:
-        Any -- The original structure, as modified in-place.
+        Any -- A copy of the original data structure, with modifications.
     """
     entrytype = type(structure)
+    copy = None
     # ignore cases where there is no data structure to modify
     if entrytype not in [dict, list, tuple]:
+        if _type is not None and not isinstance(structure, _type):
+            return structure
+        if _as_side_effect:
+            replacement_function(structure)
+            return structure
         return replacement_function(structure)
     if entrytype == dict:
+        copy = {}
         for k, v in structure.items():
-            structure[k] = _replace_values_in_structure(v, replacement_function)
+            copy[k] = _copy_structure_with_changes(v, replacement_function, _type=_type)
+        return copy
     elif entrytype == list:
-        structure = [_replace_values_in_structure(v, replacement_function) for v in structure]
+        return [_copy_structure_with_changes(v, replacement_function, _type=_type) for v in structure]
     elif entrytype == tuple:
-        structure = tuple([_replace_values_in_structure(v, replacement_function) for v in structure])
-    return structure
+        return tuple([_copy_structure_with_changes(v, replacement_function, _type=_type) for v in structure])
 
 

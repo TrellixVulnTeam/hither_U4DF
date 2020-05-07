@@ -22,39 +22,6 @@ _default_global_config = dict(
 )
 
 Config.set_default_config(_default_global_config)
-
-
-# TODO: QUERY: Is this functionality needed, can we remove it entirely? Or do we need to support it
-# in the rewrite of configuration
-def set_config(
-        container: Union[str, bool, None]=None,
-        job_handler: Any=None,
-        job_cache: Union[JobCache, None]=None,
-        download_results: Union[bool, None]=None,
-        job_timeout: Union[float, None]=None
-) -> None:
-    """Set hither2 configuration parameters.
-    
-    Usually you will want to instead use the context manager
-    form of this function:
-    ```
-    with hi.Config(...):
-        ...
-    ```
-    See help for the `config` function.
-    Any parameter that is left as the default None
-    will not be modified.
-    """
-    # _global_config.set_config(
-    #     container=container,
-    #     job_handler=job_handler,
-    #     job_cache=job_cache,
-    #     download_results=download_results,
-    #     job_timeout=job_timeout
-    # )
-    pass
-
-
 _global_job_manager = _JobManager()
 
 def reset():
