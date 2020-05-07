@@ -11,7 +11,7 @@ from .file import File
 from ._generate_source_code_for_function import _generate_source_code_for_function
 from .remotejobhandler import RemoteJobHandler
 from ._run_serialized_job_in_container import _run_serialized_job_in_container
-from ._util import _random_string, _docker_form_of_container_string, _deserialize_item, _serialize_item, _flatten_nested_collection, _replace_values_in_structure
+from ._util import _random_string, _docker_form_of_container_string, _deserialize_item, _serialize_item, _flatten_nested_collection, _copy_structure_with_changes
 
 
 
@@ -27,7 +27,7 @@ class Job:
         self._no_resolve_input_files = no_resolve_input_files
         self._label = label
         self._wrapped_function_arguments = \
-            _replace_values_in_structure(wrapped_function_arguments, File.kache_numpy_array)
+            _copy_structure_with_changes(wrapped_function_arguments, File.kache_numpy_array, _as_side_effect=False)
         self._job_id = job_id
         if self._job_id is None:
             self._job_id = _random_string(15)
@@ -179,7 +179,8 @@ class Job:
         # any are Jobs being run remotely, set to download their files.
         # In the event they've already run, replace those Jobs with a dummy job that will just
         # download the files (to make sure that result gets cached).
-        _replace_values_in_structure(self._wrapped_function_arguments, self.ensure_job_results_available_locally)
+        _copy_structure_with_changes(self._wrapped_function_arguments, self.ensure_job_results_available_locally,
+                                    _type = Job, _as_side_effect = False)
 
     def result(self):
         if self._status == JobStatus.FINISHED:
@@ -218,7 +219,7 @@ class Job:
                 if not self._no_resolve_input_files:
                     self.resolve_files_in_wrapped_arguments()
                 ret = self._f(**self._wrapped_function_arguments)
-                self._result = _replace_values_in_structure(ret, File.kache_numpy_array)
+                self._result = _copy_structure_with_changes(ret, File.kache_numpy_array, _as_side_effect=False)
                 # self._result = _deserialize_item(_serialize_item(ret))
                 self._status = JobStatus.FINISHED
             except Exception as e:
@@ -269,12 +270,9 @@ class Job:
         """Handles file availability and unboxing of numpy arrays from Kachery files for
         items in the Job's wrapped function arguments.
         """
-        # _replace_values replaces in-place for complex structures, but can't do so for
-        # simple ones (e.g. if _wrapped_function_args is just a File). Have to reassign in that case.
-        # The method is designed to modify the input in-place and also return it, for this reason.
         self._wrapped_function_arguments = \
-            _replace_values_in_structure(self._wrapped_function_arguments,
-                lambda r: r.resolve() if isinstance(r, File) else r)
+            _copy_structure_with_changes(self._wrapped_function_arguments,
+                lambda r: r.resolve(), _type = File, _as_side_effect = False)
 
     # TODO: Make this part of the .result() method? Would need to access info about
     # the "don't-resolve-results" parameter.
@@ -282,14 +280,14 @@ class Job:
         """Handles file availability and unboxing of numpy arrays from Kachery files for
         items in the Job's result.
         """
-        self._result = _replace_values_in_structure(self._result,
-            lambda r: r.resolve() if isinstance(r, File) else r)
+        self._result = _copy_structure_with_changes(self._result,
+            lambda r: r.resolve(), _type = File, _as_side_effect = False)
 
     # TODO: What guarantee do we have that these are actually all complete? Should have a check for it
     def resolve_wrapped_job_values(self) -> None:
         self._wrapped_function_arguments = \
-            _replace_values_in_structure(self._wrapped_function_arguments,
-                lambda arg: arg.result() if isinstance(arg, Job) else arg)
+            _copy_structure_with_changes(self._wrapped_function_arguments,
+                lambda arg: arg.result(), _type = Job, _as_side_effect = False)
 
 
     def is_ready_to_run(self) -> bool:

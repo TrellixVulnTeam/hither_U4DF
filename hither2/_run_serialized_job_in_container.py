@@ -67,7 +67,7 @@ def _run_serialized_job_in_container(job_serialized):
 
                 if ok_import_hither2:
                     from hither2 import ConsoleCapture
-                    from hither2 import _deserialize_item, _serialize_item, _replace_values_in_structure
+                    from hither2 import _deserialize_item, _serialize_item, _copy_structure_with_changes
                     from hither2 import File
 
                     kwargs = json.loads('{kwargs_json}')
@@ -77,10 +77,10 @@ def _run_serialized_job_in_container(job_serialized):
                         try:
                             from function_src import {function_name}
                             if not {no_resolve_input_files}:
-                                kwargs = _replace_values_in_structure(kwargs,
-                                    lambda arg: arg.resolve() if isinstance(arg, File) else arg)
+                                kwargs = _copy_structure_with_changes(kwargs,
+                                    lambda arg: arg.resolve(), _type = File)
                             retval = {function_name}(**kwargs)
-                            retval = _replace_values_in_structure(retval, File.kache_numpy_array)
+                            retval = _copy_structure_with_changes(retval, File.kache_numpy_array)
                             success = True
                             error = None
                         except Exception as e:

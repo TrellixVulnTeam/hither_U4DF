@@ -8,7 +8,7 @@ from ._shellscript import ShellScript
 from ._filelock import FileLock
 from ._consolecapture import ConsoleCapture
 from .core import _deserialize_job
-from ._util import _serialize_item, _deserialize_item, _replace_values_in_structure
+from ._util import _serialize_item, _deserialize_item, _copy_structure_with_changes
 from .defaultjobhandler import DefaultJobHandler
 from .paralleljobhandler import ParallelJobHandler
 from .slurmjobhandler import SlurmJobHandler
