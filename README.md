@@ -5,13 +5,13 @@
 [![license](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 ![Python](https://img.shields.io/badge/python-%3E=3.6-blue.svg)
 
-# hither2
+# hither
 
 Run Python functions and pipelines in containers and on remote servers.
 
 ## Overview
 
-Needs to describe other tools, how hither2 differs, and why it is needed.
+Needs to describe other tools, how hither differs, and why it is needed.
 
 [Frequently asked questions](doc/faq.md)
 
