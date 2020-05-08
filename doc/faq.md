@@ -1,12 +1,49 @@
 # Hither frequently asked questions
 
+* [Hither functions](#hither-functions)
 * [Containerization](#containerization)
 * [Parallelization](#parallelization-and-pipelining)
 * [Memoization](#memoization)
 * [Remote execution](#remote-execution)
 * [Reproducibility](#reproducibility)
-* [Hither functions](#hither-functions)
 * [General](#general)
+
+<!--- Hither functions --->
+
+## Hither functions
+
+### What is a hither function?
+
+A hither function is a Python function that has been decorated using `@hi.function()`. The function should be a *pure function* in that it produces no side effects and the return value is uniquely determined from the input arguments. The input arguments and return value are expected to conform to certain requirements.
+
+An value `x` is a hither-allowed input value if:
+
+* `x` is a jsonable item
+* `x` is a numpy array
+* `x` is a list of hither-allowed input values
+* `x` is a tuple of hither-allowed input values
+* `x` is a Python dict where the values are hither-allowed input values
+
+The definition for hither-allowed output values is the same, except that, additionally, `hi.File()` objects are also allowed. Note that these values may be nested within list, tuple, or dict values.
+
+TODO: describe requirements for code dependencies in hither functions.
+
+TODO: provide some examples of basic hither functions.
+
+### What are the allowed types for input arguments and return values for hither functions? Why?
+
+### What are other requirements for a hither function?
+
+### What is the difference between calling a hither function directly and using the `.run()` method?
+
+### How can I call a hither function by name?
+
+### What is the version of a hither function used for?
+
+### What is the local_modules parameter in a hither function?
+
+### What is the additional_files parameter in a hither function?
+
 
 <!--- Containerization --->
 
@@ -146,27 +183,6 @@ I think it may be possible to use dask as a job handler (DaskJobHandler), but I'
 
 ### How does hither decide when to upload/download files when using a remote compute resource?
 
-<!--- Hither functions --->
-
-## Hither functions
-
-### What is a hither function?
-
-### What are the allowed argument types for hither functions?
-
-### What are the allowed return types for hither functions?
-
-### What are other requirements for a hither function?
-
-### What is the difference between calling a hither function directly and using the `.run()` method?
-
-### How can I call a hither function by name?
-
-### What is the version of a hither function used for?
-
-### What is the local_modules parameter in a hither function?
-
-### What is the additional_files parameter in a hither function?
 
 
 <!--- General --->
