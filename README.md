@@ -7,11 +7,13 @@
 
 # hither2
 
-Run batches of Python functions in containers and on remote servers
+Run Python functions and pipelines in containers and on remote servers.
 
 ## Overview
 
 Needs to describe other tools, how hither2 differs, and why it is needed.
+
+[Frequently asked questions](doc/faq.md)
 
 ## A first example
 
@@ -44,7 +46,7 @@ job_cache = hi.JobCache(
     cache_failing=False,
     rerun_failing=False
 )
-
+# TEST
 # TODO: maybe replace this with some useful computation that uses something from scipy - think about this
 @hi.function('sumsqr', '0.1.0')
 @hi.container('docker://jupyter/scipy-notebook:678ada768ab1')

@@ -76,7 +76,7 @@ class Job:
                     result = self.wait(timeout=timeout, resolve_files=False)
                     if result is None:
                         return None
-                    if not self.result_files_are_available_locally(result):
+                    if not self._result_files_are_available_locally(result):
                         from ._identity import identity
                         assert self._substitute_job_for_wait is None, 'Unexpected at this point in the code: self._substitute_job_for_wait is not None'
                         with Config(job_handler=self._job_handler, download_results=True):
@@ -113,12 +113,17 @@ class Job:
                 return None
 
     def status(self) -> JobStatus:
+        # TODO: use the Deprecated package: https://pypi.org/project/Deprecated/
+        # To deprecate
+        return self.get_status()
+
+    def get_status(self) -> JobStatus:
         return self._status
 
-    def has_been_submitted(self) -> bool:
+    def _has_been_submitted(self) -> bool:
         return not self._status in JobStatus.prerun_statuses()
 
-    def result_files_are_available_locally(self, results: Any = None) -> bool:
+    def _result_files_are_available_locally(self, results: Any = None) -> bool:
         """Indicates whether the File-type objects in `results` have been loaded into kachery.
 
         Keyword Arguments:
@@ -154,7 +159,7 @@ class Job:
         # Skip anything that is not a remotely-run Job.
         if not isinstance(job, Job) or not job._job_handler.is_remote:
             return job
-        if not job.has_been_submitted():
+        if not job._has_been_submitted():
             job._download_results = True
             return job
         else:
@@ -183,21 +188,41 @@ class Job:
                                     _type = Job, _as_side_effect = False)
 
     def result(self):
+        # To deprecate
+        return self.get_result()
+
+    def get_result(self):
         if self._status == JobStatus.FINISHED:
             return self._result
         raise Exception('Cannot get result of job that is not yet finished.')
 
     def exception(self):
+        # To deprecate
+        return self.get_exception()
+    
+    def get_exception(self):
         if self._status == JobStatus.ERROR:
             assert self._exception is not None
         return self._exception
 
-    def set(self, *, label=None):
-        if label is not None:
-            self._label = label
+    def set_label(self, label):
+        self._label = label
         return self
 
+    def set(self, *, label=None):
+        # to deprecate
+        if label is not None:
+            self.set_label(label)
+        return self
+
+        # x = some_function.run(a=1, b=2).set_label('asdfjksadfjkl')
+        x.set_property(label='')
+
     def runtime_info(self):
+        # To deprecate
+        return self.get_runtime_info()
+    
+    def get_runtime_info(self):
         return deepcopy(self._runtime_info)
 
     def _execute(self):
