@@ -15,21 +15,22 @@ def main():
     command = args.command
 
     if command == 'init':
-        slurm_config = {
-            "use_slurm": False,
-            "num_workers_per_batch": 4.,
-            "num_cores_per_job": 2,
-            "time_limit_per_batch": 7200,
-            "max_simultaneous_batches": 1,
-            "additional_srun_opts": []
-        }
         x = {
-            "compute_resource_id": "<compute-resource-id>",
-            "database": "<database-config>",
-            "kachery": "<kachery-config>",
+            "compute_resource_id": "[fill-in-compute-resource-id]",
+            "database": {
+                "mongo_url": "[fill-in-mongo-url]",
+                "database": "[fill-in-database-name]"
+            },
+            "kachery": {
+                "url": "[fill-in-url-to-kachery-server]",
+                "channel": "[fill-in-channel]",
+                "password": "[fill-in-password]"
+            },
             "job_handler": {
-                "type": "slurm",
-                "config": slurm_config
+                "type": "parallel",
+                "config": {
+                    "num_workers": 4
+                }
             }
         }
         with open('compute_resource.json', 'w') as f:
