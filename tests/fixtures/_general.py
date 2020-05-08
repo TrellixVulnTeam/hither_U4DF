@@ -1,6 +1,6 @@
 import os
 import pytest
-import hither2 as hi
+import hither as hi
 import kachery as ka
 from ._common import _random_string
 

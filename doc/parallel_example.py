@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import hither2 as hi
+import hither as hi
 import time
 
 # Define a hither function that squares the input

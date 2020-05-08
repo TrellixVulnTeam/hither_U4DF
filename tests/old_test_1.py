@@ -1,7 +1,7 @@
 import os
 import time
 import json
-import hither2 as hi
+import hither as hi
 import pytest
 import numpy as np
 import kachery as ka
@@ -256,7 +256,7 @@ def test_bin(general, tmp_path, mongodb, kachery):
     set -ex
 
     cd {working_dir}
-    hither2-compute-resource init
+    hither-compute-resource init
     """)
     ss1.start()
     ss1.wait()
@@ -277,7 +277,7 @@ def test_bin(general, tmp_path, mongodb, kachery):
     set -ex
 
     cd {working_dir}
-    hither2-compute-resource start
+    hither-compute-resource start
     """)
     ss2.start()
     ss2.wait(1)

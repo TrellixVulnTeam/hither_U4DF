@@ -1,6 +1,6 @@
 import pytest
 import numpy as np
-import hither2 as hi
+import hither as hi
 from .functions import functions as fun
 from .fixtures import MONGO_PORT, DATABASE_NAME, COMPUTE_RESOURCE_ID
 

@@ -17,7 +17,7 @@ class File:
 
     def serialize(self):
         ret = dict(
-            _type='hither2_file',
+            _type='hither_file',
             sha1_path=self._sha1_path,
             item_type=self._item_type
         )
@@ -83,7 +83,7 @@ class File:
     def can_deserialize(x: Any) -> bool:
         if type(x) != dict:
             return False
-        return (x.get('_type', None) == 'hither2_file') and ('sha1_path' in x)
+        return (x.get('_type', None) == 'hither_file') and ('sha1_path' in x)
 
     @staticmethod
     def deserialize(x) -> 'File':

@@ -41,7 +41,7 @@ def _load_config_from_github(url) -> Dict:
     if url in _global_config_cache:
         return dict(_global_config_cache[url])
     hash0 = ka.get_object_hash(dict(url=url))
-    config_path = f'{tempfile.gettempdir()}/hither2_config_{hash0}.json'
+    config_path = f'{tempfile.gettempdir()}/hither_config_{hash0}.json'
     try_download = True
     obj = None
     if os.path.exists(config_path) and (os.getenv('RUNNING_PYTEST', None) != 'TRUE'): # pragma: no cover

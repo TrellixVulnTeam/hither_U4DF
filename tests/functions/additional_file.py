@@ -1,5 +1,5 @@
 import os
-import hither2 as hi
+import hither as hi
 import numpy as np
 
 @hi.function('additional_file', '0.1.0')

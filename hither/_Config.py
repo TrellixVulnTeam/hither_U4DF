@@ -19,12 +19,12 @@ class Config:
         download_results: Union[bool, Inherit, None]=Inherit.INHERIT,
         job_timeout: Union[float, Inherit, None]=Inherit.INHERIT
     ):
-        """Set hither2 config parameters in a context manager, inheriting unchanged parameters
+        """Set hither config parameters in a context manager, inheriting unchanged parameters
         from the default config.
 
         Example usage:
         ```
-        import hither2 as hi
+        import hither as hi
         with hi.Config(container=True):
             # code goes here
         ```

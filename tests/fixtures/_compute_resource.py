@@ -2,7 +2,7 @@ import os
 import pytest
 import multiprocessing
 import shutil
-import hither2 as hi
+import hither as hi
 from ._config import MONGO_PORT, DATABASE_NAME, COMPUTE_RESOURCE_ID, KACHERY_CONFIG
 from ._common import _random_string
 

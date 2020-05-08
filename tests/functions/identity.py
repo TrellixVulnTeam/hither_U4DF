@@ -1,5 +1,5 @@
 import os
-import hither2 as hi
+import hither as hi
 import numpy as np
 
 @hi.function('identity2', '0.1.1')

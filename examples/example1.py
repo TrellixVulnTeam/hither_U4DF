@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import numpy as np
-import hither2 as hi
+import hither as hi
 import time
 
 @hi.function('sumsqr', '0.1.0')

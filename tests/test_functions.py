@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-import hither2 as hi
+import hither as hi
 from .functions import functions as fun
 
 def assert_same_result(r1, r2):

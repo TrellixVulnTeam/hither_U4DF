@@ -31,6 +31,6 @@ class JobStatus(Enum):
 class HitherFileType(Enum):
     FILE = 'file'
     NUMPY = 'ndarray'
-    SERIALIZED_FILE = 'hither2_file'
+    SERIALIZED_FILE = 'hither_file'
     
     

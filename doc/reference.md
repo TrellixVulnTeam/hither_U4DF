@@ -1,13 +1,13 @@
-# Hither2 reference documentation
+# Hither reference documentation
 
 Talk about security.
 
-### How to define and run a hither2 function
+### How to define and run a hither function
 
 A hither function is just a regular Python function with decorators. For example:
 
 ```python
-import hither2 as hi
+import hither as hi
 
 @hi.function('sumsqr', '0.1.0')
 def sumsqr(x):
@@ -44,13 +44,13 @@ Explain
 
 ### How to run jobs in parallel
 
-(What about dask? How is hither2 different, why needed?)
+(What about dask? How is hither different, why needed?)
 
 For example, parallel job handler -- run multiple jobs in parallel
 
 ### How to use a remote compute resource
 
-### How to run a hither2 compute resource server
+### How to run a hither compute resource server
 
 ### Job handlers
 

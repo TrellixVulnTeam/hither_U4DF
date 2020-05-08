@@ -32,6 +32,7 @@ active configuration includes `container=True`.
 to `docker pull` and subsequently to `docker run`.)
 
 ### What is a docker image? How is that different from a docker container?
+
 A "container" is an instance of a virtual computing resource, while an "image" is the
 fixed specification describing the initial state of that resource. You can think of the
 "image" as the picture of a desk in a catalog, and the "container" as the actual desk
@@ -65,7 +66,7 @@ by default.
 Here is an example that runs `8` jobs with `4` parallel workers (see [parallel_example.py](./parallel_example.py))
 
 ```python
-import hither2 as hi
+import hither as hi
 import time
 
 # Define a hither function that squares the input

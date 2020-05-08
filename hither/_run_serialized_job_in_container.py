@@ -30,7 +30,7 @@ def _run_serialized_job_in_container(job_serialized):
     remove = True
     if os.getenv('HITHER_DEBUG', None) == 'TRUE':
         remove = False
-    with TemporaryDirectory(prefix='tmp_hither2_run_in_container_' + name + '_', remove=remove) as temp_path:
+    with TemporaryDirectory(prefix='tmp_hither_run_in_container_' + name + '_', remove=remove) as temp_path:
         _write_python_code_to_directory(os.path.join(temp_path, 'function_src'), code)
         
         if container is not None:
@@ -55,20 +55,20 @@ def _run_serialized_job_in_container(job_serialized):
 
             def main():
                 try:
-                    import hither2
-                    ok_import_hither2 = True
+                    import hither
+                    ok_import_hither = True
                 except Exception as e:
                     traceback.print_exc()
                     retval = None
                     success = False
                     error = str(e)
                     runtime_info = dict()
-                    ok_import_hither2 = False
+                    ok_import_hither = False
 
-                if ok_import_hither2:
-                    from hither2 import ConsoleCapture
-                    from hither2 import _deserialize_item, _serialize_item, _copy_structure_with_changes
-                    from hither2 import File
+                if ok_import_hither:
+                    from hither import ConsoleCapture
+                    from hither import _deserialize_item, _serialize_item, _copy_structure_with_changes
+                    from hither import File
 
                     kwargs = json.loads('{kwargs_json}')
                     kwargs = _deserialize_item(kwargs)

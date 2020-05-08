@@ -2,7 +2,7 @@
 
 import os
 import numpy as np
-import hither2 as hi
+import hither as hi
 import time
 
 @hi.function('readnpy', '0.1.0')
@@ -30,7 +30,7 @@ def add_one_npy(x):
 
 def main():
     mongo_url = os.getenv('MONGO_URL', 'mongodb://localhost:27017')
-    db = hi.Database(mongo_url=mongo_url, database='hither2')
+    db = hi.Database(mongo_url=mongo_url, database='hither')
     cache = hi.JobCache(database=db)
     with hi.Config(job_cache=cache):
         f = make_zeros_npy.run(shape=(6, 3))

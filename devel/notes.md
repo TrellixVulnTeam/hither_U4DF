@@ -8,7 +8,7 @@ For now, I have removed that messy code that tried to check whether the same job
 
 I am trying to simplify the process of auto-transferring files to/from the compute resource via kachery. Here is how it is working now:
 
-download_results is a hither2 configuration parameter for jobs. If set to True, then the results of the job will always be downloaded to the client by way of kachery.
+download_results is a hither configuration parameter for jobs. If set to True, then the results of the job will always be downloaded to the client by way of kachery.
 
 By default download_results is set to False, so that we do not transfer data when it is not needed. In that case we need to auto-detect when the results are actually needed on the client.
 
@@ -83,4 +83,4 @@ with hi.Config(job_handler=local_job_handler):
     b = do_something_locally_with_large_file.run(x=f)
 ```
 
-Here, `identity` is an internal hither2 function that simply returns whatever is sent to it. Note that it gets executed on the remote compute resource (where the file lives) and the `download_results` is set to True, so it will be downloaded to the client computer prior to `do_something_locally_with_large_file` being called.
+Here, `identity` is an internal hither function that simply returns whatever is sent to it. Note that it gets executed on the remote compute resource (where the file lives) and the `download_results` is set to True, so it will be downloaded to the client computer prior to `do_something_locally_with_large_file` being called.

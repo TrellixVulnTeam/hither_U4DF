@@ -3,7 +3,7 @@ import shutil
 import time
 import multiprocessing
 import pytest
-import hither2 as hi
+import hither as hi
 from ._config import KACHERY_PORT
 from ._common import _random_string
 

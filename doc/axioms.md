@@ -1,4 +1,4 @@
-# hither2 axiomatic reference
+# hither axiomatic reference
 
 ### Preliminary definitions
 
@@ -25,14 +25,14 @@ assert same_result(r1, r2)
 assert same_exception(e1, e2)
 ```
 
-### Valid hither2 function
+### Valid hither function
 
-A hither2 function `fun` is called valid if...
+A hither function `fun` is called valid if...
 
 ### Equivalence of calling and running
 
-Let `fun` be a valid hither2 function and `args` be a Python dict [qualify what `args` can be].
-Then, in any hither2 context, the following two functions produce the same result, or the `run` function returns a hither2 exception.
+Let `fun` be a valid hither function and `args` be a Python dict [qualify what `args` can be].
+Then, in any hither context, the following two functions produce the same result, or the `run` function returns a hither exception.
 
 ```python
 def call():

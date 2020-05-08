@@ -1,7 +1,7 @@
 [![Build Status](https://travis-ci.org/flatironinstitute/hither.svg?branch=master)](https://travis-ci.org/flatironinstitute/hither)
 [![codecov](https://codecov.io/gh/flatironinstitute/hither/branch/master/graph/badge.svg)](https://codecov.io/gh/flatironinstitute/hither)
 
-[![PyPI version](https://badge.fury.io/py/hither2.svg)](https://badge.fury.io/py/hither2)
+[![PyPI version](https://badge.fury.io/py/hither.svg)](https://badge.fury.io/py/hither)
 [![license](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 ![Python](https://img.shields.io/badge/python-%3E=3.6-blue.svg)
 

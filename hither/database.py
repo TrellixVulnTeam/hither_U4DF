@@ -8,7 +8,7 @@ class Database:
         self._client_db_url = None
     @staticmethod
     def preset(name):
-        config = _load_preset_config_from_github(url='https://raw.githubusercontent.com/laboratorybox/hither2/config/config/2020a.json', name=name)
+        config = _load_preset_config_from_github(url='https://raw.githubusercontent.com/flatironinstitute/hither/config/config/2020a.json', name=name)
         mongo_url = config['mongo_url']
         if 'password' in config:
             mongo_url = mongo_url.replace('${password}', config['password'])

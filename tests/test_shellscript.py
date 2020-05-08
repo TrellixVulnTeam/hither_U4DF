@@ -1,4 +1,4 @@
-import hither2 as hi
+import hither as hi
 
 def test_shellscript():
     hi.ShellScript.test()

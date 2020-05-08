@@ -1,4 +1,4 @@
-import hither2 as hi
+import hither as hi
 
 @hi.function('bad_container', '0.1.0')
 @hi.container('docker://bad/container-name')

@@ -257,7 +257,7 @@ class ComputeResource:
         }
         db.update_one(filter, update=update, upsert=True)
 
-    def _get_db(self, collection='hither2_jobs'):
+    def _get_db(self, collection='hither_jobs'):
         return self._database.collection(collection)
 
 def _print_console_out(x):

@@ -2,7 +2,7 @@
 
 import os
 import numpy as np
-import hither2 as hi
+import hither as hi
 import time
 
 @hi.function('sumsqr', '0.1.0')
@@ -29,7 +29,7 @@ def addem(x):
 
 def main():
     mongo_url = os.getenv('MONGO_URL', 'mongodb://localhost:27017')
-    db = hi.Database(mongo_url=mongo_url, database='hither2')
+    db = hi.Database(mongo_url=mongo_url, database='hither')
     with hi.Config(job_handler=hi.RemoteJobHandler(database=db, compute_resource_id='resource1'), container=True):
         delay = 15
         val1 = sumsqr_with_delay.run(x=np.array([1]), delay=delay)

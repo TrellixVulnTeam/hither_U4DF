@@ -1,6 +1,6 @@
 ## Installation for developers
 
-Here we describe how to open the hither2 project in a containerized development environment within vscode.
+Here we describe how to open the hither project in a containerized development environment within vscode.
 
 ## Prerequisites
 

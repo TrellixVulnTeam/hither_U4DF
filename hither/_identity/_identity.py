@@ -1,4 +1,4 @@
-import hither2 as hi
+import hither as hi
 
 @hi.function('identity', '0.1.0')
 # TODO: find a more appropriate container for the identity function (note: we need numpy for hither... but maybe that shouldn't be a requirement)

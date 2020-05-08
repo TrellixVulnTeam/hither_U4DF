@@ -1,6 +1,6 @@
 # pyright: reportMissingImports=false
 
-import hither2 as hi
+import hither as hi
 
 @hi.function('local_module', '0.1.0')
 @hi.container('docker://jupyter/scipy-notebook:678ada768ab1')

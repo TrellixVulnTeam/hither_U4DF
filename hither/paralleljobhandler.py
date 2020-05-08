@@ -4,7 +4,7 @@ import multiprocessing
 from multiprocessing.connection import Connection
 import time
 
-import hither2 as hi
+import hither as hi
 
 from ._basejobhandler import BaseJobHandler
 from ._enums import JobStatus

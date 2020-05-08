@@ -4,7 +4,7 @@ from typing import Dict, Any
 import os
 import json
 import argparse
-import hither2 as hi
+import hither as hi
 
 def main():
     parser = argparse.ArgumentParser(description='Host a compute resource', formatter_class=argparse.RawTextHelpFormatter)
@@ -34,7 +34,7 @@ def main():
         }
         with open('compute_resource.json', 'w') as f:
             json.dump(x, f, indent=4)
-        print('Example configuration has been written to compute_resource.json. Edit that file and then run "hither2-compute-resource start".')
+        print('Example configuration has been written to compute_resource.json. Edit that file and then run "hither-compute-resource start".')
         return
     elif command == 'start':
         with open('compute_resource.json', 'r') as f:

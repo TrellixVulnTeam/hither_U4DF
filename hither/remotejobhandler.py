@@ -2,7 +2,7 @@ from types import SimpleNamespace
 import time
 from typing import Dict
 import kachery as ka
-#from hither2 import _deserialize_item
+#from hither import _deserialize_item
 from ._basejobhandler import BaseJobHandler
 from .database import Database
 from ._enums import JobStatus
@@ -48,7 +48,7 @@ class RemoteJobHandler(BaseJobHandler):
     @staticmethod
     def preset(name):
         db = Database.preset(name)
-        config = _load_preset_config_from_github(url='https://raw.githubusercontent.com/laboratorybox/hither2/config/config/2020a.json', name=name)
+        config = _load_preset_config_from_github(url='https://raw.githubusercontent.com/flatironinstitute/hither/config/config/2020a.json', name=name)
         return RemoteJobHandler(database=db, compute_resource_id=config['compute_resource_id'])
 
     def handle_job(self, job):
@@ -183,5 +183,5 @@ class RemoteJobHandler(BaseJobHandler):
     def cleanup(self):
         pass
 
-    def _get_db(self, collection='hither2_jobs'):
+    def _get_db(self, collection='hither_jobs'):
         return self._database.collection(collection)

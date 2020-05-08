@@ -1,7 +1,7 @@
 import pytest
 import os
 import shutil
-import hither2 as hi
+import hither as hi
 from ._config import MONGO_PORT
 from ._common import _random_string
 

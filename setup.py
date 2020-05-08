@@ -1,6 +1,6 @@
 import setuptools
 
-pkg_name = "hither2"
+pkg_name = "hither"
 
 setuptools.setup(
     name=pkg_name,
@@ -10,7 +10,7 @@ setuptools.setup(
     description="Run batches of Python functions in containers and on remote servers",
     packages=setuptools.find_packages(),
     scripts=[
-        "bin/hither2-compute-resource"
+        "bin/hither-compute-resource"
     ],
     install_requires=[
         "pymongo"
