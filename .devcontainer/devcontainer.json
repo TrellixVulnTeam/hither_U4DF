@@ -47,7 +47,6 @@
 
 	"runArgs": [
 		"--net=host",
-		"--env-file=${localWorkspaceFolder}/.devcontainer/.env"
 	],
 
 	"isInternal": true,
