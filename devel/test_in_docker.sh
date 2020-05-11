@@ -14,7 +14,7 @@ exec docker run \
   -v /tmp:/tmp \
   --net=host \
   -w /workspaces/hither \
-  -it magland/hither2-dev \
+  -it magland/hither-dev \
   /bin/bash -c "PYTHONPATH=/workspaces/hither PATH=/workspaces/hither/bin:\$PATH devel/test.sh $allargs"
 
 #-e HOST_IP="$(ip -4 addr show docker0 | grep -Po 'inet \K[\d.]+')" \
