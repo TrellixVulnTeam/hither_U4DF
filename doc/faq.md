@@ -16,7 +16,7 @@
 
 A hither function is a Python function that has been decorated using `@hi.function()`. The function should be a *pure function* in that it produces no side effects and the return value is uniquely determined from the input arguments. The input arguments and return value are expected to conform to certain requirements.
 
-An value `x` is a hither-allowed input value if:
+A value `x` is a hither-allowed input value if any of the following are true:
 
 * `x` is a jsonable item
 * `x` is a numpy array
@@ -36,7 +36,26 @@ TODO: provide some examples of basic hither functions.
 
 ### What is the difference between calling a hither function directly and using the `.run()` method?
 
+The `.run()` method returns a job, which we can wait on. For example:
+
+```python
+import hither as hi
+
+@hi.function('foo', '0.1.0')
+def foo():
+    return 42
+
+x = foo()
+job = foo.run()
+y = job.wait()
+
+assert x is 42
+assert y is 42
+```
+
 ### How can I call a hither function by name?
+
+Once a function is decorated
 
 ### What is the version of a hither function used for?
 
