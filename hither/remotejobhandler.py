@@ -145,13 +145,12 @@ class RemoteJobHandler(BaseJobHandler):
         if remote_handler is None:
             if self._compute_resource_id is None: return
             ka.store_file(x.path, to=self._kachery)
-
-        # A remote handler *is* configured.
-        x_compute_resource_id = remote_handler._compute_resource_id
-        #  If we *are* the remote handler, we don't need to do anything.
-        if x_compute_resource_id == self._compute_resource_id: return
-
-        raise Exception('This case not yet supported (we need to transfer data from one compute resource to another)')
+        else:   # A remote handler is configured.
+            x_compute_resource_id = remote_handler._compute_resource_id
+            #  If we *are* the remote handler, we don't need to do anything.
+            if x_compute_resource_id == self._compute_resource_id:
+                return
+            raise Exception('This case not yet supported (we need to transfer data from one compute resource to another)')
         
     def _report_active(self):
         db = self._get_db(collection='active_job_handlers')

@@ -23,7 +23,8 @@
 		"ms-azuretools.vscode-docker",
 		"mikestead.dotenv",
 		"ryanluker.vscode-coverage-gutters",
-		"davidwang.ini-for-vscode"
+		"davidwang.ini-for-vscode",
+		"github.vscode-pull-request-github"
 	],
 
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
