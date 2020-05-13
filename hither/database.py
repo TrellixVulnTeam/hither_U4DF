@@ -7,12 +7,14 @@ from ._load_config import _load_preset_config_from_github
 from ._enums import JobStatus
 from .file import File
 from ._util import _utctime
+from .job import Job
 
 
 class Database:
-    HitherJobCollection = 'hither_jobs'
     ActiveJobHandlers = 'active_job_handlers'
     ActiveComputeResources = 'active_compute_resources'
+    CachedJobResults = 'cached_job_results'
+    HitherJobCollection = 'hither_jobs'
 
     def __init__(self, *, mongo_url: str, database: str):
         """Wraps a connection to a Mongo database instance used to store jobs, and other Hither
@@ -38,7 +40,7 @@ class Database:
         db: 'Database' = Database(mongo_url=mongo_url, database=config['database'])
         return db
 
-# This actually returns a collection but there are issues with importing pymongo at file level
+    # This actually returns a collection but there are issues with importing pymongo at file level
     def collection(self, collection_name: str) -> Any:
         import pymongo
         # NOTE: Neither of these values are changed in this codebase, nor should they be changed elsewhere?
@@ -51,6 +53,9 @@ class Database:
 
     def _make_update(self, update:Dict[str, Any]) -> Dict[str, Any]:
         return { '$set': update }
+
+
+  ##### Job Handler interface ###############
 
     def _get_active_job_handler_ids(self) -> List[str]:
         self._clear_expired_job_handlers()
@@ -67,6 +72,40 @@ class Database:
             .delete_many({ JobHandlerKeys.HANDLER_ID: { '$in': handler_ids } })
         for id in handler_ids:
             print(f'Removed job handler: {id}') # TODO: Make log
+
+  ##### Compute Resource interface ###############
+
+    def _report_compute_resource_active(self, resource_id:str, kachery:str) -> None:
+        _filter = { JobKeys.COMPUTE_RESOURCE: resource_id }
+        update_query = self._make_update({
+            JobKeys.COMPUTE_RESOURCE: resource_id,
+            ComputeResourceKeys.KACHERY: kachery,
+            ComputeResourceKeys.UTCTIME: _utctime()
+        })
+        self.collection(Database.ActiveComputeResources)\
+            .update_one(_filter, update=update_query, upsert=True)
+
+  ##### Job cache interface ###############
+
+    def _fetch_cached_job(self, hash:str) -> Optional[Dict[str, Any]]:
+        job = self.collection(Database.CachedJobResults).find_one({ JobKeys.JOB_HASH: hash })
+        if job is None: return None
+        if JobKeys.STATUS not in job: return None # TODO: throw error? If this key is missing it's probably not a Job
+        return job
+
+    def _cache_job_result(self, job:Job) -> None:
+        _hash = job._compute_hash()
+        query = { JobKeys.JOB_HASH: _hash }
+        update_query = self._make_update({
+            JobKeys.JOB_HASH: _hash,
+            JobKeys.STATUS: job._status.value,
+            JobKeys.RESULT: job._serialized_result(),
+            JobKeys.RUNTIME_INFO: job._runtime_info,
+            JobKeys.EXCEPTION: '{}'.format(job._exception)
+        })
+        self.collection(Database.CachedJobResults).update_one(query, update_query, upsert=True)
+
+  ##### Job processing interface ###############
 
     # This actually returns a cursor but there are issues with importing pymongo at file level
     def _fetch_pending_jobs(self, *, _compute_resource_id: str) -> List[Any]:
@@ -151,16 +190,6 @@ class Database:
         self.collection(Database.HitherJobCollection)\
             .update_one(_filter, update=update_query)
 
-    def _report_compute_resource_active(self, resource_id:str, kachery:str) -> None:
-        _filter = { JobKeys.COMPUTE_RESOURCE: resource_id }
-        update_query = self._make_update({
-            JobKeys.COMPUTE_RESOURCE: resource_id,
-            ComputeResourceKeys.KACHERY: kachery,
-            ComputeResourceKeys.UTCTIME: _utctime()
-        })
-        self.collection(Database.ActiveComputeResources)\
-            .update_one(_filter, update=update_query, upsert=True)
-
 # TODO: Put this somewhere else, in a Constants file or something
 # (or else make it part of the Job class)
 # NOTE: It probably belongs somewhere closer to serialization/deserialization code too...
@@ -174,6 +203,7 @@ class JobKeys:
     FUNCTION = 'function'
     FUNCTION_NAME = 'function_name'
     FUNCTION_VERSION = 'function_version'
+    JOB_HASH = 'hash'
     JOB_ID = 'job_id'
     JOB_TIMEOUT = 'job_timeout'
     LABEL = 'label'

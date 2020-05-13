@@ -379,7 +379,19 @@ class Job:
         # we could properly check that for it.
         return True
 
+    def _compute_hash(self) -> str:
+        hash_object = {
+            JobKeys.FUNCTION_NAME: self._function_name,
+            JobKeys.FUNCTION_VERSION: self._function_version,
+            JobKeys.WRAPPED_ARGS: _serialize_item(self._wrapped_function_arguments)
+        }
+        if self._no_resolve_input_files:
+            hash_object[JobKeys.NO_RESOLVE_INPUT_FILES] = True
+        return ka.get_object_hash(hash_object)
     
+    def _serialized_result(self) -> Any:
+        return _serialize_item(self._result)
+
     def _serialize(self, generate_code:bool):
         function_name = self._function_name
         function_version = self._function_version

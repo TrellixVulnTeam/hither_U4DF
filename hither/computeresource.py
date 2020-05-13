@@ -52,15 +52,20 @@ class ComputeResource:
                 self._handle_finished_job(job)
                 del self._jobs[job._job_id]
             elif job._status == JobStatus.ERROR:
-                print(f"Job error: {job_id}\n{job._exception}")
                 self._mark_job_as_error(job_id=job_id, runtime_info=job._runtime_info, exception=job._exception)
                 del self._jobs[job._job_id]
-            # TODO: Check for a canceled status
-            # TODO: Catch-all
+            elif job._status == JobStatus.WAITING:
+                pass
+            elif job._status == JobStatus.PENDING:
+                pass # Local status will remain PENDING until changed by remote. This is expected.
+            elif job._status == JobStatus.QUEUED:
+                pass # TODO: Can this happen?
+            elif job._status == JobStatus.CANCELED:
+                pass # TODO: What to do here? Are server-only statuses possible?
+            else:
+                raise Exception(f"Job {job_id} has unidentified status in compute resource.")
 
             self._report_action()
-
-            # check if handler is still active
             self._clear_jobs_with_inactive_handlers()
         self._job_handler.iterate()
 
@@ -106,6 +111,19 @@ class ComputeResource:
                 return
         # No finished or errored version of the Job was found in the cache. Thus, queue it.
         self._queue_job(job, handler_id)
+
+    def _queue_job(self, job:Job, handler_id:str) -> None:
+        try:
+            job.download_parameter_files_if_needed(kachery=self._kachery)
+        except Exception as e:
+            print(f"Error downloading input files for job: {job._label}\n{e}")
+            self._mark_job_as_error(job_id=job._job_id, exception=e, runtime_info=None)
+            return
+        self._jobs[job._job_id] = job
+        self._job_handler.handle_job(job)
+        job._reported_status = JobStatus.QUEUED
+        job._handler_id = handler_id
+        self._database._mark_job_as_queued(job._job_id, self._compute_resource_id)
 
     def _hydrate_code_for_serialized_job(self, job_id:str, serialized_job:Dict[str, Any]) -> bool:
         """Prepare contents of 'code' field for serialized Job.
@@ -171,19 +189,6 @@ class ComputeResource:
         if self._job_cache is not None:
             self._job_cache.cache_job_result(job)
 
-    def _queue_job(self, job:Job, handler_id:str) -> None:
-        try:
-            job.download_parameter_files_if_needed(kachery=self._kachery)
-        except Exception as e:
-            print(f"Error downloading input files for job: {job._label}\n{e}")
-            self._mark_job_as_error(job_id=job._job_id, exception=e, runtime_info=None)
-            return
-        self._jobs[job._job_id] = job
-        self._job_handler.handle_job(job)
-        job._reported_status = JobStatus.QUEUED
-        job._handler_id = handler_id
-        self._database._mark_job_as_queued(job._job_id, self._compute_resource_id)
-
     def _mark_job_as_running(self, *, job: Job) -> None:
         if job._reported_status == job._status:
             return  # we know it's still running, nothing to see here
@@ -198,7 +203,7 @@ class ComputeResource:
         
     def _mark_job_as_error(self, *,
             job_id: str, runtime_info: Optional[dict], exception: Optional[Exception]) -> None:
-        print(f'Job error: {job_id}') # TODO: Change to formal log statement?
+        print(f"Job error: {job_id}\n{exception}") # TODO: Change to formal log statement?
         self._database._mark_job_as_error(job_id, self._compute_resource_id,
             runtime_info=runtime_info, exception=exception)
     
@@ -215,9 +220,6 @@ class ComputeResource:
             return 3
         else:
             return 6
-
-    def _get_db(self, collection='hither_jobs'):
-        return self._database.collection(collection)
 
 def _print_console_out(x):
     for a in x['lines']:
