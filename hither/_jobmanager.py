@@ -55,8 +55,7 @@ class _JobManager:
             job.resolve_wrapped_job_values()
             if job._job_cache is not None:
                 if not job._job_handler.is_remote:
-                    job._job_cache.check_job(job)
-            # TODO: Do we actually do anything with the results of that check?
+                    job._job_cache.fetch_cached_job_results(job)
 
             job._job_handler.handle_job(job)
 

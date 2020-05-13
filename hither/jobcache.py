@@ -5,6 +5,7 @@ from .database import Database
 from ._util import _deserialize_item, _flatten_nested_collection
 from ._enums import JobStatus
 from .file import File
+from .job import Job
 
 # TODO: provide wrapper for calls to Database
 # TODO: Handle checking for locality of files (may need to pull out that function from Job.py)
@@ -15,7 +16,7 @@ class JobCache:
         self._rerun_failing = rerun_failing
         self._force_run = force_run
 
-    def check_job(self, job) -> bool:
+    def fetch_cached_job_results(self, job: Job) -> bool:
         if self._force_run:
             return False
         hash0 = self._compute_job_hash(job)

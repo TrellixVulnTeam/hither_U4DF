@@ -1,9 +1,12 @@
 from collections import deque
 from copy import deepcopy
 from enum import Enum
-from typing import Any, Deque, Dict, Union
-from .jobcache import JobCache
+from typing import Any, Deque, Dict, Union, TYPE_CHECKING
 from ._basejobhandler import BaseJobHandler
+
+## Construction to avoid circular imports at runtime when we just need to fix a type reference
+if TYPE_CHECKING:
+    from .jobcache import JobCache
 
 class Inherit(Enum):
     INHERIT = ''
@@ -15,7 +18,7 @@ class Config:
     def __init__(self,
         container: Union[str, bool, Inherit, None]=Inherit.INHERIT,
         job_handler: Union[BaseJobHandler, Inherit]=Inherit.INHERIT,
-        job_cache: Union[JobCache, Inherit, None]=Inherit.INHERIT,
+        job_cache: Union['JobCache', Inherit, None]=Inherit.INHERIT,
         download_results: Union[bool, Inherit, None]=Inherit.INHERIT,
         job_timeout: Union[float, Inherit, None]=Inherit.INHERIT
     ):

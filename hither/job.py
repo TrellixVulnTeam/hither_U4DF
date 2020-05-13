@@ -6,6 +6,7 @@ from typing import Dict, List, Union, Any, Optional
 
 import kachery as ka
 from ._Config import Config
+from .database import JobKeys
 from ._enums import JobStatus
 from .file import File
 from ._generate_source_code_for_function import _generate_source_code_for_function
@@ -224,9 +225,6 @@ class Job:
             self.set_label(label)
         return self
 
-        # x = some_function.run(a=1, b=2).set_label('asdfjksadfjkl')
-        x.set_property(label='')
-
     def runtime_info(self):
         # To deprecate
         return self.get_runtime_info()
@@ -398,38 +396,39 @@ class Job:
             assert self._f is not None, 'Cannot serialize function with generate_code=False when function is not available'
             code = None
             function = self._f
-        x = dict(
-            job_id=self._job_id,
-            function=function,
-            code=code,
-            function_name=function_name,
-            function_version=function_version,
-            label=self._label,
-            kwargs=_serialize_item(self._wrapped_function_arguments),
-            container=self._container,
-            download_results=self._download_results,
-            job_timeout=self._job_timeout,
-            no_resolve_input_files=self._no_resolve_input_files
-        )
+        x = {
+            JobKeys.JOB_ID: self._job_id,
+            JobKeys.FUNCTION: function,
+            JobKeys.CODE: code,
+            JobKeys.FUNCTION_NAME: function_name,
+            JobKeys.FUNCTION_VERSION: function_version,
+            JobKeys.LABEL: self._label,
+            JobKeys.WRAPPED_ARGS:_serialize_item(self._wrapped_function_arguments),
+            JobKeys.CONTAINER: self._container,
+            JobKeys.DOWNLOAD_RESULTS: self._download_results,
+            JobKeys.JOB_TIMEOUT: self._job_timeout,
+            JobKeys.NO_RESOLVE_INPUT_FILES: self._no_resolve_input_files
+        }
         x = _serialize_item(x, require_jsonable=False)
         return x
     
+    # TODO: Consider moving into the Database file?
     @staticmethod
     def _deserialize(serialized_job, job_manager=None):
         j = serialized_job
         return Job(
-            f=j['function'],
-            code=j['code'],
-            function_name=j['function_name'],
-            function_version=j['function_version'],
-            label=j['label'],
-            wrapped_function_arguments=_deserialize_item(j['kwargs']),
-            container=j['container'],
-            download_results=j.get('download_results', False),
-            job_timeout=j.get('job_timeout', None),
+            f=j[JobKeys.FUNCTION],
+            code=j[JobKeys.CODE],
+            function_name=j[JobKeys.FUNCTION_NAME],
+            function_version=j[JobKeys.FUNCTION_VERSION],
+            label=j[JobKeys.LABEL],
+            wrapped_function_arguments=_deserialize_item(j[JobKeys.WRAPPED_ARGS]),
+            container=j[JobKeys.CONTAINER],
+            download_results=j.get(JobKeys.DOWNLOAD_RESULTS, False),
+            job_timeout=j.get(JobKeys.JOB_TIMEOUT, None),
             job_manager=job_manager,
             job_handler=None,
             job_cache=None,
-            job_id=j['job_id'],
-            no_resolve_input_files=j['no_resolve_input_files']
+            job_id=j[JobKeys.JOB_ID],
+            no_resolve_input_files=j[JobKeys.NO_RESOLVE_INPUT_FILES]
         )

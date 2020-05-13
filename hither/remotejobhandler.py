@@ -62,7 +62,6 @@ class RemoteJobHandler(BaseJobHandler):
         job_serialized = job._serialize(generate_code=True)
         # send the code to the kachery
         job_serialized['code'] = ka.store_object(job_serialized['code'], to=self._kachery)
-
         db = self._get_db()
         doc = dict(
             compute_resource_id=self._compute_resource_id,
@@ -84,55 +83,59 @@ class RemoteJobHandler(BaseJobHandler):
     def cancel_job(self, job_id):
         print('Warning: not yet able to cancel job of remotejobhandler')
     
-    def iterate(self):
+    def iterate(self) -> None:
         elapsed_database_poll = time.time() - self._timestamp_database_poll
-        if elapsed_database_poll > self._poll_interval():
-            self._timestamp_database_poll = time.time()
-            self._report_active()
+        if elapsed_database_poll <= self._poll_interval():
+            return
 
-            self._iterate_timer = time.time()
-            db = self._get_db()
-            client_code = _random_string(15)
-            query = dict(
-                compute_resource_id=self._compute_resource_id,
-                handler_id=self._handler_id,
-                last_modified_by_compute_resource=True
+        self._timestamp_database_poll = time.time()
+        self._report_active()
+
+        self._iterate_timer = time.time()
+        db = self._get_db()
+        client_code = _random_string(15)
+        query = dict(
+            compute_resource_id=self._compute_resource_id,
+            handler_id=self._handler_id,
+            last_modified_by_compute_resource=True
+        )
+        update = {
+            '$set': dict(
+                last_modified_by_compute_resource=False,
+                client_code=client_code
             )
-            update = {
-                '$set': dict(
-                    last_modified_by_compute_resource=False,
-                    client_code=client_code
-                )
-            }
-            db.update_many(query, update=update)
-            for doc in db.find(dict(client_code=client_code)):
-                self._report_action()
-                job_id = doc['job_id']
-                if job_id in self._jobs:
-                    j = self._jobs[job_id]
-                    compute_resource_status = JobStatus(doc['compute_resource_status'])
-                    if compute_resource_status == JobStatus.QUEUED:
-                        print(f'Job queued: {job_id}')
-                    elif compute_resource_status == JobStatus.RUNNING:
-                        print(f'Job running: {job_id}')
-                    elif compute_resource_status == JobStatus.FINISHED:
-                        print(f'Job finished: {job_id}')
-                        self._internal_counts.num_finished_jobs += 1
-                        j._runtime_info = doc['runtime_info']
-                        j._status = JobStatus.FINISHED
-                        j._result = _deserialize_item(doc['result'])
-                        for f in _flatten_nested_collection(j._result, _type=File):
-                            setattr(f, '_remote_job_handler', self)
-                        del self._jobs[job_id]
-                    elif compute_resource_status == JobStatus.ERROR:
-                        print(f'Job error: {job_id}')
-                        self._internal_counts.num_errored_jobs += 1
-                        j._runtime_info = doc['runtime_info']
-                        j._status = JobStatus.ERROR
-                        j._exception = Exception(doc['exception'])
-                        del self._jobs[job_id]
-                    else:
-                        raise Exception(f'Unexpected compute resource status: {compute_resource_status}')
+        }
+
+        db.update_many(query, update=update)
+        for doc in db.find(dict(client_code=client_code)):
+            self._report_action()
+            job_id = doc['job_id']
+            if job_id in self._jobs:
+                j = self._jobs[job_id]
+                compute_resource_status = JobStatus(doc['compute_resource_status'])
+                if compute_resource_status == JobStatus.QUEUED:
+                    print(f'Job queued: {job_id}')
+                elif compute_resource_status == JobStatus.RUNNING:
+                    print(f'Job running: {job_id}')
+                elif compute_resource_status == JobStatus.FINISHED:
+                    print(f'Job finished: {job_id}')
+                    self._internal_counts.num_finished_jobs += 1
+                    j._runtime_info = doc['runtime_info']
+                    j._status = JobStatus.FINISHED
+                    j._result = _deserialize_item(doc['result'])
+                    for f in _flatten_nested_collection(j._result, _type=File):
+                        setattr(f, '_remote_job_handler', self)
+                    del self._jobs[job_id]
+                elif compute_resource_status == JobStatus.ERROR:
+                    print(f'Job error: {job_id}')
+                    self._internal_counts.num_errored_jobs += 1
+                    j._runtime_info = doc['runtime_info']
+                    j._status = JobStatus.ERROR
+                    j._exception = Exception(doc['exception'])
+                    del self._jobs[job_id]
+                else:
+                    raise Exception(f'Unexpected compute resource status: {compute_resource_status}')
+
     
     def _load_file(self, sha1_path):
         return ka.load_file(sha1_path, fr=self._kachery)
