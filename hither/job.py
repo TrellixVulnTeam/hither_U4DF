@@ -119,6 +119,15 @@ class Job:
 
     def get_status(self) -> JobStatus:
         return self._status
+    
+    def get_label(self) -> str:
+        return self._label
+    
+    def get_function_name(self) -> str:
+        return self._function_name
+    
+    def get_function_version(self) -> str:
+        return self._function_version
 
     def _has_been_submitted(self) -> bool:
         return not self._status in JobStatus.prerun_statuses()
