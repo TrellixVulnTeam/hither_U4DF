@@ -1,3 +1,5 @@
+import time
+
 from typing import Union, List, Any, Callable
 import random
 from ._enums import HitherFileType
@@ -85,6 +87,20 @@ def _docker_form_of_container_string(container):
         return container[len('docker://'):]
     else:
         return container
+
+# NOTE: This can be centralized presently; used identically in computeresource and remotejobhandler.
+# If those ever need different polling interval setups, or if use broadens and we need something
+# more flexible, this can be popped back out easily enough.
+def _get_poll_interval(last_timestamp: float) -> float:
+    elapsed_time = time.time() - last_timestamp
+    if elapsed_time < 3:
+        return 0.1
+    elif elapsed_time < 20:
+        return 1
+    elif elapsed_time < 60:
+        return 3
+    else:
+        return 6
 
 def _random_string(num: int):
     """Generate random string of a given length.

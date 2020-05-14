@@ -3,9 +3,9 @@ from typing import Union, Optional, Dict, Any
 
 import kachery as ka
 from .core import _serialize_item, _prepare_container
-from ._util import _random_string, _utctime
-from .database import Database, JobKeys
-from ._enums import JobStatus
+from ._util import _random_string, _get_poll_interval
+from .database import Database
+from ._enums import JobStatus, JobKeys
 from ._exceptions import DeserializationException
 from .file import File
 from .job import Job
@@ -36,10 +36,10 @@ class ComputeResource:
             time.sleep(0.02) # TODO: alternative to busy-wait?
 
     def _iterate(self):
-        self._iterate_timer = time.time()
+        # self._iterate_timer = time.time() # Never actually used
 
         elapsed_database_poll = time.time() - self._timestamp_database_poll
-        if elapsed_database_poll > self._poll_interval():
+        if elapsed_database_poll > _get_poll_interval(self._timestamp_last_action):
             self._handle_pending_jobs()
         
         # Handle jobs
@@ -210,17 +210,6 @@ class ComputeResource:
     def _report_action(self):
         self._timestamp_last_action = time.time()
     
-    def _poll_interval(self):
-        elapsed_since_last_action = time.time() - self._timestamp_last_action
-        if elapsed_since_last_action < 3:
-            return 0.1
-        elif elapsed_since_last_action < 20:
-            return 1
-        elif elapsed_since_last_action < 60:
-            return 3
-        else:
-            return 6
-
 def _print_console_out(x):
     for a in x['lines']:
         t = _fmt_time(a['timestamp'])

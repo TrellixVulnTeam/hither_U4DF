@@ -6,8 +6,7 @@ from typing import Dict, List, Union, Any, Optional
 
 import kachery as ka
 from ._Config import Config
-from .database import JobKeys
-from ._enums import JobStatus
+from ._enums import JobStatus, JobKeys
 from .file import File
 from ._generate_source_code_for_function import _generate_source_code_for_function
 from .remotejobhandler import RemoteJobHandler
