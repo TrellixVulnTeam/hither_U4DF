@@ -1,6 +1,4 @@
 from copy import deepcopy
-import os
-import sys
 import time
 from typing import Dict, List, Union, Any, Optional
 
@@ -9,9 +7,8 @@ from ._Config import Config
 from ._enums import JobStatus, JobKeys
 from .file import File
 from ._generate_source_code_for_function import _generate_source_code_for_function
-from .remotejobhandler import RemoteJobHandler
 from ._run_serialized_job_in_container import _run_serialized_job_in_container
-from ._util import _random_string, _docker_form_of_container_string, _deserialize_item, _serialize_item, _flatten_nested_collection, _copy_structure_with_changes
+from ._util import _random_string, _deserialize_item, _serialize_item, _flatten_nested_collection, _copy_structure_with_changes
 
 
 
@@ -111,11 +108,6 @@ class Job:
             # Not the same as the job timeout... this is the wait timeout
             if timeout is not None and elapsed > timeout:
                 return None
-
-    def status(self) -> JobStatus:
-        # TODO: use the Deprecated package: https://pypi.org/project/Deprecated/
-        # To deprecate
-        return self.get_status()
 
     def get_status(self) -> JobStatus:
         return self._status
@@ -218,17 +210,7 @@ class Job:
         self._label = label
         return self
 
-    def set(self, *, label=None):
-        # to deprecate
-        if label is not None:
-            self.set_label(label)
-        return self
-
-    def runtime_info(self):
-        # To deprecate
-        return self.get_runtime_info()
-    
-    def get_runtime_info(self):
+    def get_runtime_info(self): # NOTE: Unused
         return deepcopy(self._runtime_info)
 
     def _execute(self):
