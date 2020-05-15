@@ -98,15 +98,17 @@ class ComputeResource:
             return
        
         job = Job._deserialize(job_serialized)
-        if self._job_cache:
-            self._job_cache.fetch_cached_job_results(job)
+        if self._job_cache and self._job_cache.fetch_cached_job_results(job):
+            # Cache fetch will return false if the Job needs to be rerun, or else update the Job
+            # to match the cached Job's values (including status).
+            # The Job must have been in status PENDING to enter this code, so the only way for the
+            # status to be FINISHED or ERROR is if a cached version was found.
             if job._status == JobStatus.FINISHED:
-                # TODO NOTE: These print statements are not correct; there's no check for a cache miss
                 print(f'Found job in cache: {label}') # TODO: Convert to log statement
                 self._handle_finished_job(job)
                 return
             elif job._status == JobStatus.ERROR:
-                print(f'Found error job in cache: {label}') # TODO: Convert to log statement; also might not be true
+                print(f'Found error job in cache: {label}') # TODO: Convert to log statement
                 self._mark_job_as_error(job_id=job_id, exception=job._exception, runtime_info=job._runtime_info)
                 return
         # No finished or errored version of the Job was found in the cache. Thus, queue it.

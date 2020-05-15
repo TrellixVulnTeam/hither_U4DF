@@ -27,7 +27,6 @@ class Database:
         self._database: str = database
         # self._client: Optional[MongoClient] = None
         self._client: Optional[Any] = None
-        self._client_db_url: Optional[str] = None
 
     @staticmethod
     def load_preset_config(name: str) -> 'Database':
@@ -41,12 +40,16 @@ class Database:
     # This actually returns a collection but there are issues with importing pymongo at file level
     def _collection(self, collection_name: str) -> Any:
         import pymongo
-        # NOTE: QUERY: Neither of these values are changed in this codebase, nor should they be changed elsewhere?
-        if self._mongo_url != self._client_db_url:
-            if self._client is not None:
-                self._client.close()
+        # NOTE: pymongo is imported here instead of at the top of the file because when a hither
+        # function is containerized and shipped to a compute resource, the entire hither module
+        # goes along with it. If the minimal container does not contain a pymongo instance, then
+        # trying to do the import at the top of this file--even when its contents aren't used--
+        # would raise an error.
+        # TODO: Minimize the parts of the hither module that are wrapped with function calls - OR -
+        # TODO: Use an environment variable to conditionally evaluate the import at the file level
+        if self._client is None:
             self._client = pymongo.MongoClient(self._mongo_url, retryWrites=False)
-            self._client_db_url = self._mongo_url
+        self._client.server_info() # will throw a timeout error on bad connection
         return self._client[self._database][collection_name]
 
     def _job_handlers(self) -> Any:
