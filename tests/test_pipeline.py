@@ -21,7 +21,7 @@ def test_cancel_job(general):
         a.cancel()
         try:
             a.wait(10)
-        except:
+        except hi.JobCancelledException:
             print('Got the expected exception')
             ok = True
     if not ok:

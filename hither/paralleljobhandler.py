@@ -8,6 +8,7 @@ import hither as hi
 
 from ._basejobhandler import BaseJobHandler
 from ._enums import JobStatus
+from ._exceptions import JobCancelledException
 
 class ParallelJobHandler(BaseJobHandler):
     def __init__(self, num_workers):
@@ -39,7 +40,7 @@ class ParallelJobHandler(BaseJobHandler):
                     pp.join()
                 p['job']._result = None
                 p['job']._status = JobStatus.ERROR
-                p['job']._exception = Exception('Job canceled')
+                p['job']._exception = JobCancelledException('Job canceled')
                 p['job']._runtime_info = None
                 p['pjh_status'] = JobStatus.ERROR
     

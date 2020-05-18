@@ -5,6 +5,7 @@ from .core import reset
 from ._identity import identity
 from ._temporarydirectory import TemporaryDirectory
 from ._shellscript import ShellScript
+from ._exceptions import JobCancelledException
 from ._filelock import FileLock
 from ._consolecapture import ConsoleCapture
 from .core import _deserialize_job
