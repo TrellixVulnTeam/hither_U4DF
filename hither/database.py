@@ -153,6 +153,18 @@ class Database:
             JobKeys.CLIENT_CODE: None
         }
         self._hither_jobs().insert_one(new_job)
+    
+    def cancel_job(self, *,
+                compute_resource_id:str, handler_id:str, job_id:str)-> None:
+        query = {
+            JobKeys.COMPUTE_RESOURCE: compute_resource_id,
+            JobHandlerKeys.HANDLER_ID: handler_id,
+            JobKeys.JOB_ID: job_id
+        }
+        update_query = self._make_update({
+            JobKeys.CANCEL_REQUESTED: True
+        })
+        self._hither_jobs().update_one(query, update_query, upsert=True)
 
     # This actually returns a cursor but there are issues with importing pymongo at file level
     def _fetch_pending_jobs(self, *, _compute_resource_id: str) -> List[Any]:
@@ -163,6 +175,13 @@ class Database:
             JobKeys.COMPUTE_RESOURCE_STATUS: JobStatus.PENDING.value  # status on the compute resource
         }
         return self._hither_jobs().find(query)
+    
+    def _fetch_job_ids_for_cancel_requests(self, *, _compute_resource_id: str) -> List[str]:
+        query = {
+            JobKeys.COMPUTE_RESOURCE:_compute_resource_id,
+            JobKeys.CANCEL_REQUESTED: True
+        }
+        return [job[JobKeys.JOB_ID] for job in self._hither_jobs().find(query)]
 
     # NOTE: Actually should return a Cursor, as above
     def _fetch_remote_modified_jobs(self, *, compute_resource_id:str, handler_id: str) -> List[Any]:

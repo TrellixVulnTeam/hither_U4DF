@@ -41,6 +41,7 @@ class ComputeResource:
         elapsed_database_poll = time.time() - self._timestamp_database_poll
         if elapsed_database_poll > _get_poll_interval(self._timestamp_last_action):
             self._handle_pending_jobs()
+            self._handle_job_cancel_requests()
         
         # Handle jobs
         job_ids = list(self._jobs.keys())
@@ -60,10 +61,8 @@ class ComputeResource:
                 pass # Local status will remain PENDING until changed by remote. This is expected.
             elif job._status == JobStatus.QUEUED:
                 pass # TODO: Can this happen?
-            elif job._status == JobStatus.CANCELED:
-                pass # TODO: What to do here? Are server-only statuses possible?
             else:
-                raise Exception(f"Job {job_id} has unidentified status in compute resource.")
+                raise Exception(f"Job {job_id} has unexpected status in compute resource: {job._status} {type(job._status)} {JobStatus.ERROR}")
 
             self._report_action()
             self._clear_jobs_with_inactive_handlers()
@@ -79,6 +78,11 @@ class ComputeResource:
                 self._job_handler.cancel_job(job_id)
                 self._database._delete_job(job_id, self._compute_resource_id)
                 del self._jobs[job_id]
+
+    def _handle_job_cancel_requests(self):
+        job_ids = self._database._fetch_job_ids_for_cancel_requests(_compute_resource_id=self._compute_resource_id)
+        for job_id in job_ids:
+            self._job_handler.cancel_job(job_id)
 
     def _handle_pending_jobs(self):
         self._timestamp_database_poll = time.time()
