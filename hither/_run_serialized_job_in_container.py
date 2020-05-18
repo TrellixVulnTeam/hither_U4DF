@@ -5,16 +5,17 @@ import json
 import shutil
 import time
 
-from ._enums import JobKeys
+from ._containermanager import ContainerManager
+from ._enums import JobKeys, ConfigKeys
 from ._temporarydirectory import TemporaryDirectory
 from ._shellscript import ShellScript
-from ._util import _docker_form_of_container_string, _random_string
-from ._util import _deserialize_item, _serialize_item
+from ._util import _random_string, _deserialize_item
+
 
 def _run_serialized_job_in_container(job_serialized, cancel_filepath: Union[str, None]=None):
-    name = job_serialized['function_name']
-    version = job_serialized['function_version']
-    label = job_serialized['label']
+    name = job_serialized[JobKeys.FUNCTION_NAME]
+    version = job_serialized[JobKeys.FUNCTION_VERSION]
+    label = job_serialized[JobKeys.LABEL]
     if label is None:
         label = name
     show_console = True
@@ -22,14 +23,14 @@ def _run_serialized_job_in_container(job_serialized, cancel_filepath: Union[str,
     # This variable is reserved for future use
     timeout: Union[None, float] = None
     
-    code = job_serialized['code']
-    container = job_serialized['container']
-    no_resolve_input_files = job_serialized['no_resolve_input_files']
+    code = job_serialized[JobKeys.CODE]
+    container = job_serialized[JobKeys.CONTAINER]
+    no_resolve_input_files = job_serialized[JobKeys.NO_RESOLVE_INPUT_FILES]
 
-    kwargs = job_serialized['kwargs']
+    kwargs = job_serialized[JobKeys.WRAPPED_ARGS]
 
     remove = True
-    if os.getenv('HITHER_DEBUG', None) == 'TRUE':
+    if os.getenv(ConfigKeys.HITHER_DEBUG_ENV, None) == 'TRUE':
         remove = False
     with TemporaryDirectory(prefix='tmp_hither_run_in_container_' + name + '_', remove=remove) as temp_path:
         _write_python_code_to_directory(os.path.join(temp_path, 'function_src'), code)
@@ -155,7 +156,7 @@ def _run_serialized_job_in_container(job_serialized, cancel_filepath: Union[str,
             """.format(
                 run_in_container_path=run_in_container_path
             )
-        elif os.getenv('HITHER_USE_SINGULARITY', None) == 'TRUE':
+        elif os.getenv(ConfigKeys.HITHER_USE_SINGULARITY_ENV, None) == 'TRUE':
             if gpu:
                 gpu_opt = '--nv'
             else:
@@ -189,7 +190,7 @@ def _run_serialized_job_in_container(job_serialized, cancel_filepath: Union[str,
                 if 1: # pragma: no cover
                     ## This win32 section needs to be updated!
                     winpath_ = lambda a : '/' + a.replace('\\','/').replace(':','')
-                    container_ = _docker_form_of_container_string(container)
+                    container_ = ContainerManager._docker_form_of_container_string(container)
                     temp_path_ = winpath_(temp_path)
                     kachery_storage_dir_ = winpath_(os.getenv('KACHERY_STORAGE_DIR'))
                     print('temp_path_: ' + temp_path_)
@@ -217,7 +218,7 @@ def _run_serialized_job_in_container(job_serialized, cancel_filepath: Union[str,
                 """.format(
                     docker_container_name=docker_container_name,
                     gpu_opt=gpu_opt,
-                    container=_docker_form_of_container_string(container),
+                    container=ContainerManager._docker_form_of_container_string(container),
                     temp_path=temp_path,
                     label=label,
                     name=name,

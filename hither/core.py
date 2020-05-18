@@ -1,17 +1,12 @@
 import inspect
-from typing import Union, Any
+from typing import Optional
 import os
 
 from ._Config import Config
 from .defaultjobhandler import DefaultJobHandler
-from ._enums import JobStatus
-from .file import File
+from ._enums import JobKeys
 from .job import Job
-from .jobcache import JobCache
 from ._jobmanager import _JobManager
-import kachery as ka
-from ._shellscript import ShellScript
-from ._util import _random_string, _docker_form_of_container_string, _deserialize_item, _serialize_item
 
 _default_global_config = dict(
     container=None,
@@ -38,7 +33,7 @@ def container(container):
 def opts(no_resolve_input_files=None):
     def wrap(f):
         if no_resolve_input_files is not None:
-            setattr(f, '_no_resolve_input_files', no_resolve_input_files)
+            setattr(f, JobKeys.NO_RESOLVE_INPUT_FILES , no_resolve_input_files)
         return f
     return wrap
 
@@ -55,7 +50,7 @@ def local_modules(local_modules):
         return f
     return wrap
 
-def wait(timeout: Union[float, None]=None):
+def wait(timeout: Optional[float]=None):
     _global_job_manager.wait(timeout)
 
 _global_registered_functions_by_name = dict()
@@ -96,10 +91,11 @@ def function(name, version):
                 download_results = False
             job_timeout = Config.get_current_config_value('job_timeout')
             label = name
-            if hasattr(f, '_no_resolve_input_files'):
-                no_resolve_input_files = f._no_resolve_input_files
-            else:
-                no_resolve_input_files = False
+            no_resolve_input_files = getattr(f, JobKeys.NO_RESOLVE_INPUT_FILES, False)
+            # if hasattr(f, '_no_resolve_input_files'):
+            #     no_resolve_input_files = f._no_resolve_input_files
+            # else:
+            #     no_resolve_input_files = False
             job = Job(f=f, wrapped_function_arguments=arguments_for_wrapped_function,
                       job_manager=_global_job_manager, job_handler=job_handler, job_cache=job_cache,
                       container=container, label=label, download_results=download_results,
@@ -118,10 +114,6 @@ _global_job_handler = DefaultJobHandler()
 # TODO: Would be nice to avoid needing this
 def _deserialize_job(serialized_job):
     return Job._deserialize(serialized_job)
-
-# TODO: Would be nice to avoid needing this
-def _prepare_container(container):
-    _global_job_manager.prepare_container(container)
 
 def _function_path(f):
     return os.path.abspath(inspect.getfile(f))

@@ -1,18 +1,14 @@
 import time
-from typing import Union, Optional, Dict, Any
+from typing import Optional, Dict, Any
 
 import kachery as ka
-from .core import _serialize_item, _prepare_container
-from ._util import _random_string, _get_poll_interval
+from ._containermanager import ContainerManager
+from ._util import _serialize_item, _random_string, _get_poll_interval
 from .database import Database
 from ._enums import JobStatus, JobKeys
 from ._exceptions import DeserializationException
 from .file import File
 from .job import Job
-
-# TODO: Functionalize, tighten.
-# TODO: Consider filtering db query/filter/update statements through an interface function.
-# TODO: Inject a JobManager into this instead of relying on redirection through core._prepare_container?
 
 class ComputeResource:
     def __init__(self, *, database: Database, compute_resource_id, kachery, job_handler, job_cache=None):
@@ -175,15 +171,12 @@ class ComputeResource:
         container = serialized_job[JobKeys.CONTAINER]
         label = serialized_job[JobKeys.LABEL]
 
-        if container is None:
-            exc = f'Cannot run serialized job outside of container: {label}'
-            print(exc)
-            self._mark_job_as_error(job_id=job_id, exception=Exception(exc), runtime_info=None)
-            return False
         try:
-            _prepare_container(container)
+            if container is None:
+                raise Exception("Cannot run serialized job outside of container, but none was set.")
+            ContainerManager.prepare_container(container)
         except Exception as e:
-            print(f"Error preparing container for pending job: {label}\n{e}")
+            print(f"Error preparing container for pending job: {label}\n{e}") # TODO: log
             self._mark_job_as_error(job_id=job_id, exception=e, runtime_info=None)
             return False
         return True
