@@ -212,6 +212,10 @@ class Job:
 
     def get_runtime_info(self): # NOTE: Unused
         return deepcopy(self._runtime_info)
+    
+    def cancel(self):
+        assert self._job_handler is not None, 'Cannot cancel a job that does not have a job handler'
+        self._job_handler.cancel_job(job_id=self._job_id)
 
     def _execute(self):
         if self._container is not None:

@@ -14,11 +14,10 @@ class JobStatus(Enum):
     QUEUED = 'queued'
     RUNNING = 'running'
     FINISHED = 'finished'
-    CANCELED = 'canceled' # remote-only status (for compute resource/Slurm/etc)
 
     @classmethod
     def complete_statuses(cls: Type['JobStatus']) -> List['JobStatus']:
-        return [JobStatus.ERROR, JobStatus.FINISHED, JobStatus.CANCELED]
+        return [JobStatus.ERROR, JobStatus.FINISHED]
 
     @classmethod
     def incomplete_statuses(cls: Type['JobStatus']) -> List['JobStatus']:
@@ -38,6 +37,7 @@ class HitherFileType(Enum):
     SERIALIZED_FILE = 'hither_file'
     
 class JobKeys:
+    CANCEL_REQUESTED = 'cancel_requested'
     CLIENT_CODE = 'client_code'
     CODE = 'code'
     COMPUTE_RESOURCE = 'compute_resource_id'

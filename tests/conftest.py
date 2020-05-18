@@ -17,6 +17,8 @@ def pytest_addoption(parser):
                  default=False, help="enable container tests")
     parser.addoption('--remote', action='store_true', dest="remote",
                  default=False, help="enable remote tests")
+    parser.addoption('--current', action='store_true', dest="current",
+                 default=False, help="run only tests marked as current")
 
 def pytest_configure(config):
     config.addinivalue_line(
@@ -25,14 +27,20 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "remote: test runs jobs on remote server"
     )
+    config.addinivalue_line(
+        "markers", "current: for convenience -- mark one test as current"
+    )
 
     markexpr_list = []
-
-    if not config.option.container:
-        markexpr_list.append('not container')
     
-    if not config.option.remote:
-        markexpr_list.append('not remote')
+    if config.option.current:
+        markexpr_list.append('current')
+    else:
+        if not config.option.container:
+            markexpr_list.append('not container')
+        
+        if not config.option.remote:
+            markexpr_list.append('not remote')
     
     if len(markexpr_list) > 0:
         markexpr = ' and '.join(markexpr_list)

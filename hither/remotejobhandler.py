@@ -54,7 +54,14 @@ class RemoteJobHandler(BaseJobHandler):
         self._report_action()
     
     def cancel_job(self, job_id):
-        print('Warning: not yet able to cancel job of remotejobhandler')
+        if job_id not in self._jobs:
+            print(f'Warning: RemoteJobHandler -- cannot cancel job {job_id}. Job with this id not found.')
+            return
+        self._database.cancel_job(
+            compute_resource_id=self._compute_resource_id,
+            handler_id=self._handler_id,
+            job_id=job_id
+        )
     
     def iterate(self) -> None:
         elapsed_database_poll = time.time() - self._timestamp_database_poll

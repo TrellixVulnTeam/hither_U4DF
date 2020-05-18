@@ -11,7 +11,7 @@ class DefaultJobHandler(BaseJobHandler):
         job._execute()
 
     def cancel_job(self, job_id):
-        print('Warning: not yet able to cancel job of defaultjobhandler')
+        print('Warning: not able to cancel job of defaultjobhandler')
 
     def iterate(self):
         pass

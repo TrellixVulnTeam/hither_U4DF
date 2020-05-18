@@ -34,10 +34,14 @@ class ParallelJobHandler(BaseJobHandler):
             if p['job']._job_id == job_id:
                 if p['pjh_status'] == JobStatus.RUNNING:
                     pp = p['process']
-                    print(f'Terminating process.')
+                    print(f'ParallelJobHandler: Terminating process.')
                     pp.terminate()
                     pp.join()
-                p['pjh_status'] = JobStatus.CANCELED
+                p['job']._result = None
+                p['job']._status = JobStatus.ERROR
+                p['job']._exception = Exception('Job canceled')
+                p['job']._runtime_info = None
+                p['pjh_status'] = JobStatus.ERROR
     
     def iterate(self):
         if self._halted:

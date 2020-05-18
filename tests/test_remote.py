@@ -64,3 +64,20 @@ def test_remote_4(general, mongodb, kachery_server, compute_resource):
     c = c.wait()
     assert np.array_equal(c, 2* np.ones((4, 3)))
     assert jh._internal_counts.num_jobs == 4, f'Unexpected number of jobs: {jh._internal_counts.num_jobs}'
+
+@pytest.mark.remote
+def test_remote_5(general, mongodb, kachery_server, compute_resource):
+    db = hi.Database(mongo_url=f'mongodb://localhost:{MONGO_PORT}', database=DATABASE_NAME)
+    jh = hi.RemoteJobHandler(database=db, compute_resource_id=COMPUTE_RESOURCE_ID)
+    ok = False
+    with hi.Config(job_handler=jh, container=True, download_results=True):
+        a = fun.do_nothing.run(delay=20)
+        a.wait(0.1)
+        a.cancel()
+        try:
+            a.wait(10)
+        except:
+            print('Got the expected exception')
+            ok = True
+    if not ok:
+        raise Exception('Did not get the expected exception.')
