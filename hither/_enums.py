@@ -121,6 +121,18 @@ class ComputeResourceKeys:
     UTCTIME = 'utctime'
 
 class ConfigKeys:
+    ## Environment variables
     HITHER_DEBUG_ENV = 'HITHER_DEBUG'
     HITHER_USE_SINGULARITY_ENV = 'HITHER_USE_SINGULARITY'
     HITHER_NO_DOCKER_PULL_ENV = 'HITHER_DO_NOT_PULL_DOCKER_IMAGES'
+    ## Keys for the configuration dictionary
+    CONTAINER = 'container'
+    JOB_HANDLER = 'job_handler'
+    JOB_CACHE = 'job_cache'
+    DOWNLOAD_RESULTS = 'download_results'
+    TIMEOUT = 'job_timeout'
+
+    @staticmethod
+    def known_configuration_keys() -> List[str]:
+        return [ConfigKeys.CONTAINER, ConfigKeys.JOB_HANDLER, ConfigKeys.JOB_CACHE,
+                ConfigKeys.DOWNLOAD_RESULTS, ConfigKeys.TIMEOUT]

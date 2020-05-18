@@ -4,7 +4,7 @@ import os
 
 from ._Config import Config
 from .defaultjobhandler import DefaultJobHandler
-from ._enums import JobKeys
+from ._enums import ConfigKeys, JobKeys
 from .job import Job
 from ._jobmanager import _JobManager
 
@@ -75,27 +75,23 @@ def function(name, version):
             _global_registered_functions_by_name[name] = f
         
         def run(**arguments_for_wrapped_function):
-            configured_container = Config.get_current_config_value('container')
+            configured_container = Config.get_current_config_value(ConfigKeys.CONTAINER)
             if configured_container is True:
-                container = getattr(f, '_hither_container', None)
+                container = getattr(f, JobKeys.HITHER_CONTAINER, None)
             elif configured_container is not None and configured_container is not False:
                 container = configured_container
             else:
                 container=None
-            job_handler = Config.get_current_config_value('job_handler')
-            job_cache = Config.get_current_config_value('job_cache')
+            job_handler = Config.get_current_config_value(ConfigKeys.JOB_HANDLER)
+            job_cache = Config.get_current_config_value(ConfigKeys.JOB_CACHE)
             if job_handler is None:
                 job_handler = _global_job_handler
-            download_results = Config.get_current_config_value('download_results')
+            download_results = Config.get_current_config_value(ConfigKeys.DOWNLOAD_RESULTS)
             if download_results is None:
                 download_results = False
-            job_timeout = Config.get_current_config_value('job_timeout')
+            job_timeout = Config.get_current_config_value(ConfigKeys.TIMEOUT)
             label = name
             no_resolve_input_files = getattr(f, JobKeys.NO_RESOLVE_INPUT_FILES, False)
-            # if hasattr(f, '_no_resolve_input_files'):
-            #     no_resolve_input_files = f._no_resolve_input_files
-            # else:
-            #     no_resolve_input_files = False
             job = Job(f=f, wrapped_function_arguments=arguments_for_wrapped_function,
                       job_manager=_global_job_manager, job_handler=job_handler, job_cache=job_cache,
                       container=container, label=label, download_results=download_results,

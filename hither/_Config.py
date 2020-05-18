@@ -3,6 +3,7 @@ from copy import deepcopy
 from enum import Enum
 from typing import Any, Deque, Dict, Union, TYPE_CHECKING
 from ._basejobhandler import BaseJobHandler
+from ._enums import ConfigKeys
 
 ## Construction to avoid circular imports at runtime when we just need to fix a type reference
 if TYPE_CHECKING:
@@ -54,20 +55,18 @@ class Config:
             self.new_config[k] = deepcopy(v) if isinstance(v, dict) else v
 
         # TODO: find a neater way to do this (kwargs?)
-        self.coalesce('container', container)
-        self.coalesce('job_handler', job_handler)
-        self.coalesce('job_cache', job_cache)
-        self.coalesce('download_results', download_results)
-        self.coalesce('job_timeout', job_timeout)
+        self.coalesce(ConfigKeys.CONTAINER, container)
+        self.coalesce(ConfigKeys.JOB_HANDLER, job_handler)
+        self.coalesce(ConfigKeys.JOB_CACHE, job_cache)
+        self.coalesce(ConfigKeys.DOWNLOAD_RESULTS, download_results)
+        self.coalesce(ConfigKeys.TIMEOUT, job_timeout)
 
 
     @staticmethod
     # TODO: python 3.8 gives better tools for typehinting dicts, revise this eventually
     def set_default_config(cfg: Dict[Any, Any]) -> None:
         # TODO: Add a guard against resetting default config when one already exists?
-        # There is probably a better way to handle the known-fields enumeration.
-        known_fields = ['container', 'job_handler', 'job_cache', 'download_results', 'job_timeout']
-        for k in known_fields:
+        for k in ConfigKeys.known_configuration_keys():
             if k not in cfg:
                 raise Exception(f"Proposed default configuration is missing a value for {k}")
             if cfg[k] == Inherit.INHERIT:
@@ -97,6 +96,7 @@ class Config:
 
     def coalesce(self, name: str, val: Any) -> None:
         if val == Inherit.INHERIT:
+            # On INHERIT, we return without making changes, keeping the value from
+            # the parent config. Then "None" can be used as an actual value.
             return
-        # This allows "None" to be passed as an actual value
         self.new_config[name] = val
