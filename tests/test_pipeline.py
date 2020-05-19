@@ -14,18 +14,17 @@ def test_pipeline(general):
 
 def do_test_cancel_job(*, container):
     pjh = hi.ParallelJobHandler(num_workers=4)
-    ok = False
     with hi.Config(job_handler=pjh, container=container):
-        a = fun.do_nothing.run(delay=10)
-        a.wait(0.3)
-        a.cancel()
         try:
-            a.wait(4)
+            a = fun.do_nothing.run(delay=20)
+            a.wait(1)
+            a.cancel()
+            # NOTE: If this wait time is too short, the job may resolve before it picks up the
+            # cancellation. In that event the test may fail for the wrong reasons.
+            a.wait(40)
+            assert False, "Call to cancelled Job succeeded but should have failed."
         except hi.JobCancelledException:
             print('Got the expected exception')
-            ok = True
-    if not ok:
-        raise Exception('Did not get the expected exception.')
 
 @pytest.mark.current
 def test_cancel_job(general):
