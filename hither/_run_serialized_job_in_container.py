@@ -10,7 +10,7 @@ import kachery as ka
 from ._util import _docker_form_of_container_string, _random_string
 from ._util import _deserialize_item, _serialize_item
 
-def _run_serialized_job_in_container(job_serialized):
+def _run_serialized_job_in_container(job_serialized, cancel_filepath: Union[str, None]=None):
     name = job_serialized['function_name']
     version = job_serialized['function_version']
     label = job_serialized['label']
@@ -229,13 +229,20 @@ def _run_serialized_job_in_container(job_serialized):
         try:
             ss = ShellScript(run_outside_container_script, keep_temp_files=False, label='run_outside_container', docker_container_name=docker_container_name)
             ss.start()
-            timer = time.time()
+            # timer = time.time()
             did_timeout = False
+            did_cancel = False
             while True:
-                retcode = ss.wait(0.02)
+                retcode = ss.wait(0.2)
                 if retcode is not None:
                     break
-                elapsed = time.time() - timer
+                if cancel_filepath is not None:
+                    if os.path.exists(cancel_filepath):
+                        print('Stopping job because cancel file was found.')
+                        did_cancel = True
+                        ss.stop()
+                        os.unlink(cancel_filepath)
+                # elapsed = time.time() - timer
                 # TODO: this code is currently unreachable but should be uncommented when `timeout` is used.
                 # if timeout is not None:
                 #     if elapsed > timeout:
@@ -254,26 +261,33 @@ def _run_serialized_job_in_container(job_serialized):
                 ss_cleanup.start()
                 ss_cleanup.wait()
 
-        # Need to think about the rest of this function
-        if (retcode != 0) and (not did_timeout):
-            # This is a genuine framework exception because if it were a function exception, we'd get that reported in the runtime_info
-            raise Exception('Unexpected non-zero exit code ({}) running [{}] in container {}'.format(retcode, label, container))
-
-        with open(os.path.join(temp_path, 'result.json')) as f:
-            obj = json.load(f)
-        retval = _deserialize_item(obj['retval'])
-        runtime_info = obj['runtime_info']
-        success = obj['success']
-        error = obj['error']
-        if not success:
-            assert error is not None
-            assert error != 'None'
-
         if did_timeout:
-            runtime_info['timed_out'] = True
-            success = False
+            runtime_info = dict(
+                timed_out=True
+            )
+            success=False,
+            error='Timed out'
+            retval = -1
+        elif did_cancel:
+            runtime_info = dict(
+                cancelled=True
+            )
+            success=False
+            error='::cancelled::'
+            retval = -1
         else:
-            runtime_info['timed_out'] = False
+            if (retcode != 0):
+                # This is a genuine framework exception because if it were a function exception, we'd get that reported in the runtime_info
+                raise Exception('Unexpected non-zero exit code ({}) running [{}] in container {}'.format(retcode, label, container))
+            with open(os.path.join(temp_path, 'result.json')) as f:
+                obj = json.load(f)
+            retval = _deserialize_item(obj['retval'])
+            runtime_info = obj['runtime_info']
+            success = obj['success']
+            error = obj['error']
+            if not success:
+                assert error is not None
+                assert error != 'None'
         
         return success, retval, runtime_info, error
 

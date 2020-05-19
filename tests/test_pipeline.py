@@ -12,15 +12,16 @@ def do_test_pipeline():
 def test_pipeline(general):
     do_test_pipeline()
 
+@pytest.mark.current
 def test_cancel_job(general):
     pjh = hi.ParallelJobHandler(num_workers=4)
     ok = False
-    with hi.Config(job_handler=pjh):
-        a = fun.do_nothing.run(delay=20)
+    with hi.Config(job_handler=pjh, container=True):
+        a = fun.do_nothing.run(delay=6)
         a.wait(0.1)
         a.cancel()
         try:
-            a.wait(10)
+            a.wait(4)
         except hi.JobCancelledException:
             print('Got the expected exception')
             ok = True
