@@ -218,6 +218,7 @@ class Job:
         self._job_handler.cancel_job(job_id=self._job_id)
 
     def _execute(self, cancel_filepath=None):
+        # Note that cancel_filepath will only have an effect if we are running this in a container
         if self._container is not None:
             job_serialized = self._serialize(generate_code=True)
             success, result, runtime_info, error = _run_serialized_job_in_container(job_serialized, cancel_filepath=cancel_filepath)

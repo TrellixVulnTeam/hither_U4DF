@@ -25,7 +25,12 @@ class ParallelJobHandler(BaseJobHandler):
         import kachery as ka
         pipe_to_parent, pipe_to_child = multiprocessing.Pipe()
         serialized_job = job._serialize(generate_code=(job._container is not None))
-        cancel_filepath = f'{tempfile.gettempdir()}/pjh_cancel_job_{job._job_id}.txt'
+
+        # Note that cancel_filepath will only have an effect if we are running this in a container
+        if job._container is not None:
+            cancel_filepath = f'{tempfile.gettempdir()}/pjh_cancel_job_{job._job_id}.txt'
+        else:
+            cancel_filepath = None
         process = multiprocessing.Process(target=_pjh_run_job, args=(pipe_to_parent, cancel_filepath, serialized_job, ka.get_config()))
         self._processes.append(dict(
             job=job,
@@ -38,15 +43,23 @@ class ParallelJobHandler(BaseJobHandler):
         for p in self._processes:
             if p['job']._job_id == job_id:
                 if p['pjh_status'] == JobStatus.RUNNING:
-                    pp = p['process']
-                    # pp.terminate()
-                    print(f'ParallelJobHandler: Stopping process.')
-                    cancel_filepath = f'{tempfile.gettempdir()}/pjh_cancel_job_{job_id}.txt'
-                    with open(cancel_filepath + '.tmp', 'w') as f:
-                        f.write('cancel.')
-                    os.rename(cancel_filepath+'.tmp', cancel_filepath)
-                    # pp.join()
-
+                    # Note that cancel_filepath will only have an effect if we are running this in a container
+                    if p['job']._container is not None:
+                        print(f'ParallelJobHandler: Stopping process by writing cancel file.')
+                        cancel_filepath = f'{tempfile.gettempdir()}/pjh_cancel_job_{job_id}.txt'
+                        with open(cancel_filepath + '.tmp', 'w') as f:
+                            f.write('cancel.')
+                        os.rename(cancel_filepath+'.tmp', cancel_filepath)
+                    else:
+                        print(f'ParallelJobHandler: Terminating job.')
+                        pp = p['process']
+                        pp.terminate()
+                        pp.join()
+                        p['job']._result = None
+                        p['job']._status = JobStatus.ERROR
+                        p['job']._exception = JobCancelledException('Job cancelled')
+                        p['job']._runtime_info = None
+                        p['pjh_status'] = JobStatus.ERROR
                     # if pp.is_alive():
                     #     print('--- x2')
                     #     pp.join(timeout=2)
@@ -93,6 +106,7 @@ def _pjh_run_job(pipe_to_parent: Connection, cancel_filepath: str, serialized_jo
     import kachery as ka
     ka.set_config(**kachery_config)
     job = hi._deserialize_job(serialized_job)
+    # Note that cancel_filepath will only have an effect if we are running this in a container
     job._execute(cancel_filepath=cancel_filepath)
     ret = dict(
         result=job._result,
