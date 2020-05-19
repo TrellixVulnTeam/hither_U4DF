@@ -10,7 +10,7 @@ from ._generate_source_code_for_function import _generate_source_code_for_functi
 from ._run_serialized_job_in_container import _run_serialized_job_in_container
 from ._util import _random_string, _deserialize_item, _serialize_item, _flatten_nested_collection, _copy_structure_with_changes
 from ._exceptions import JobCancelledException
-
+from ._consolecapture import ConsoleCapture
 
 class Job:
     def __init__(self, *, f, wrapped_function_arguments,
@@ -239,7 +239,9 @@ class Job:
             try:
                 if not self._no_resolve_input_files:
                     self.resolve_files_in_wrapped_arguments()
-                ret = self._f(**self._wrapped_function_arguments)
+                with ConsoleCapture(label=self.get_label(), show_console=True) as cc:
+                    ret = self._f(**self._wrapped_function_arguments)
+                self._runtime_info = cc.runtime_info()
                 self._result = _copy_structure_with_changes(ret, File.kache_numpy_array, _as_side_effect=False)
                 # self._result = _deserialize_item(_serialize_item(ret))
                 self._status = JobStatus.FINISHED
