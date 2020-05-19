@@ -4,13 +4,13 @@ from typing import Dict, List, Union, Any, Optional
 
 import kachery as ka
 from ._Config import Config
+from ._consolecapture import ConsoleCapture
 from ._enums import JobStatus, JobKeys
+from ._exceptions import JobCancelledException
 from .file import File
 from ._generate_source_code_for_function import _generate_source_code_for_function
 from ._run_serialized_job_in_container import _run_serialized_job_in_container
 from ._util import _random_string, _deserialize_item, _serialize_item, _flatten_nested_collection, _copy_structure_with_changes
-
-
 
 class Job:
     def __init__(self, *, f, wrapped_function_arguments,
@@ -217,10 +217,11 @@ class Job:
         assert self._job_handler is not None, 'Cannot cancel a job that does not have a job handler'
         self._job_handler.cancel_job(job_id=self._job_id)
 
-    def _execute(self):
+    def _execute(self, cancel_filepath=None):
+        # Note that cancel_filepath will only have an effect if we are running this in a container
         if self._container is not None:
             job_serialized = self._serialize(generate_code=True)
-            success, result, runtime_info, error = _run_serialized_job_in_container(job_serialized)
+            success, result, runtime_info, error = _run_serialized_job_in_container(job_serialized, cancel_filepath=cancel_filepath)
             self._runtime_info = runtime_info
             if success:
                 self._result = result
@@ -228,14 +229,19 @@ class Job:
             else:
                 assert error is not None
                 assert error != 'None'
-                self._exception = Exception(error)
+                if error == JobKeys.CANCELLED_FLAG:
+                    self._exception = JobCancelledException('Job was cancelled')
+                else:
+                    self._exception = Exception(error)
                 self._status = JobStatus.ERROR
         else:
             assert self._f is not None, 'Cannot execute job outside of container when function is not available'
             try:
                 if not self._no_resolve_input_files:
                     self.resolve_files_in_wrapped_arguments()
-                ret = self._f(**self._wrapped_function_arguments)
+                with ConsoleCapture(label=self.get_label(), show_console=True) as cc:
+                    ret = self._f(**self._wrapped_function_arguments)
+                self._runtime_info = cc.runtime_info()
                 self._result = _copy_structure_with_changes(ret, File.kache_numpy_array, _as_side_effect=False)
                 # self._result = _deserialize_item(_serialize_item(ret))
                 self._status = JobStatus.FINISHED

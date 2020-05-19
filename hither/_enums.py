@@ -38,6 +38,7 @@ class HitherFileType(Enum):
     
 class JobKeys:
     CANCEL_REQUESTED = 'cancel_requested'
+    CANCELLED_FLAG = '::cancelled::'
     CLIENT_CODE = 'client_code'
     CODE = 'code'
     COMPUTE_RESOURCE = 'compute_resource_id'
@@ -60,6 +61,7 @@ class JobKeys:
     RUNTIME_INFO = 'runtime_info'
     SERIALIZATION = 'job_serialized'
     STATUS = 'status'
+    TIMED_OUT = 'Timed out'
     WRAPPED_ARGS = 'kwargs' # TODO CHANGE ME ONCE ALL REFERENCES ARE CENTRALIZED
 
     @staticmethod
