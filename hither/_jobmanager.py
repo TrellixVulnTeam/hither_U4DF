@@ -1,12 +1,9 @@
-import os
-import sys
 import time
 from typing import Any, Union, Dict, List
 
+from ._containermanager import ContainerManager
 from ._enums import JobStatus
 from .job import Job
-from ._shellscript import ShellScript
-from ._util import _docker_form_of_container_string
 
 class _JobManager:
     def __init__(self) -> None:
@@ -30,17 +27,9 @@ class _JobManager:
                 del self._queued_jobs[_id]
 
     def prepare_containers_for_queued_jobs(self):
+        job:Job
         for job in self._queued_jobs.values():
-            if not job.container_may_be_needed(): continue
-            # TODO: Push this back to the Job
-            # TODO: This would require a container collection that lives independently,
-            # like the Configs, rather than as a property of a particular JobManager.
-            # We'll explore this later.
-            try:
-                self.prepare_container(job._container)
-            except:
-                job._status = JobStatus.ERROR
-                job._exception = Exception(f'Unable to prepare container for job {job._label}: {job._container}')
+            job.prepare_container_if_needed()
 
     def run_queued_jobs(self):
         queued_job_ids = list(self._queued_jobs.keys())
@@ -95,60 +84,4 @@ class _JobManager:
             elapsed = time.time() - timer
             if timeout is not None and elapsed > timeout:
                 return
-
-    _prepared_singularity_containers = dict()
-    _prepared_docker_images = dict()
-    
-    # NOTE: What these 'container preparation' methods actually do is make sure that
-    # whatever container configuration has been attached to a Job's function `f`
-    # has been pulled from a global container store and is available wherever the
-    # job wants to run, before it runs.
-    # The value of f._hither_container is added in core.py if the `container` param
-    # is passed, and should be a docker:// URL.
-
-    def prepare_container(self, container):
-        if os.getenv('HITHER_USE_SINGULARITY', None) == 'TRUE':
-            if container not in self._prepared_singularity_containers:
-                self._do_prepare_singularity_container(container)
-                self._prepared_singularity_containers[container] = True
-        else:
-            if os.getenv('HITHER_DO_NOT_PULL_DOCKER_IMAGES', None) != 'TRUE':
-                if container not in self._prepared_docker_images:
-                    self._do_pull_docker_image(container)
-                    self._prepared_docker_images[container] = True
-
-
-    def _do_prepare_singularity_container(self, container):
-        print(f'Building singularity container: {container}')
-        ss = ShellScript(f'''
-            #!/bin/bash
-
-            exec singularity run {container} echo "built {container}"
-        ''')
-        ss.start()
-        retcode = ss.wait()
-        if retcode != 0:
-            raise Exception(f'Problem building container {container}')
-
-    def _do_pull_docker_image(self, container):
-        print(f'Pulling docker container: {container}')
-        container = _docker_form_of_container_string(container)
-        if (sys.platform == "win32"):
-            if 1: # pragma: no cover
-                ss = ShellScript(f'''
-                    docker pull {container}
-                ''')
-        else:
-            ss = ShellScript(f'''
-                #!/bin/bash
-                set -ex
-                
-                exec docker pull {container}
-            ''')
-        ss.start()
-        retcode = ss.wait()
-        if retcode != 0:
-            raise Exception(f'Problem pulling container {container}')
-
-
 

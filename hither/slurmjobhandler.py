@@ -1,19 +1,20 @@
+import json
 import os
+import random
+import shutil
+import signal
 from sys import version
 import time
-import random
-import signal
-import shutil
 import traceback
-from ._basejobhandler import BaseJobHandler
-from ._shellscript import ShellScript
-from ._util import _random_string
-from ._filelock import FileLock
-from ._enums import JobStatus
 from typing import Optional, List, Union
-import json
-from .core import Job, _deserialize_item
 from os import rename
+
+from ._basejobhandler import BaseJobHandler
+from ._enums import JobStatus
+from ._filelock import FileLock
+from .job import Job
+from ._shellscript import ShellScript
+from ._util import _random_string, _deserialize_item
 
 DEFAULT_JOB_TIMEOUT = 1200
 

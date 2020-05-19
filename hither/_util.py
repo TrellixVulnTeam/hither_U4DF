@@ -5,7 +5,7 @@ import random
 from ._enums import HitherFileType
 from .file import File
 
-def _serialize_item(x, require_jsonable=True):
+def _serialize_item(x:Any, require_jsonable:bool=True) -> Any:
     if isinstance(x, File):
         return x.serialize()
     # TODO: move these cases where they belong
@@ -39,7 +39,7 @@ def _serialize_item(x, require_jsonable=True):
     else:
         return x
 
-def _is_jsonable(x):
+def _is_jsonable(x:Any) -> bool:
     import json
     try:
         json.dumps(x)
@@ -47,7 +47,7 @@ def _is_jsonable(x):
     except:
         return False
 
-def _deserialize_item(x):
+def _deserialize_item(x:Any) -> Any:
     if type(x) == dict:
         if '_type' in x and x['_type'] == 'tuple':
             return _deserialize_item(tuple(x['data']))
@@ -78,15 +78,9 @@ def _deserialize_item(x):
 #     f = io.BytesIO(bytes0)
 #     return np.load(f)
 
-def _utctime():
+def _utctime() -> float:
     from datetime import datetime, timezone
     return datetime.utcnow().replace(tzinfo=timezone.utc).timestamp()
-
-def _docker_form_of_container_string(container):
-    if container.startswith('docker://'):
-        return container[len('docker://'):]
-    else:
-        return container
 
 # NOTE: This can be centralized presently; used identically in computeresource and remotejobhandler.
 # If those ever need different polling interval setups, or if use broadens and we need something
@@ -102,7 +96,7 @@ def _get_poll_interval(last_timestamp: float) -> float:
     else:
         return 6
 
-def _random_string(num: int):
+def _random_string(num: int) -> str:
     """Generate random string of a given length.
     """
     return ''.join(random.choices('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ', k=num))

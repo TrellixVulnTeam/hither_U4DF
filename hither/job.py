@@ -1,10 +1,11 @@
 from copy import deepcopy
 import time
-from typing import Dict, List, Union, Any, Optional
+from typing import List, Union, Any, Optional
 
 import kachery as ka
 from ._Config import Config
 from ._consolecapture import ConsoleCapture
+from ._containermanager import ContainerManager
 from ._enums import JobStatus, JobKeys
 from ._exceptions import JobCancelledException
 from .file import File
@@ -188,19 +189,11 @@ class Job:
         _copy_structure_with_changes(self._wrapped_function_arguments, self.ensure_job_results_available_locally,
                                     _type = Job, _as_side_effect = False)
 
-    def result(self):
-        # To deprecate
-        return self.get_result()
-
     def get_result(self):
         if self._status == JobStatus.FINISHED:
             return self._result
         raise Exception('Cannot get result of job that is not yet finished.')
 
-    def exception(self):
-        # To deprecate
-        return self.get_exception()
-    
     def get_exception(self):
         if self._status == JobStatus.ERROR:
             assert self._exception is not None
@@ -310,7 +303,7 @@ class Job:
     def resolve_wrapped_job_values(self) -> None:
         self._wrapped_function_arguments = \
             _copy_structure_with_changes(self._wrapped_function_arguments,
-                lambda arg: arg.result(), _type = Job, _as_side_effect = False)
+                lambda arg: arg.get_result(), _type = Job, _as_side_effect = False)
 
 
     def is_ready_to_run(self) -> bool:
@@ -357,18 +350,20 @@ class Job:
         self._status = JobStatus.ERROR
         self._exception = Exception(f'Exception in wrapped Job: {str(errored_jobs[0]._exception)}')
 
-    def container_may_be_needed(self) -> bool:
-        """Returns whether this Job needs to have a container built before it can be run.
-
-        Returns:
-            bool -- Whether this Job requires a container to be built before it can be run.
+    def prepare_container_if_needed(self) -> None:
+        """Calls global container manager to ensure container images are downloaded, if a container is
+        required for the Job. On container fetch error, set error status and record the exception in the Job.
         """
-        if self._container is None: return False
-        if self._job_handler.is_remote: return False
-        # NOTE: We can't check whether the container is built or not, since we don't have
-        # visibility into those. If and when we have a globally-visible container store, then
-        # we could properly check that for it.
-        return True
+        # No need to prepare a container if none was specified
+        if self._container is None: return
+        # If we are attached to a remote job handler, the container is actually needed on the
+        # remote resource, not the machine where we're currently executing. Don't prepare anything.
+        if self._job_handler is not None and self._job_handler.is_remote: return
+        try:
+            ContainerManager.prepare_container(self._container)
+        except:
+            self._status = JobStatus.ERROR
+            self._exception = Exception(f"Unable to prepare container for Job {self._label}: {self._container}")
 
     def _compute_hash(self) -> str:
         hash_object = {
@@ -391,8 +386,8 @@ class Job:
                 code = self._code
             else:
                 assert self._f is not None, 'Cannot serialize function with generate_code=True when function and code are both not available'
-                additional_files = getattr(self._f, '_hither_additional_files', [])
-                local_modules = getattr(self._f, '_hither_local_modules', [])
+                additional_files = getattr(self._f, JobKeys.HITHER_ADDITIONAL_FILES, [])
+                local_modules = getattr(self._f, JobKeys.HITHER_LOCAL_MODULES, [])
                 code = _generate_source_code_for_function(self._f, name=function_name, additional_files=additional_files, local_modules=local_modules)
             function = None
         else:
