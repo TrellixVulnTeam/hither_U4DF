@@ -4,13 +4,13 @@ from typing import Dict, List, Union, Any, Optional
 
 import kachery as ka
 from ._Config import Config
+from ._consolecapture import ConsoleCapture
 from ._enums import JobStatus, JobKeys
+from ._exceptions import JobCancelledException
 from .file import File
 from ._generate_source_code_for_function import _generate_source_code_for_function
 from ._run_serialized_job_in_container import _run_serialized_job_in_container
 from ._util import _random_string, _deserialize_item, _serialize_item, _flatten_nested_collection, _copy_structure_with_changes
-from ._exceptions import JobCancelledException
-from ._consolecapture import ConsoleCapture
 
 class Job:
     def __init__(self, *, f, wrapped_function_arguments,
@@ -229,7 +229,7 @@ class Job:
             else:
                 assert error is not None
                 assert error != 'None'
-                if error == '::cancelled::':
+                if error == JobKeys.CANCELLED_FLAG:
                     self._exception = JobCancelledException('Job was cancelled')
                 else:
                     self._exception = Exception(error)

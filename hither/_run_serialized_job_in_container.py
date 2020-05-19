@@ -4,9 +4,10 @@ from typing import Any, List, Tuple, Union, Dict
 import json
 import shutil
 import time
+
+from ._enums import JobKeys
 from ._temporarydirectory import TemporaryDirectory
 from ._shellscript import ShellScript
-import kachery as ka
 from ._util import _docker_form_of_container_string, _random_string
 from ._util import _deserialize_item, _serialize_item
 
@@ -266,14 +267,14 @@ def _run_serialized_job_in_container(job_serialized, cancel_filepath: Union[str,
                 timed_out=True
             )
             success=False,
-            error='Timed out'
+            error=JobKeys.TIMED_OUT
             retval = -1
         elif did_cancel:
             runtime_info = dict(
                 cancelled=True
             )
             success=False
-            error='::cancelled::'
+            error=JobKeys.CANCELLED_FLAG
             retval = -1
         else:
             if (retcode != 0):

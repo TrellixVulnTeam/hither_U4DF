@@ -66,6 +66,7 @@ class ParallelJobHandler(BaseJobHandler):
                     #     print('--- x3')
                     # print(f'ParallelJobHandler: Process stopped.')
                 else:
+                    # TODO: Consider if existing ERROR or FINISHED status should change this behavior 
                     p['job']._result = None
                     p['job']._status = JobStatus.ERROR
                     p['job']._exception = JobCancelledException('Job cancelled')
