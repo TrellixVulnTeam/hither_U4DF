@@ -38,7 +38,11 @@ match the actual name of the function defined in the code. So the following woul
         return 6
 ```
 
-TODO: describe requirements for code dependencies in hither functions.
+Of course, most nontrivial functions also depend on other code. A hither function can call
+code outside itself. Generally-available packages from a package repository should be available
+on the environment where the hither function is run (most likely by including them in the
+container image). There are also mechanisms for including any
+[local dependencies](#how-does-hither-manage-dependencies-on-python-modules-or-other-code-outside-my-function).
 
 ### What are the allowed types for input arguments and return values for hither functions? Why?
 A value `x` is a hither-allowed input value if any of the following are true:
@@ -67,10 +71,26 @@ the `add` function. In the example above, with proper configuration, the `ones` 
 only be executed once; because its output is uniquely determined from its inputs, its result value
 can be cached.
 
+Custom objects or data structures that cannot be serialized to JSON are __not__ presently supported,
+although these may be supported in the future in cases where a serialization mechanism
+is also provided.
 
 ### What are other requirements for a hither function?
 
-__TODO: I don't know the answer to this__
+While it is not strictly forbidden, it is strongly encouraged that hither functions
+be [pure functions](https://en.wikipedia.org/wiki/Pure_function):
+functions whose results are determined only by their inputs and do
+not rely upon, or change, any external state. This is to support hither's
+[caching mechanisms](#how-can-i-use-hither-to-cache-the-results-of-python-jobs),
+as well as Job-level parallelism (since hither Jobs are
+not guaranteed to execute in a particular order, code with side effects can have
+consequences which are difficult to reason about).
+
+Stochastic algorithms (whose results may vary from one execution to the next, even
+on the same inputs) can be used, but the job cache, if used, will return
+the same result every time the function's result is checked. If you would like
+to see varying possible results returned, it is possible to
+[disable caching](#is-the-job-cache-always-used).
 
 ### What is the difference between calling a hither function directly and using the `.run()` method?
 
@@ -92,8 +112,7 @@ assert y is 42
 ```
 
 `Job`s can be run asynchronously and in parallel (so long as they don't depend on the results of other `Job`s).
-Calling a hither function directly will result in synchronous execution. Additionally, the __result of a direct
-call to a hither function will not be cached.__ (TODO: IS THIS TRUE?)
+Calling a hither function directly will result in synchronous execution. Additionally, the result of a direct call to a hither function will not be cached.
 
 ### How can I call a hither function by name?
 
@@ -222,7 +241,7 @@ of [container images](https://hub.docker.com/).
 tool that is specifically designed for high-performance computing clusters. Its design
  offers improved security over Docker's container implementation, and it also offers
  specific support for high-performance networking and communication standards
- (Infiniband) and libraries (OpenMPI) common in HPC environments.
+ (e.g. Infiniband) and libraries (e.g. OpenMPI) common in HPC environments.
 
 ### Are docker and singularity required in order to use hither?
 
@@ -236,8 +255,6 @@ Container images do not need to be stored on Docker Hub specifically; so long as
 hither process can resolve the URL pointing to the container image, that image can be used.
 
 ### How does Hither manage dependencies on Python modules or other code outside my function?
-
-__TO DOUBLE CHECK__
 
 When the hither function is packaged, a function is run to bring along all code from its
 directory and all child directories. Specifically, any files ending in `.py` (except the top-level
@@ -258,7 +275,19 @@ command.
 
 ### How can I create a docker image with the appropriate dependencies for my hither function?
 
-__I DON'T KNOW THIS ONE__
+A simple container image definition such as the following shows
+a solution for a dependency on `scipy`:
+
+```docker
+FROM python:3.8
+RUN pip install scipy
+```
+
+Docker supports a rich array of features which are beyond the scope of this document.
+[Docker's own documentation](https://docs.docker.com/get-started/) may be of further help.
+
+[Dependencies on local packages](#does-all-my-code-have-to-be-in-one-big-file)
+ are also supported, outside the container image.
 
 <!--- Parallelization and pipelining --->
 
@@ -266,7 +295,8 @@ __I DON'T KNOW THIS ONE__
 
 ### How can I use hither to run jobs in parallel?
 
-Here is an example that runs `8` jobs with `4` parallel workers (see [parallel_example.py](./parallel_example.py))
+Here is an example that runs `8` jobs with `4` parallel workers
+(see [parallel_example.py](./parallel_example.py))
 
 ```python
 import hither as hi
@@ -307,7 +337,6 @@ print(f'Elapsed time: {time.time() - timer} sec')
 ### What is a simple example of a hither pipeline?
 
 Consider this example:
-
 ```python
 import numpy as np
 
@@ -354,14 +383,13 @@ its roots.
 Because a `ParallelJobHandler` is used, the independent operations of
 finding `x` from `xroot` and solving for x with A and B can be done in parallel.
 hither is aware that a pipeline has been formed in which the output of
-`invert` is needed to find the output of the call to `dot`, so the `invert`
+`invert` is needed as input to the call to `dot`, so the `dot`
 Job's execution will be delayed until that result is available.
 
 
 ### How can I use hither to submit jobs to a Slurm cluster?
 
-__The easy, sort of flip answer is 'use a slurm job handler' but I
-don't know if there are subtelties beyond that__
+__Use a SlurmJobHandler! (This deserves more thorough treatment)__
 
 ### What is the difference between a hither function and a hither job?
 
@@ -507,22 +535,29 @@ calls to `ones`. However, the `ones` function willl only be executed once;
 the second call will use the stored result value.
 
 The `cache_failing` and `rerun_failing` parameters determine how to handle failed
-Jobs: if `cache_failing` is set, then the cache will record (and continue to return)
-whatever error was produced when the function was run; if `rerun_failing` is set,
+Jobs. If `cache_failing` is set, then the cache will record (and continue to return)
+whatever error was produced when the function was run. If `rerun_failing` is set,
 then checking the job cache will instruct the job handler to rerun any Job whose
 hash matches the errored Job's.
 
-__ACTUALLY, why are cache_failing and rerun_failing separate parameters?__
+__TODO: Clarify the role and effect of cache_failing and rerun_failing__
 
-Additionally, there is also a `force_run` parameter to the job cache; if this
-is set, then the cache will return a cache miss result for any input.
-__QUERY: How is that different from not even having a job cache? Or is the point
-to be able to turn it off and on?__
+## Is the job cache always used?
+
+If the `force_run` parameter is set to True,
+the cache will return a cache miss result for any input. This will
+cause the Job to be re-executed every time it is scheduled for
+execution. However,
+the results of the Job will still be cached, and can be returned on
+subsequent accesses to the same job cache database if
+the `_force_run` parameter is later turned off.
+(As a reminder, records of hither Job runs may have a long lifetime of potentially
+days, weeks, or longer.)
 
 
 ### What information does hither use to form the job hash for purposes of job caching?
 Jobs in the job cache are identified by a hash value. This is the result of
-applying the sha1 hashing algorithm to an input string composed of the hither
+applying the `sha1` hashing algorithm to an input string composed of the hither
 function name and version, and its arguments.
 
 Since one of hither's design goals is to promote scientific reproducibility,
@@ -542,14 +577,19 @@ The hither ecosystem interacts with several other tools to ensure reproducibilit
 across environments.
 [kachery](https://github.com/flatironinstitute/kachery) is a content-addressable
 storage system for files. kachery provides a centralized and universal content
-store for files and directories, such as those used in hither functions. Any
-file can be retrieved by a universal identifier based on its
-`sha1` or `md5` hash.
-The kachery server can be run locally, on a container,
-on a remote server, or in the cloud. Consumers of the file data do not need
+store for files and directories, such as those used in hither functions. kachery
+provides several key features:
+
+* Any file can be retrieved by a universal identifier based on its
+`sha1` or `md5` hash, which operates like a [DOI](https://www.doi.org/)
+for your data files--easy to store and uniquely associated with your input
+* The kachery server can be run locally, on a container,
+on a remote server, or in the cloud
+* Consumers of the file data do not need
 to make any assumptions about directory structure in order to locate the
-files needed to rerun a pipeline, and the centralized server allows tools
-to request file inputs from any environment.
+files needed to rerun a pipeline
+* The centralized server allows tools
+to request file inputs from any environment
 
 ### What files are stored in the KACHERY_STORAGE_DIR directory?
 
@@ -558,7 +598,8 @@ the local filesystem. The location of this cache should be identified
 by the KACHERY_STRORAGE_DIR environment variable.
 
 In hither applications, this directory is used to store any sort of input
-files required by processing pipelines. Additionally, hither supports
+files required by processing pipelines, and the outputs of
+job runs. Additionally, hither supports
 operations on potentially very large mathematical structures, which
 can include numpy arrays of several gigabytes in size. For performance
 and data integrity reasons, any numpy array which is the input to
@@ -622,7 +663,7 @@ remote compute resources simultaneously, we do not presently support
 load-balancing among multiple remote compute resources from within a single
 configuration context.
 
-__IT WOULD BE NONTRIVIAL BUT MAYBE WE SHOULD__
+__IT WOULD BE NONTRIVIAL BUT MAYBE WE SHOULD LOOK INTO THIS__
 
 ### How can I host my own hither compute resource server?
 
