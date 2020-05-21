@@ -572,15 +572,118 @@ or Job boundary. __(QUERY: Is that part about job boundaries true?)__
 
 ### How can I use hither to run Python code on a remote machine?
 
+First, ensure that you are actually able to run Python code on
+the remote machine--hither can't help you run on servers to which
+you do not have access!
+
+Next, [configure a named compute
+resource](#how-can-i-host-my-own-hither-compute-resource-server).
+Make sure to record the id associated with the remote compute
+resource you would like to use.
+
+Now, consider this example:
+```python
+import os
+import numpy as np
+import hither as hi
+
+@hi.function('sumsqr', '0.1.0')
+@hi.container('docker://jupyter/scipy-notebook:678ada768ab1')
+def sumsqr(x):
+    return np.sum(x**2)
+
+def main():
+    mongo_url = os.getenv('MONGO_URL', 'mongodb://localhost:27017')
+    db = hi.Database(mongo_url=mongo_url, database='hither')
+    # Remote compute resource triggered by the compute_resource_id parameter
+    renmote_job_handler = hi.RemoteJobHandler(database=db, compute_resource_id='resource1')
+    with hi.Config(job_handler=remote_job_handler, container=True):
+        delay = 15
+        val1 = sumsqr.run(x=np.array([1]))
+        val2 = sumsqr.run(x=np.array([1,2]))
+        val3 = sumsqr.run(x=np.array([1,2,3]))
+        print(val1.wait(), val2.wait(), val3.wait())
+        assert val1.wait() == 1
+        assert val2.wait() == 5
+        assert val3.wait() == 14
+```
+
+By setting the `compute_resource_id` parameter in the call to `hi.Config`, this code
+specifies that the `RemoteJobHandler` should talk to a remote compute resource
+named `resource1`. This communication is mediated by a job dispatch bus,
+presently implemented in MongoDB. The `RemoteJobHandler` serializes any Job to
+be run (the hither function, its arguments, etc) and passes this to the job resource
+bus, along with the ID of the remote compute resource which is intended to handle
+that Job. The remote compute resource manager running on the remote server
+listens for its name and initiates execution of any Job assigned to it.
+
+While it would be possible for a hither instance to run jobs against multiple
+remote compute resources simultaneously, we do not presently support
+load-balancing among multiple remote compute resources from within a single
+configuration context.
+
+__IT WOULD BE NONTRIVIAL BUT MAYBE WE SHOULD__
+
 ### How can I host my own hither compute resource server?
+
+__TODO: This may be changing as we migrate away from the
+strong MongoDB depdencny__
+
+You will need to run something like the following on the remote resource:
+```python
+#!/usr/bin/env python
+
+import os
+import hither as hi
+
+def main():
+    mongo_url = os.getenv('MONGO_URL', 'mongodb://localhost:27017')
+    db = hi.Database(mongo_url=mongo_url, database='hither')
+    jh = hi.ParallelJobHandler(num_workers=8)
+    jc = hi.JobCache(database=db)
+    CR = hi.ComputeResource(database=db, compute_resource_id='resource1', job_handler=jh, kachery='default_readwrite', job_cache=jc)
+    CR.clear()
+    CR.run()
+
+if __name__ == '__main__':
+    main()
+```
+
+This code creates an instance of `ComputeResource` (the hither class that
+manages activity on a remote resource) and initiates its main loop, so
+that it is waiting for jobs.
+
+Communication between your local hither functions (dispatched by the
+`RemoteJobHandler`) and the `ComputeResource` is handled by a communication
+bus, currently implemented in MongoDB. The `ComputeResource` polls the
+job dispatch database at regular intervals to retrieve any Jobs which have
+been assigned to it, and then launches these on its own local hither job handler
+(in the above example, it is using a `ParallelJobHandler` set to 8 worker threads).
 
 ### Which job handlers can be used by a compute resource server?
 
+A (remote) compute resource server can use the RemoteJobHandler or the
+SlurmJobHandler (if it is a cluster which makes use of Slurm). The
+ParallelJobHandler runs jobs in parallel on the local compute resource.
+
 ### When using a remote job handler, do results get cached locally or remotely?
+
+Results of Job runs will be cached to the configured job cache. As with the other
+components of the hither ecosystem, this is loosely coupled and can be run anywhere.
 
 ### How does hither decide when to upload/download files when using a remote compute resource?
 
+When possible, hither tries to avoid sending large files over the network unnecessarily.
+hither will push files to kachery under the following circumstances:
 
+* If the function is part of a pipeline (the Job appears as a parameter for another
+hither Job), and the two Jobs do not have access to the same file system
+* If the configuration `hi.Config(download_results=True)` is set
+
+In other cases, hither will avoid transmitting files.
+
+__TRIED TO VERIFY THIS IN THE CODE BUT I GOT LOST AND WAS CHASING MY TAIL FOR
+A WHILE. IS THIS CORRECT?__
 
 <!--- General --->
 
@@ -593,14 +696,25 @@ kachery when they would otherwise need to be shipped over the network.
 
 ### What is a hither `File` object?
 
+A `File` object in hither represents a regular file that has been stored in the
+kachery data store. Think of it as "anything kachery tracks."
+
 ### What is a hither `Job` object?
 
-A hither Job is an instance of a hither function with specified arguments. It can
+A hither `Job` is an instance of a hither function with specified arguments. It can
 be executed asynchronously and, with the correct job handler setup, several Jobs
 can be run concurrently, even across different compute resource environments.
 
 ### How can I retrieve the console output for a hither job that has already run?
 
+__Don't know:__ Is this asking as a user, how can I do those things? Like
+my code is running and I'm sitting at a console? Or programmatically how can
+I access the Job._runtime_info field?
+
 ### How can I monitor the status of a running hither job?
 
+__Don't know__
+
 ### How can I retrieve runtime information for a hither job that has already run?
+
+__Don't know__

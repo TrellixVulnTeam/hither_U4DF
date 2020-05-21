@@ -271,7 +271,6 @@ class Job:
         for f in _flatten_nested_collection(self._result, _type=File):
             f.kache(kachery_dest=kachery)
 
-    # TODO: is str the correct type for kachery parameter?
     def download_results_if_needed(self, kachery:Union[str, None] = None) -> None:
         for f in _flatten_nested_collection(self._result, _type=File):
             assert isinstance(f, File), "Filter failed."

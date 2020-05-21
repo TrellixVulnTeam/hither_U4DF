@@ -99,6 +99,7 @@ class File:
         path = ka.store_npy(ary)
         return File(path, item_type = 'ndarray')
 
+# TODO: Any reason not to just use os.path.basename?
 def _get_basename_from_path(path: str) -> Union[str, None]:
     if path.startswith('sha1://'):
         return _get_basename_from_path(path[7:])
