@@ -203,7 +203,9 @@ class Job:
         self._label = label
         return self
 
-    def get_runtime_info(self): # NOTE: Unused
+    def get_runtime_info(self) -> Optional[dict]: # NOTE: Unused
+        if self._runtime_info is None:
+            return None
         return deepcopy(self._runtime_info)
     
     def cancel(self):

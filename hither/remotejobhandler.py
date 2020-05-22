@@ -8,8 +8,9 @@ from ._enums import JobStatus, JobKeys
 from .file import File
 from ._load_config import _load_preset_config_from_github
 from ._util import _random_string, _deserialize_item, _flatten_nested_collection, _get_poll_interval
-from ._eventstreamclient import EventStreamClient
+from .eventstreamclient import EventStreamClient
 from .computeresource import ComputeResourceActionTypes
+from .computeresource import HITHER_COMPUTE_RESOURCE_TO_REMOTE_JOB_HANDLER, HITHER_REMOTE_JOB_HANDLER_TO_COMPUTE_RESOURCE
 
 class RemoteJobHandler(BaseJobHandler):
     def __init__(self, *, event_stream_client, compute_resource_id):
@@ -25,12 +26,12 @@ class RemoteJobHandler(BaseJobHandler):
 
         # The event streams for communication between this client and the remote compute resource
         self._event_stream_outgoing = event_stream_client.get_stream(dict(
-            name='hither_remote_job_handler_to_compute_resource',
+            name=HITHER_REMOTE_JOB_HANDLER_TO_COMPUTE_RESOURCE,
             compute_resource_id=self._compute_resource_id,
             handler_id=self._handler_id
         ))
         self._event_stream_incoming = event_stream_client.get_stream(dict(
-            name='hither_compute_resource_to_remote_job_handler',
+            name=HITHER_COMPUTE_RESOURCE_TO_REMOTE_JOB_HANDLER,
             compute_resource_id=self._compute_resource_id,
             handler_id=self._handler_id
         ))
@@ -54,7 +55,7 @@ class RemoteJobHandler(BaseJobHandler):
         if len(actions) == 0:
             raise Exception('Unable to connect with remote compute resource.')
         for action in actions:
-            self._process_job_finished_action(action)
+            self._process_incoming_action(action)
         if self._kachery_config is None:
             raise Exception('Did not get a kachery config from the remote compute resource')
             
@@ -100,7 +101,7 @@ class RemoteJobHandler(BaseJobHandler):
         self._internal_counts.num_finished_jobs += 1
         job._runtime_info = action[JobKeys.RUNTIME_INFO]
         job._status = JobStatus.FINISHED
-        job._result = action[JobKeys.RESULT]
+        job._result = _deserialize_item(action[JobKeys.RESULT])
         for f in _flatten_nested_collection(job._result, _type=File):
             setattr(f, '_remote_job_handler', self)
         del self._jobs[job_id]
@@ -132,15 +133,12 @@ class RemoteJobHandler(BaseJobHandler):
     
     def iterate(self) -> None:
         elapsed_event_poll = time.time() - self._timestamp_event_poll
-        if elapsed_event_poll <= _get_poll_interval(self._timestamp_last_action):
-            return
-        self._timestamp_event_poll = time.time()
-        
-        self._report_alive()
-        
-        actions = self._event_stream_incoming.read_events(0)
-        for action in actions:
-            self._process_incoming_action(action)
+        if elapsed_event_poll > _get_poll_interval(self._timestamp_last_action):
+            self._timestamp_event_poll = time.time()    
+            self._report_alive()
+            actions = self._event_stream_incoming.read_events(0)
+            for action in actions:
+                self._process_incoming_action(action)
 
     def _load_file(self, sha1_path):
         if self._kachery_config is not None:

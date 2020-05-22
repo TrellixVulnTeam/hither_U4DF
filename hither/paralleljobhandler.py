@@ -61,9 +61,7 @@ class ParallelJobHandler(BaseJobHandler):
                         p['job']._runtime_info = None
                         p['pjh_status'] = JobStatus.ERROR
                     # if pp.is_alive():
-                    #     print('--- x2')
                     #     pp.join(timeout=2)
-                    #     print('--- x3')
                     # print(f'ParallelJobHandler: Process stopped.')
                 else:
                     # TODO: Consider if existing ERROR or FINISHED status should change this behavior 
