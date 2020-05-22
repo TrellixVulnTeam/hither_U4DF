@@ -221,12 +221,12 @@ class ConnectedClient:
 
     def _mark_job_as_finished(self, *, job: Job) -> None:
         serialized_result = _serialize_item(job._result)
-        action = dict([
-            ("type", ComputeResourceActionTypes.JOB_FINISHED),
-            ("job_id", job._job_id),
-            (JobKeys.RUNTIME_INFO, job.get_runtime_info()),
-            (JobKeys.RESULT, serialized_result)
-        ])
+        action = {
+            "type": ComputeResourceActionTypes.JOB_FINISHED,
+            "job_id": job._job_id, # change this to JobJeys.JOB_ID if safe
+            JobKeys.RUNTIME_INFO: job.get_runtime_info(),
+            JobKeys.RESULT: serialized_result
+        }
         self._stream_outgoing.write_event(action)
         # self._database._mark_job_as_finished(job._job_id, self._compute_resource_id,
         #     runtime_info=job._runtime_info, result=serialized_result)
@@ -234,6 +234,7 @@ class ConnectedClient:
     def _mark_job_as_error(self, *,
             job_id: str, runtime_info: Optional[dict], exception: Optional[Exception]) -> None:
         print(f"Job error: {job_id}\n{exception}") # TODO: Change to formal log statement?
+        # fix the following to conform to above method:
         action = dict([
             ("type", ComputeResourceActionTypes.JOB_ERROR),
             ("job_id", job_id),

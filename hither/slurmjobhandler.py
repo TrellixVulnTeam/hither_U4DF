@@ -23,7 +23,7 @@ class SlurmJobHandler(BaseJobHandler):
     def __init__(self, *,
         working_dir: str,
         num_workers_per_batch: int=14,
-        num_cores_per_job: int=2,
+        num_cores_per_job: int=2, # also per worker
         use_slurm: bool=True,
         time_limit_per_batch: Optional[float]=None,  # number of seconds or None
         max_simultaneous_batches: Optional[int]=None,

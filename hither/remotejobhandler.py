@@ -136,6 +136,7 @@ class RemoteJobHandler(BaseJobHandler):
         if elapsed_event_poll > _get_poll_interval(self._timestamp_last_action):
             self._timestamp_event_poll = time.time()    
             self._report_alive()
+            # TODO: avaid polling by wait_sec=10, or something
             actions = self._event_stream_incoming.read_events(0)
             for action in actions:
                 self._process_incoming_action(action)

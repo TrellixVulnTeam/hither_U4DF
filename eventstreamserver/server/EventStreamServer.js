@@ -32,6 +32,7 @@ export default class EventStreamServer {
                 await this._errorResponse(req, res, 500, err.message);
             }
         });
+        // todo: provide max num events to read
         this._app.post('/readEvents/:streamId/:position', async (req, res) => {
             const reqData = req.body
             let approvalObject = await this._approveTask("readEvents", req.params.streamId, null, reqData.channel, reqData.signature, req);
@@ -49,6 +50,7 @@ export default class EventStreamServer {
                 this._finalizeTask('readEvents', reqData.channel, null, approvalObject);
             }
         });
+        // Think about calling it appendEvents
         this._app.post('/writeEvents/:streamId', async (req, res) => {
             let numBytes = Number(req.headers['content-length']);
             const reqData = req.body

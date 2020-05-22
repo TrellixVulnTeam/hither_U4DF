@@ -7,7 +7,7 @@ import hither as hi
 from ._config import EVENT_STREAM_SERVER_PORT
 from ._common import _random_string
 
-def run_service_event_stream_Server(*, server_dir):
+def run_service_event_stream_server(*, server_dir):
     # The following cleanup is needed because we terminate this compute resource process
     # See: https://pytest-cov.readthedocs.io/en/latest/subprocess-support.html
     from pytest_cov.embed import cleanup_on_sigterm
@@ -45,7 +45,7 @@ def event_stream_server(tmp_path):
     ss_pull.start()
     ss_pull.wait()
 
-    process = multiprocessing.Process(target=run_service_event_stream_Server, kwargs=dict(server_dir=server_dir))
+    process = multiprocessing.Process(target=run_service_event_stream_server, kwargs=dict(server_dir=server_dir))
     process.start()
     time.sleep(2)
 
