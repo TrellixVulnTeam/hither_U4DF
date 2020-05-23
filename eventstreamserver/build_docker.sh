@@ -5,8 +5,6 @@ set -ex
 for i in "$@" ; do
     if [[ $i == "--push" ]] ; then
         PUSH="true"
-    else
-        PUSH="false"
     fi
 done
 
