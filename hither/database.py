@@ -118,18 +118,17 @@ class Database:
 
   ##### Job cache interface ###############
 
-    def _fetch_cached_job(self, hash:str) -> Optional[Dict[str, Any]]:
+    def _fetch_cached_job_result(self, hash:str) -> Optional[Dict[str, Any]]:
         job = self._cached_job_results().find_one({ JobKeys.JOB_HASH: hash })
         if job is None: return None
         if JobKeys.STATUS not in job: return None # TODO: throw error? If this key is missing it's probably not a Job
         return job
 
     # TODO: Job is, of course, obviously a Job, but typing it right now would lead to circular imports
-    def _cache_job_result(self, job:Any) -> None:
-        _hash = job._compute_hash()
-        query = { JobKeys.JOB_HASH: _hash }
+    def _cache_job_result(self, job_hash: str, job:Any) -> None:
+        query = { JobKeys.JOB_HASH: job_hash }
         update_query = self._make_update({
-            JobKeys.JOB_HASH: _hash,
+            JobKeys.JOB_HASH: job_hash,
             JobKeys.STATUS: job._status.value,
             JobKeys.RESULT: job._serialized_result(),
             JobKeys.RUNTIME_INFO: job._runtime_info,

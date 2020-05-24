@@ -1,4 +1,3 @@
-from types import SimpleNamespace
 import time
 from typing import Dict, Any
 import kachery as ka
@@ -43,12 +42,6 @@ class RemoteJobHandler(BaseJobHandler):
         ))
         stream.write_event(dict(type=ComputeResourceActionTypes.ADD_JOB_HANDLER, handler_id=self._handler_id))
 
-        self._internal_counts = SimpleNamespace(
-            num_jobs=0,
-            num_finished_jobs=0,
-            num_errored_jobs=0
-        )
-
         # wait for the compute resource to ackowledge us
         print('Waiting for remote compute resource to respond...')
         actions = self._event_stream_incoming.read_events(wait_sec=10)
@@ -63,7 +56,6 @@ class RemoteJobHandler(BaseJobHandler):
 
     def handle_job(self, job):
         super(RemoteJobHandler, self).handle_job(job)
-        self._internal_counts.num_jobs += 1
 
         for f in _flatten_nested_collection(job._wrapped_function_arguments, _type=File):
             self._send_file_as_needed(f)
@@ -98,7 +90,6 @@ class RemoteJobHandler(BaseJobHandler):
             print(f'Warning: Job with id not found: {job_id}')
             return
         job = self._jobs[job_id]
-        self._internal_counts.num_finished_jobs += 1
         job._runtime_info = action[JobKeys.RUNTIME_INFO]
         job._status = JobStatus.FINISHED
         job._result = _deserialize_item(action[JobKeys.RESULT])
@@ -114,7 +105,6 @@ class RemoteJobHandler(BaseJobHandler):
             print(f'Warning: Job with id not found: {job_id}')
             return
         job = self._jobs[job_id]
-        self._internal_counts.num_errored_jobs += 1
         job._runtime_info = action[JobKeys.RUNTIME_INFO]
         job._status = JobStatus.ERROR
         job._exception = Exception(action[JobKeys.EXCEPTION])

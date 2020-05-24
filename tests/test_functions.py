@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import pytest
 import hither as hi
@@ -59,6 +60,8 @@ def do_test_run_functions(container=False):
                 if test_call.get('container_only'):
                     if not container:
                         do_run = False
+                # if function.__name__ != 'additional_file':
+                #     do_run = False
                 if do_run:
                     args = test_call.get('args')
                     print(f'Running {function.__name__} {args}')
@@ -91,6 +94,45 @@ def test_run_functions(general):
 def test_run_function_by_name(general):
     x = hi.run('add', x=1, y=2).wait()
     assert x is 3
+
+@pytest.mark.current
+def test_run_functions_with_job_cache(general, tmp_path):
+    job_cache_path = str(tmp_path) + '/job-cache'
+    os.mkdir(job_cache_path)
+    jc = hi.JobCache(path=job_cache_path)
+    # jh = hi.ParallelJobHandler(num_workers=4)
+    jh = hi.DefaultJobHandler()
+    with hi.Config(job_cache=jc, job_handler=jh):
+        do_test_run_functions()
+        hi.wait()
+    num_jobs = jh._internal_counts.num_jobs
+    num_run_jobs = jh._internal_counts.num_run_jobs
+    num_errored_jobs = jh._internal_counts.num_errored_jobs
+    num_finished_jobs = jh._internal_counts.num_finished_jobs
+    num_skipped_jobs = jh._internal_counts.num_skipped_jobs
+    print(f'Num jobs: {num_jobs}')
+    print(f'Num run jobs: {num_run_jobs}')
+    print(f'Num errored jobs: {num_errored_jobs}')
+    print(f'Num finished jobs: {num_finished_jobs}')
+    print(f'Num skipped jobs: {num_skipped_jobs}')
+    assert num_skipped_jobs == 0
+    assert num_jobs == num_errored_jobs + num_finished_jobs
+
+    with hi.Config(job_cache=jc, job_handler=jh):
+        do_test_run_functions()
+        hi.wait()
+    num_new_jobs = jh._internal_counts.num_jobs - num_jobs
+    num_new_run_jobs = jh._internal_counts.num_run_jobs - num_run_jobs
+    num_new_errored_jobs = jh._internal_counts.num_errored_jobs - num_errored_jobs
+    num_new_finished_jobs = jh._internal_counts.num_finished_jobs - num_finished_jobs
+    num_new_skipped_jobs = jh._internal_counts.num_skipped_jobs - num_skipped_jobs
+    print(f'Num new jobs: {num_jobs}')
+    print(f'Num new run jobs: {num_new_run_jobs}')
+    print(f'Num new errored jobs: {num_new_errored_jobs}')
+    print(f'Num new finished jobs: {num_new_finished_jobs}')
+    print(f'Num new skipped jobs: {num_new_skipped_jobs}')
+    assert num_new_run_jobs == num_new_errored_jobs
+    assert num_new_jobs == num_new_skipped_jobs + num_errored_jobs
 
 @pytest.mark.container
 def test_run_functions_in_container(general):

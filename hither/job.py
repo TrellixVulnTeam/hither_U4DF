@@ -233,9 +233,12 @@ class Job:
             assert self._f is not None, 'Cannot execute job outside of container when function is not available'
             try:
                 if not self._no_resolve_input_files:
-                    self.resolve_files_in_wrapped_arguments()
+                    # important not to modify wrapped_function_arguments
+                    args0 = _copy_structure_with_changes(self._wrapped_function_arguments, lambda r: r.resolve(), _type = File, _as_side_effect = False)
+                else:
+                    args0 = self._wrapped_function_arguments
                 with ConsoleCapture(label=self.get_label(), show_console=True) as cc:
-                    ret = self._f(**self._wrapped_function_arguments)
+                    ret = self._f(**args0)
                 self._runtime_info = cc.runtime_info()
                 self._result = _copy_structure_with_changes(ret, File.kache_numpy_array, _as_side_effect=False)
                 # self._result = _deserialize_item(_serialize_item(ret))
@@ -283,14 +286,6 @@ class Job:
         for a in _flatten_nested_collection(self._wrapped_function_arguments, _type=File):
             assert isinstance(a, File), "Filter failed."
             a.ensure_local_availability(kachery)
-
-    def resolve_files_in_wrapped_arguments(self) -> None:
-        """Handles file availability and unboxing of numpy arrays from Kachery files for
-        items in the Job's wrapped function arguments.
-        """
-        self._wrapped_function_arguments = \
-            _copy_structure_with_changes(self._wrapped_function_arguments,
-                lambda r: r.resolve(), _type = File, _as_side_effect = False)
 
     # TODO: Make this part of the .result() method? Would need to access info about
     # the "don't-resolve-results" parameter.

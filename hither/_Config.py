@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 from collections import deque
 from copy import deepcopy
 from enum import Enum
@@ -61,6 +62,15 @@ class Config:
         self.coalesce(ConfigKeys.DOWNLOAD_RESULTS, download_results)
         self.coalesce(ConfigKeys.TIMEOUT, job_timeout)
 
+        if job_handler is not None:
+            if not hasattr(job_handler, '_internal_counts'):
+                setattr(job_handler, '_internal_counts', SimpleNamespace(
+                    num_jobs=0,
+                    num_run_jobs=0,
+                    num_finished_jobs=0,
+                    num_errored_jobs=0,
+                    num_skipped_jobs=0
+                ))
 
     @staticmethod
     # TODO: python 3.8 gives better tools for typehinting dicts, revise this eventually
