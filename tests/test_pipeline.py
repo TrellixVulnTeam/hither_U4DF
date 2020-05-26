@@ -26,11 +26,9 @@ def do_test_cancel_job(*, container):
         except hi.JobCancelledException:
             print('Got the expected exception')
 
-@pytest.mark.current
 def test_cancel_job(general):
     do_test_cancel_job(container=False)
 
-@pytest.mark.current
 def test_cancel_job_in_container(general):
     do_test_cancel_job(container=True)
 

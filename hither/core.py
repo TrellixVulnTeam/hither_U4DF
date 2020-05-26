@@ -1,4 +1,5 @@
 import inspect
+from types import SimpleNamespace
 from typing import Optional
 import os
 

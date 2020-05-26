@@ -15,6 +15,7 @@ from ._exceptions import JobCancelledException
 
 class ParallelJobHandler(BaseJobHandler):
     def __init__(self, num_workers):
+        super().__init__()
         self.is_remote = False
         self._num_workers = num_workers
         self._processes: List[dict] = []
@@ -61,9 +62,7 @@ class ParallelJobHandler(BaseJobHandler):
                         p['job']._runtime_info = None
                         p['pjh_status'] = JobStatus.ERROR
                     # if pp.is_alive():
-                    #     print('--- x2')
                     #     pp.join(timeout=2)
-                    #     print('--- x3')
                     # print(f'ParallelJobHandler: Process stopped.')
                 else:
                     # TODO: Consider if existing ERROR or FINISHED status should change this behavior 

@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 from collections import deque
 from copy import deepcopy
 from enum import Enum
@@ -60,7 +61,6 @@ class Config:
         self.coalesce(ConfigKeys.JOB_CACHE, job_cache)
         self.coalesce(ConfigKeys.DOWNLOAD_RESULTS, download_results)
         self.coalesce(ConfigKeys.TIMEOUT, job_timeout)
-
 
     @staticmethod
     # TODO: python 3.8 gives better tools for typehinting dicts, revise this eventually
