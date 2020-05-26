@@ -127,13 +127,7 @@ class Database:
     # TODO: Job is, of course, obviously a Job, but typing it right now would lead to circular imports
     def _cache_job_result(self, job_hash: str, job:Any) -> None:
         query = { JobKeys.JOB_HASH: job_hash }
-        update_query = self._make_update({
-            JobKeys.JOB_HASH: job_hash,
-            JobKeys.STATUS: job._status.value,
-            JobKeys.RESULT: job._serialized_result(),
-            JobKeys.RUNTIME_INFO: job._runtime_info,
-            JobKeys.EXCEPTION: '{}'.format(job._exception)
-        })
+        update_query = self._make_update(job._as_cached_result())
         self._cached_job_results().update_one(query, update_query, upsert=True)
 
   ##### Job processing interface ###############

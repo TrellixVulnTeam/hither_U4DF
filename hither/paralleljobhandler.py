@@ -15,6 +15,7 @@ from ._exceptions import JobCancelledException
 
 class ParallelJobHandler(BaseJobHandler):
     def __init__(self, num_workers):
+        super().__init__()
         self.is_remote = False
         self._num_workers = num_workers
         self._processes: List[dict] = []

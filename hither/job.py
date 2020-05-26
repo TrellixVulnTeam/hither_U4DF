@@ -1,6 +1,6 @@
 from copy import deepcopy
 import time
-from typing import List, Union, Any, Optional
+from typing import List, Dict, Union, Any, Optional
 
 import kachery as ka
 from ._Config import Config
@@ -371,6 +371,16 @@ class Job:
         if self._no_resolve_input_files:
             hash_object[JobKeys.NO_RESOLVE_INPUT_FILES] = True
         return ka.get_object_hash(hash_object)
+
+    def _as_cached_result(self) -> Dict[str, Any]:
+        cached_result = {
+            JobKeys.JOB_HASH: self._compute_hash(),
+            JobKeys.STATUS: self._status.value,
+            JobKeys.RESULT: self._serialized_result(),
+            JobKeys.RUNTIME_INFO: self._runtime_info,
+            JobKeys.EXCEPTION: '{}'.format(self._exception)
+        }
+        return cached_result
     
     def _serialized_result(self) -> Any:
         return _serialize_item(self._result)
