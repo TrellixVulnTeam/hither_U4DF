@@ -106,14 +106,6 @@ def function(name, version):
     
 
 _global_job_handler = DefaultJobHandler()
-# TODO: the following code is duplicated -- see config.py
-setattr(_global_job_handler, '_internal_counts', SimpleNamespace(
-    num_jobs=0,
-    num_run_jobs=0,
-    num_finished_jobs=0,
-    num_errored_jobs=0,
-    num_skipped_jobs=0
-))
 
 
 # TODO: Would be nice to avoid needing this

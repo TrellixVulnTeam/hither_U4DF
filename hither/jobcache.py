@@ -1,4 +1,4 @@
-from typing import Dict, List, Union, Any
+from typing import Dict, List, Union, Any, Optional
 import tempfile
 import os
 import json
@@ -31,35 +31,28 @@ class JobCache:
             rerun_failing {bool} -- Whether to rerun jobs that had previously failed and been cached (default: {False})
             force_run {bool} -- Whether to force run jobs, even if results had previously been ached (default: {False})
         """
-        self._database = database
-        self._path = path
-        self._use_tempdir = use_tempdir
         self._cache_failing = cache_failing
         self._rerun_failing = rerun_failing
         self._force_run = force_run
         
+        set_parameters = 0
         errmsg = "You must provide exactly one of: database, use_tempdir, path"
-        if self._database is not None:
-            assert self._path is None, errmsg
-            assert self._use_tempdir is None, errmsg
-        
-        if self._path is not None:
-            assert self._database is None, errmsg
-            assert self._use_tempdir is None, errmsg
-        
-        if self._use_tempdir is not None:
-            assert self._database is None, errmsg
-            assert self._path is None, errmsg
-            self._path = f'{tempfile.gettempdir()}/hither_job_cache'
-            if not os.path.exists(self._path):
-                os.makedirs(self._path)
-        
-        if self._path:
-            self._disk_cache = DiskJobCache(self._path)
+        for param in [database, path, use_tempdir]:
+            if param is None: continue
+            set_parameters += 1
+        assert set_parameters == 1, errmsg
+
+        if database is not None:
+            self._cache_provider = DatabaseJobCache(database)
         else:
-            self._disk_cache = None
-        
-        assert self._database is not None or self._disk_cache is not None, errmsg
+            if path is None:
+                path = f'{tempfile.gettempdir()}/hither_job_cache'
+            if not os.path.exists(path):
+                # Query: do we want to create a specified path, too, if it doesn't exist?
+                # probably, right?
+                os.makedirs(path)
+            self._cache_provider = DiskJobCache(path)
+        assert self._cache_provider is not None, errmsg
 
     def fetch_cached_job_results(self, job: Job) -> bool:
         """Replaces completed Jobs with their result from cache, and returns whether the cache
@@ -107,39 +100,23 @@ class JobCache:
         if job._status == JobStatus.ERROR and not self._cache_failing:
             return 
         job_hash = job._compute_hash()
-        if self._database is not None:
-            self._database._cache_job_result(job_hash, job)
-        elif self._disk_cache is not None:
-            self._disk_cache._cache_job_result(job_hash, job)
-        else:
-            raise Exception('Unexpected error.')
+        self._cache_provider._cache_job_result(job_hash, job)
     
     def _fetch_cached_job_result(self, job_hash) -> Union[Dict[str, Any], None]:
-        if self._database is not None:
-            return self._database._fetch_cached_job_result(job_hash)
-        elif self._path is not None:
-            return self._disk_cache._fetch_cached_job_result(job_hash)
-        else:
-            raise Exception('Unexpected error.')
+        return self._cache_provider._fetch_cached_job_result(job_hash)
 
 class DiskJobCache:
     def __init__(self, path):
         self._path = path
     
-    def _cache_job_result(self, job_hash, job):
-        obj = {
-            JobKeys.JOB_HASH: job_hash,
-            JobKeys.STATUS: job._status.value,
-            JobKeys.RESULT: job._serialized_result(),
-            JobKeys.RUNTIME_INFO: job._runtime_info,
-            JobKeys.EXCEPTION: '{}'.format(job._exception)
-        }
+    def _cache_job_result(self, job_hash: str, job:Job):
+        obj = job._as_cached_result()
         p = self._get_cache_file_path(job_hash=job_hash, create_dir_if_needed=True)
         with FileLock(p + '.lock', exclusive=True):
             with open(p, 'w') as f:
                 json.dump(obj, f)
 
-    def _fetch_cached_job_result(self, job_hash):
+    def _fetch_cached_job_result(self, job_hash:str):
         p = self._get_cache_file_path(job_hash=job_hash, create_dir_if_needed=False)
         if not os.path.exists(p):
             return None
@@ -147,12 +124,23 @@ class DiskJobCache:
             with open(p, 'r') as f:
                 return json.load(f)
 
-    def _get_cache_file_path(self, job_hash, create_dir_if_needed):
+    def _get_cache_file_path(self, job_hash:str, create_dir_if_needed:bool):
         dirpath = f'{self._path}/{job_hash[0]}{job_hash[1]}/{job_hash[2]}{job_hash[3]}/{job_hash[4]}{job_hash[5]}'
         if create_dir_if_needed:
             if not os.path.exists(dirpath):
                 os.makedirs(dirpath)
         return f'{dirpath}/{job_hash}.json'
+
+class DatabaseJobCache:
+    def __init__(self, db):
+        self._database = db
+
+    def _cache_job_result(self, job_hash:str, job:Job):
+        self._database._cache_job_result(job_hash, job)
+
+    def _fetch_cached_job_result(self, job_hash:str):
+        return self._database._fetch_cached_job_result(job_hash)
+
 
 
         

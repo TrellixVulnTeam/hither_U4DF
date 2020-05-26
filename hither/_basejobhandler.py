@@ -1,10 +1,17 @@
 from abc import ABC, abstractmethod
+from types import SimpleNamespace
 
 from ._enums import JobStatus
 
 class BaseJobHandler(ABC):
     def __init__(self):
-        pass
+        self._internal_counts = SimpleNamespace(
+            num_jobs = 0,
+            num_run_jobs = 0,
+            num_finished_jobs = 0,
+            num_errored_jobs = 0,
+            num_skipped_jobs = 0
+        )
 
     @abstractmethod
     def handle_job(self, job):

@@ -13,6 +13,7 @@ from .computeresource import HITHER_COMPUTE_RESOURCE_TO_REMOTE_JOB_HANDLER, HITH
 
 class RemoteJobHandler(BaseJobHandler):
     def __init__(self, *, event_stream_client, compute_resource_id):
+        super().__init__()
         self.is_remote = True
         
         self._event_stream_Client = event_stream_client
