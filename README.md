@@ -7,72 +7,73 @@
 
 # hither
 
-Run Python functions and pipelines in containers and on remote servers.
+Hither is a flexible, platform-agnostic job manager that allows researchers to easily deploy code across local, remote, and cluster environments with minimal changes. It ensures that different scientific tools can be run through a consistent pipeline, even when they have different configurations or conflicting dependencies. This works through universal containerization. Because jobs are run through a universal interface, code becomes much more portable between labs; the same pipelines can be run locally, or even on a cluster environment. In this way, development on small datasets can take place on your laptop, with the confidence that the code will work on large datasets in the cluster with minimal modifications.
 
-## Overview
-
-Needs to describe other tools, how hither differs, and why it is needed.
+TODO: Need to describe other tools, how hither differs, and why it is needed.
 
 [Frequently asked questions](doc/faq.md)
 
-## A first example
+## Basic usage
 
-Add an interesting example. Should be something that computes something useful and illustrates the various functionalities.
+### Containerization
+
+You can prescribe the exact environment that your function runs in by decorating your Python function to specify a docker image from DockerHub:
 
 ```python
-# Explain that this can be replaced by other job handlers, including sending jobs to a remote compute resource
-job_handler = hi.ParallelJobHandler()
+# integrate_bessel.py
 
-# Make sure the function uses a container
-# e.g., docker://jupyter/scipy-notebook:678ada768ab1
+import hither as hi
 
-# point out that it is not necessary to install scipy locally if docker is present
-
-# Set this to false if you don't want
-# to use docker. You must have the python
-# libraries installed on your machine
-use_container = True
-
-# Explain what a job cache does
-# TODO: change database argument to database_name, or something else appropriate
-# Explain that to use a job cache, you need to have a mongo database running.
-# Otherwise, use job_cache = None
-db = hi.Database(
-    mongo_url='mongodb://localhost:27017',
-    database='hither'
-)
-job_cache = hi.JobCache(
-    database=db,
-    cache_failing=False,
-    rerun_failing=False
-)
-# TEST
-# TODO: maybe replace this with some useful computation that uses something from scipy - think about this
-@hi.function('sumsqr', '0.1.0')
-@hi.container('docker://jupyter/scipy-notebook:678ada768ab1')
-def sumsqr(x):
-    return np.sum(x**2)
-
-with hi.Config(
-    job_handler=job_handler,
-    job_cache=job_cache,
-    container=use_container
-):
-    # TODO: think about doing something more interesting
-    x = np.array([1, 2, 3, 4])
-    result = sumsqr.run(x=x).wait()
-    print(f'Result: {result}')
-
+@hi.function('integrate_bessel', '0.1.0')
+@hi.container('docker://jupyter/scipy-notebook:dc57157d6316')
+def integrate_bessel(v, a, b):
+    # Definite integral of bessel function of first kind
+    # of order v from a to b
+    import scipy.integrate as integrate
+    import scipy.special as special
+    return integrate.quad(lambda x: special.jv(v, x), a, b)[0]
 ```
 
-## Pipeline example
+You can then run the function either inside or outside the container.
 
-Give another full example showing how to pass the output of one function as an input to another.
+```python
+import hither as hi
 
-## Parallel computing example
+# Import the hither function from a .py file
+from integrate_bessel import integrate_bessel
 
-Give another full example of looping through a list of arguments, accumulating a list of job results, and then aggregating the outputs after processing completes.
+# call function directly
+val1 = integrate_bessel(v=2.5, a=0, b=4.5)
 
+# call using hither pipeline
+job = integrate_bessel.run(v=2.5, a=0, b=4.5)
+val2 = job.wait()
+
+# run inside container
+with hi.Config(container=True):
+    job = integrate_bessel.run(v=2.5, a=0, b=4.5)
+    val3 = job.wait()
+
+print(val1, val2, val3)
+```
+
+### Job cache
+
+TODO: describe the job cache with an example.
+
+### Pipelines
+
+Hither also provides tools to generate pipelines of chained functions, so that the output of one processing step can be fed seamlessly as input to another, and to coordinate execution of jobs.
+
+TODO: provide a basic example
+
+### Parallel computing
+
+TODO: provide a basic example
+
+### Batch processing
+
+TODO: Give another full example of looping through a list of arguments, accumulating a list of job results, and then aggregating the outputs after processing completes.
 
 ## Reference documentation
 
@@ -80,5 +81,6 @@ Give another full example of looping through a list of arguments, accumulating a
 
 ## Authors
 
-* Jeremy Magland
-* Jeff Soules
+Jeremy Magland and Jeff Soules<br>
+Center for Computational Mathematics<br>
+Flatiron Institute, Simons Foundation
