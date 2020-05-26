@@ -9,7 +9,8 @@ pytest_plugins = [
     "fixtures._general",
     "fixtures._compute_resource",
     "fixtures._kachery_server",
-    "fixtures._mongodb"
+    "fixtures._mongodb",
+    "fixtures._event_stream_server"
 ]
 
 def pytest_addoption(parser):

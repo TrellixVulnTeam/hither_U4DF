@@ -23,7 +23,7 @@ class SlurmJobHandler(BaseJobHandler):
     def __init__(self, *,
         working_dir: str,
         num_workers_per_batch: int=14,
-        num_cores_per_job: int=2,
+        num_cores_per_job: int=2, # also per worker
         use_slurm: bool=True,
         time_limit_per_batch: Optional[float]=None,  # number of seconds or None
         max_simultaneous_batches: Optional[int]=None,
@@ -46,6 +46,7 @@ class SlurmJobHandler(BaseJobHandler):
         additional_srun_opts : List[str], optional
             A list of additional string options to send to srun (only applies of use_slurm is True), by default []
         """
+        super().__init__()
         if not os.path.exists(working_dir):
             os.mkdir(working_dir)
         handler_dir = os.path.join(working_dir, 'tmp_slurm_job_handler_' + _random_string(8))

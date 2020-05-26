@@ -4,6 +4,10 @@ cov.xml
 .vscode
 .devcontainer/.env
 
+# node
+node_modules
+yarn.lock
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

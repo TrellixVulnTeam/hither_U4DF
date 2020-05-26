@@ -1,17 +1,58 @@
-from typing import Dict, List, Union, Any
+from typing import Dict, List, Union, Any, Optional
+import tempfile
+import os
+import json
 
 from .database import Database
 from ._util import _deserialize_item
 from ._enums import JobStatus, JobKeys
 from .job import Job
+from ._filelock import FileLock
 
 class JobCache:
-    def __init__(self, database: Database, cache_failing:bool=False,
-                    rerun_failing:bool=False, force_run:bool=False):
-        self._database = database
+    def __init__(self,
+        database: Union[Database, None]=None,
+        use_tempdir: Union[bool, None]=None,
+        path: Union[str, None]=None,
+        cache_failing:bool=False,
+        rerun_failing:bool=False,
+        force_run:bool=False
+    ):
+        """Cache for storing a retrieving results of hither jobs.
+
+        Provide one of the following arguments:
+            database, use_tempdir, path
+
+        Keyword Arguments:
+            database {Union[Database, None]} -- A Mongo database object (default: {None})
+            use_tempdir {Union[bool, None]} -- Whether to use a directory inside /tmp (or wherever tempdir is configured) (default: {None})
+            path {Union[str, None]} -- Path to directory on local disk (default: {None})
+            cache_failing {bool} -- Whether to cache failing jobs (default: {False})
+            rerun_failing {bool} -- Whether to rerun jobs that had previously failed and been cached (default: {False})
+            force_run {bool} -- Whether to force run jobs, even if results had previously been ached (default: {False})
+        """
         self._cache_failing = cache_failing
         self._rerun_failing = rerun_failing
         self._force_run = force_run
+        
+        set_parameters = 0
+        errmsg = "You must provide exactly one of: database, use_tempdir, path"
+        for param in [database, path, use_tempdir]:
+            if param is None: continue
+            set_parameters += 1
+        assert set_parameters == 1, errmsg
+
+        if database is not None:
+            self._cache_provider = DatabaseJobCache(database)
+        else:
+            if path is None:
+                path = f'{tempfile.gettempdir()}/hither_job_cache'
+            if not os.path.exists(path):
+                # Query: do we want to create a specified path, too, if it doesn't exist?
+                # probably, right?
+                os.makedirs(path)
+            self._cache_provider = DiskJobCache(path)
+        assert self._cache_provider is not None, errmsg
 
     def fetch_cached_job_results(self, job: Job) -> bool:
         """Replaces completed Jobs with their result from cache, and returns whether the cache
@@ -26,7 +67,7 @@ class JobCache:
         """
         if self._force_run:
             return False
-        job_dict = self._database._fetch_cached_job(job._compute_hash())
+        job_dict = self._fetch_cached_job_result(job._compute_hash())
         if job_dict is None:
             return False
 
@@ -37,7 +78,7 @@ class JobCache:
         job_description = f"{job._label} ({job._function_name} {job._function_version})"
         if status == JobStatus.FINISHED:
             result = _deserialize_item(job_dict[JobKeys.RESULT])
-            if not job._result_files_are_available_locally():
+            if not job._result_files_are_available_locally(results=result):
                 print(f'Found result in cache, but files do not exist locally: {job_description}')  # TODO: Make log
                 return False
             job._result = result
@@ -58,5 +99,48 @@ class JobCache:
     def cache_job_result(self, job:Job):
         if job._status == JobStatus.ERROR and not self._cache_failing:
             return 
-        self._database._cache_job_result(job)
+        job_hash = job._compute_hash()
+        self._cache_provider._cache_job_result(job_hash, job)
+    
+    def _fetch_cached_job_result(self, job_hash) -> Union[Dict[str, Any], None]:
+        return self._cache_provider._fetch_cached_job_result(job_hash)
+
+class DiskJobCache:
+    def __init__(self, path):
+        self._path = path
+    
+    def _cache_job_result(self, job_hash: str, job:Job):
+        obj = job._as_cached_result()
+        p = self._get_cache_file_path(job_hash=job_hash, create_dir_if_needed=True)
+        with FileLock(p + '.lock', exclusive=True):
+            with open(p, 'w') as f:
+                json.dump(obj, f)
+
+    def _fetch_cached_job_result(self, job_hash:str):
+        p = self._get_cache_file_path(job_hash=job_hash, create_dir_if_needed=False)
+        if not os.path.exists(p):
+            return None
+        with FileLock(p + '.lock', exclusive=False):
+            with open(p, 'r') as f:
+                return json.load(f)
+
+    def _get_cache_file_path(self, job_hash:str, create_dir_if_needed:bool):
+        dirpath = f'{self._path}/{job_hash[0]}{job_hash[1]}/{job_hash[2]}{job_hash[3]}/{job_hash[4]}{job_hash[5]}'
+        if create_dir_if_needed:
+            if not os.path.exists(dirpath):
+                os.makedirs(dirpath)
+        return f'{dirpath}/{job_hash}.json'
+
+class DatabaseJobCache:
+    def __init__(self, db):
+        self._database = db
+
+    def _cache_job_result(self, job_hash:str, job:Job):
+        self._database._cache_job_result(job_hash, job)
+
+    def _fetch_cached_job_result(self, job_hash:str):
+        return self._database._fetch_cached_job_result(job_hash)
+
+
+
         

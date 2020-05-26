@@ -262,11 +262,11 @@ def _test_error_handling_1():
         ## cannot get return code while running
         ss.returnCode()
     ss.stop()
-    assert ss.elapsedTimeSinceStart() < 5
+    assert ss.elapsedTimeSinceStart() < 10
 
     ss.start()
     ss.kill()
-    assert ss.elapsedTimeSinceStart() < 5
+    assert ss.elapsedTimeSinceStart() < 10
 
     # it's okay to stop it if it isn't running
     assert ss.stop() is None
@@ -278,7 +278,7 @@ def _test_error_handling_1():
         assert ss.isRunning() == True
         ss.stopWithSignal(sig, timeout=0.1)
         assert ss.isRunning() == False
-        assert ss.elapsedTimeSinceStart() < 5
+        assert ss.elapsedTimeSinceStart() < 10
 
 def _test_coverage():
     from ._temporarydirectory import TemporaryDirectory

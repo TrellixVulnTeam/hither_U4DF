@@ -3,6 +3,7 @@ from ._enums import JobStatus
 
 class DefaultJobHandler(BaseJobHandler):
     def __init__(self):
+        super().__init__()
         self.is_remote = False
 
     def handle_job(self, job):
