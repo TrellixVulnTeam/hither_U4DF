@@ -5,6 +5,7 @@ from .functions import functions as fun
 from .fixtures import MONGO_PORT, DATABASE_NAME, COMPUTE_RESOURCE_ID, EVENT_STREAM_SERVER_CONFIG
 
 @pytest.mark.remote
+@pytest.mark.current
 def test_remote_1(general, mongodb, event_stream_server, kachery_server, compute_resource):
     event_stream_client = hi.EventStreamClient(**EVENT_STREAM_SERVER_CONFIG)
     jh = hi.RemoteJobHandler(event_stream_client=event_stream_client, compute_resource_id=COMPUTE_RESOURCE_ID)

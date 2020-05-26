@@ -95,7 +95,6 @@ def test_run_function_by_name(general):
     x = hi.run('add', x=1, y=2).wait()
     assert x is 3
 
-@pytest.mark.current
 def test_run_functions_with_job_cache(general, tmp_path):
     job_cache_path = str(tmp_path) + '/job-cache'
     os.mkdir(job_cache_path)
