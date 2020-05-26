@@ -269,6 +269,9 @@ class ComputeResource:
         pass
 
     def run(self):
+        self._stream.write_event(dict(
+            type='compute-resource-started'
+        ))
         while True:
             self._iterate()
             time.sleep(0.02) # TODO: alternative to busy-wait?

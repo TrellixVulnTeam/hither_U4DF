@@ -1,11 +1,12 @@
 import os
 import shutil
-import time
 import multiprocessing
 import pytest
 import hither as hi
+from urllib import request
 from ._config import EVENT_STREAM_SERVER_PORT
 from ._common import _random_string
+from ._util import _wait_for_event_stream_server_to_start
 
 def run_service_event_stream_server(*, server_dir):
     # The following cleanup is needed because we terminate this compute resource process
@@ -47,7 +48,8 @@ def event_stream_server(tmp_path):
 
     process = multiprocessing.Process(target=run_service_event_stream_server, kwargs=dict(server_dir=server_dir))
     process.start()
-    time.sleep(2)
+    
+    _wait_for_event_stream_server_to_start()
 
     yield process
     print('Terminating event stream server')

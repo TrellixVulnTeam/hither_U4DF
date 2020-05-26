@@ -40,12 +40,18 @@ class _JobManager:
             del self._queued_jobs[_id]
             if job._status == JobStatus.ERROR: continue
 
+            job._job_handler._internal_counts.num_jobs += 1
+
             self._running_jobs[_id] = job
             job.resolve_wrapped_job_values()
             if job._job_cache is not None:
                 if not job._job_handler.is_remote:
                     job._job_cache.fetch_cached_job_results(job)
+                    if job._status in JobStatus.complete_statuses():
+                        job._job_handler._internal_counts.num_skipped_jobs += 1
+                        return
 
+            job._job_handler._internal_counts.num_run_jobs += 1
             job._job_handler.handle_job(job)
 
     def review_running_jobs(self):
@@ -59,14 +65,18 @@ class _JobManager:
                 job._job_handler.iterate()
             if job._status in JobStatus.complete_statuses():
                 self.finish_completed_job(job)
+                if job._status == JobStatus.ERROR:
+                    job._job_handler._internal_counts.num_errored_jobs += 1
+                elif job._status == JobStatus.FINISHED:
+                    job._job_handler._internal_counts.num_finished_jobs += 1
+
 
     def finish_completed_job(self, job:Job) -> None:
         del self._running_jobs[job._job_id]
         if job._download_results:
             job.download_results_if_needed()
-        if job._job_cache is None or not job._job_handler.is_remote():
-            return
-        job._job_cache.cache_job_result(job)
+        if job._job_cache is not None:
+            job._job_cache.cache_job_result(job)
 
     def reset(self):
         self._queued_jobs = dict()

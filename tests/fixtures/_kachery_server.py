@@ -1,11 +1,11 @@
 import os
 import shutil
-import time
 import multiprocessing
 import pytest
 import hither as hi
 from ._config import KACHERY_PORT
 from ._common import _random_string
+from ._util import _wait_for_kachery_server_to_start
 
 def run_service_kachery_server(*, kachery_dir):
     # The following cleanup is needed because we terminate this compute resource process
@@ -47,7 +47,7 @@ def kachery_server(tmp_path):
 
     process = multiprocessing.Process(target=run_service_kachery_server, kwargs=dict(kachery_dir=kachery_dir))
     process.start()
-    time.sleep(2)
+    _wait_for_kachery_server_to_start()
     
     # Not sure why the following is causing a problem....
     # # make sure it's working before we proceed
