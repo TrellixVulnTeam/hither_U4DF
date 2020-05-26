@@ -192,27 +192,7 @@ inclusion in `local_modules`.
 
 ### How can I use hither to run Python code in a docker container?
 
-Ensure that Docker (or Singularity) is installed in the target system and accessible to the
-user who will be running hither.
-
-Then, when declaring a hither function, simply decorate it with a notation like the following:
-```python
-@hi.function('my_function', '0.1.0')
-@hi.container('docker://image_url')
-def my_function():
-    # do your computations
-```
-`my_function` will then be wrapped as a hither function. When the job is run by calling the
-`.run()` method on the function, the resulting Job will be run in the container whose
-image is specified by `image_url`, provided that the
-active configuration includes `container=True`.
-
-(Under the hood, whatever value is given to the `container` decorator will be passed on
-to `docker pull` and subsequently to `docker run`.)
-
-The `image_url` can refer to an image on a public hosting solution such as 
-DockerHub, or to any other location which can be accessed by the system which will
-be running hither.
+[See the containerization docs](./containerization.md)
 
 ### What is a docker image? How is that different from a docker container?
 

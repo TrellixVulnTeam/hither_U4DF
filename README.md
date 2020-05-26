@@ -13,11 +13,24 @@ TODO: Need to describe other tools, how hither differs, and why it is needed.
 
 [Frequently asked questions](doc/faq.md)
 
+## Installation
+
+**Prequisites**
+
+* Python >= 3.7
+* Docker (optional)
+* Singularity (optional)
+
+```bash
+# Install from PyPI
+pip install --upgrade hither
+```
+
 ## Basic usage
 
 ### Containerization
 
-You can prescribe the exact environment that your function runs in by decorating your Python function to specify a docker image from DockerHub:
+Decorate your Python function to specify a docker image from DockerHub.
 
 ```python
 # integrate_bessel.py
@@ -56,6 +69,9 @@ with hi.Config(container=True):
 
 print(val1, val2, val3)
 ```
+
+[See containerization documentation for more details.](./doc/containerization.md)
+
 
 ### Job cache
 
