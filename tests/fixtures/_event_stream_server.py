@@ -23,7 +23,7 @@ def run_service_event_stream_server(*, server_dir):
 
         docker kill event-stream-server-fixture > /dev/null 2>&1 || true
         docker rm event-stream-server-fixture > /dev/null 2>&1 || true
-        exec docker run --name event-stream-server-fixture -v {server_dir}:/event-stream-server -p {EVENT_STREAM_SERVER_PORT}:8080 -v /etc/passwd:/etc/passwd -u `id -u`:`id -g` -i magland/eventstreamserver:latest
+        exec docker run --name event-stream-server-fixture -v {server_dir}:/event-stream-server -p {EVENT_STREAM_SERVER_PORT}:8080 -v /etc/passwd:/etc/passwd -u `id -u`:`id -g` -i magland/eventstreamserver:0.1.0
         """, redirect_output_to_stdout=True)
         ss.start()
         ss.wait()
@@ -41,7 +41,7 @@ def event_stream_server(tmp_path):
     #!/bin/bash
     set -ex
 
-    exec docker pull magland/eventstreamserver:latest
+    exec docker pull magland/eventstreamserver:0.1.0
     """)
     ss_pull.start()
     ss_pull.wait()

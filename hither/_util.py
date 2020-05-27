@@ -1,5 +1,5 @@
 import time
-
+import os
 from typing import Union, List, Any, Callable
 import random
 from ._enums import HitherFileType
@@ -189,4 +189,6 @@ def _copy_structure_with_changes(structure: Any, replacement_function: Callable[
     elif entrytype == tuple:
         return tuple([_copy_structure_with_changes(v, replacement_function, _type=_type) for v in structure])
 
-
+def _docker_inject_user_dir():
+    thisdir = os.path.dirname(os.path.realpath(__file__))
+    return f'{thisdir}/docker_inject_user'
