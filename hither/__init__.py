@@ -9,7 +9,7 @@ from ._exceptions import JobCancelledException
 from ._filelock import FileLock
 from ._consolecapture import ConsoleCapture
 from .core import _deserialize_job
-from ._util import _serialize_item, _deserialize_item, _copy_structure_with_changes
+from ._util import _serialize_item, _deserialize_item, _copy_structure_with_changes, _docker_inject_user_dir
 from .defaultjobhandler import DefaultJobHandler
 from .paralleljobhandler import ParallelJobHandler
 from .slurmjobhandler import SlurmJobHandler

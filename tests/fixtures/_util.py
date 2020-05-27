@@ -52,6 +52,6 @@ def _wait_for_compute_resource_to_start():
     ))
     events = s.read_events(15)
     for e in events:
-        if e['type'] == 'compute-resource-started':
+        if e['type'] == 'COMPUTE_RESOURCE_STARTED':
             return
     raise Exception('Problem waiting for compute resource to start')

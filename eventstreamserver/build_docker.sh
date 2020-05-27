@@ -8,7 +8,7 @@ for i in "$@" ; do
     fi
 done
 
-IMAGE_NAME="magland/eventstreamserver:latest"
+IMAGE_NAME="magland/eventstreamserver:0.1.1"
 
 docker build -t $IMAGE_NAME .
 

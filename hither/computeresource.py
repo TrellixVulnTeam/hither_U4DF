@@ -11,6 +11,9 @@ from .file import File
 from .job import Job
 
 class ComputeResourceActionTypes:
+    # sent by compute resource at startup
+    COMPUTE_RESOURCE_STARTED = 'COMPUTE_RESOURCE_STARTED'
+
     # sent from job handler to compute resource
     ADD_JOB_HANDLER = 'ADD_JOB_HANDLER'
     ADD_JOB = 'ADD_JOB'
@@ -31,7 +34,7 @@ class ConnectedClient:
         self._compute_resource = compute_resource
         self._job_handler = compute_resource._job_handler
         self._job_cache = compute_resource._job_cache
-        self._kachery = compute_resource._kachery
+        self._kachery_config = compute_resource._kachery_config
 
         # for polling
         self._timestamp_event_poll = 0
@@ -60,7 +63,7 @@ class ConnectedClient:
         # write initial message sharing the kachery config
         self._stream_outgoing.write_event(dict(
             type=ComputeResourceActionTypes.SET_KACHERY_CONFIG,
-            kachery_config=compute_resource._kachery
+            kachery_config=compute_resource._kachery_config
         ))
 
         # timestamp for when the client last reported being alive
@@ -119,6 +122,8 @@ class ConnectedClient:
             action['handler_id'] = self._handler_id
             self._add_job(action)
             self._report_action()
+        elif _type == ComputeResourceActionTypes.COMPUTE_RESOURCE_STARTED:
+            pass
         else:
             print(f'Unexpected action type: {_type}')
     
@@ -167,7 +172,7 @@ class ConnectedClient:
         if code is None:
             return True
         try:
-            code_obj = ka.load_object(code, fr=self._kachery)
+            code_obj = ka.load_object(code, fr=self._kachery_config)
             if code_obj is None:
                 raise DeserializationException("Kachery returned no serialized code for function.")
             serialized_job[JobKeys.CODE] = code_obj
@@ -202,13 +207,13 @@ class ConnectedClient:
         return True
     def _handle_finished_job(self, job):
         print(f'Job finished: {job._job_id}') # TODO: Change to formal log statement?
-        job.kache_results_if_needed(kachery=self._kachery)
+        job.kache_results_if_needed(kachery=self._kachery_config)
         self._mark_job_as_finished(job=job)
         if self._job_cache is not None:
             self._job_cache.cache_job_result(job)
     def _queue_job(self, job:Job, handler_id:str) -> None:
         try:
-            job.download_parameter_files_if_needed(kachery=self._kachery)
+            job.download_parameter_files_if_needed(kachery=self._kachery_config)
         except Exception as e:
             print(f"Error downloading input files for job: {job._label}\n{e}")
             self._mark_job_as_error(job_id=job._job_id, exception=e, runtime_info=None)
@@ -246,10 +251,10 @@ class ConnectedClient:
         self._timestamp_last_action = time.time()
 
 class ComputeResource:
-    def __init__(self, *, event_stream_client, compute_resource_id, kachery, job_handler, job_cache=None):
+    def __init__(self, *, event_stream_client, compute_resource_id, kachery_config, job_handler, job_cache=None):
         self._event_stream_client = event_stream_client
         self._compute_resource_id = compute_resource_id
-        self._kachery = kachery
+        self._kachery_config = kachery_config
         self._instance_id = _random_string(15)
         self._timestamp_event_poll = 0
         self._timestamp_last_action = time.time()
@@ -269,7 +274,7 @@ class ComputeResource:
 
     def run(self):
         self._stream.write_event(dict(
-            type='compute-resource-started'
+            type=ComputeResourceActionTypes.COMPUTE_RESOURCE_STARTED
         ))
         while True:
             self._iterate()
@@ -281,6 +286,8 @@ class ComputeResource:
             handler_id = action['handler_id']
             self._connected_clients[handler_id] = ConnectedClient(self, handler_id)
             self._report_action()
+        elif _type == ComputeResourceActionTypes.COMPUTE_RESOURCE_STARTED:
+            pass
         else:
             print(f'Unexpected action type: {_type}')
 
