@@ -114,7 +114,7 @@ with hi.Config(job_handler=jh):
     # Wait for all jobs to finish
     hi.wait()
     # Collect the results from the finished jobs
-    results = [job.get_result() for job in jobs]1
+    results = [job.get_result() for job in jobs]
     print('results:', results)
 ```
 
@@ -154,7 +154,7 @@ with hi.Config(job_handler=jh):
 
 ## Remote compute resources
 
-One of the most powerful capabilities of hither is to use a remote computer or (compute cluster) as a resource for running individual jobs. To achieve this, use a `hi.RemoteJobHandler()` job handler.
+One of the most powerful capabilities of hither is to use a remote computer (or compute cluster) as a resource for running individual jobs. To achieve this, use a `hi.RemoteJobHandler()` job handler.
 
 [See the remote compute resource documentation for more details.](./doc/remote-compute-resource.md)
 

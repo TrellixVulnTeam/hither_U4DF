@@ -49,7 +49,7 @@ Before running any Job, hither will first check the cache to see if that result
 has already been computed; if it has, the cached result will be returned instead
 of redoing the computation.
 
-By default, hither does not cache failing jobs. But if you want to remember that a job through an exception, then you can set `cache_failing=True` in the constructor of the job cache as follows:
+By default, hither does not cache failing jobs. But if you want to remember that a job threw an exception, then you can set `cache_failing=True` in the constructor of the job cache as follows:
 
 ```python
 jc = hi.JobCache(use_tempdir=True, cache_failing=True)
