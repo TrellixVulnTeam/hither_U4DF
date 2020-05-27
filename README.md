@@ -17,7 +17,7 @@ TODO: Need to describe other tools, how hither differs, and why it is needed.
 
 **Prequisites**
 
-* Python >= 3.7
+* Python >= 3.6
 * Docker (optional)
 * Singularity (optional)
 
