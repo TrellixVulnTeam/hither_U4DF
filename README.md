@@ -75,25 +75,92 @@ print(val1, val2, val3)
 
 ### Job cache
 
-TODO: describe the job cache with an example.
+Hither will remember the outputs of jobs if a job cache is used:
 
-### Pipelines
+```python
+import hither as hi
+from expensive_calculation import expensive_calculation
 
-Hither also provides tools to generate pipelines of chained functions, so that the output of one processing step can be fed seamlessly as input to another, and to coordinate execution of jobs.
+# Create a job cache that uses /tmp
+# You can also use a different location
+# or a mongo database
+jc = hi.JobCache(use_tempdir=True)
 
-TODO: provide a basic example
+with hi.Config(job_cache=jc):
+    # subsequent runs will use the cache
+    val = expensive_calculation.run(x=4).wait()
+    print(f'result = {val}')
+```
+
+[See the job cache documentation for more details.](./doc/job-cache.md)
 
 ### Parallel computing
 
-TODO: provide a basic example
+You can run jobs in parallel by using a parallel job handler:
 
-### Batch processing
+```python
+import hither as hi
+from expensive_calculation import expensive_calculation
 
-TODO: Give another full example of looping through a list of arguments, accumulating a list of job results, and then aggregating the outputs after processing completes.
+# Create a job handler than runs 4 jobs simultaneously
+jh = hi.ParallelJobHandler(num_workers=4)
 
-## Reference documentation
+with hi.Config(job_handler=jh):
+    # Run 4 jobs in parallel
+    jobs = [
+        expensive_calculation.run(x=x)
+        for x in [3, 3.3, 3.6, 4]
+    ]
+    # Wait for all jobs to finish
+    hi.wait()
+    # Collect the results from the finished jobs
+    results = [job.get_result() for job in jobs]1
+    print('results:', results)
+```
 
-[Reference documentation](doc/reference.md)
+It is also possible to achieve parallelization using SLURM or remote resources.
+
+[See the parallel computing documentation for more details.](./doc/parallel-computing.md)
+
+### Pipelines
+
+Hither provides tools to generate pipelines of chained functions, so that the output of one processing step can be fed seamlessly as input to another, and to coordinate execution of jobs.
+
+```python
+import hither as hi
+from expensive_calculation import expensive_calculation
+from arraysum import arraysum
+
+# Create a job handler than runs 4 jobs simultaneously
+jh = hi.ParallelJobHandler(num_workers=4)
+
+with hi.Config(job_handler=jh):
+    # Run 4 jobs in parallel
+    jobs = [
+        expensive_calculation.run(x=x)
+        for x in [3, 3.3, 3.6, 4]
+    ]
+    # we don't need to wait for these
+    # jobs to finish. Just pass them in
+    # to the next function
+    sumjob = arraysum.run(x=jobs)
+    # wait for the arraysum job to finish
+    result = sumjob.wait()
+    print('result:', result)
+```
+
+[See the pipelines documentation for more details.](./doc/pipelines.md)
+
+
+## Remote compute resources
+
+One of the most powerful capabilities of hither is to use a remote computer or (compute cluster) as a resource for running individual jobs. To achieve this, use a `hi.RemoteJobHandler()` job handler.
+
+[See the remote compute resource documentation for more details.](./doc/remote-compute-resource.md)
+
+## Reference
+
+For a complete list of hither capabilities, see the [reference documentation](./doc/reference.md)
 
 ## Authors
 

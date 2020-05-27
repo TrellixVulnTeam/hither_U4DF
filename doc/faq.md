@@ -468,72 +468,13 @@ function are recorded for later reuse.
 
 ### How can I use hither to cache the results of Python jobs?
 
-Configure the hither environment to use a job cache as follows:
-
-```python
-import Hither as hi
-
-## Set up functions
-@hi.function('ones', '0.1.0')
-def ones(shape):
-    return np.ones(shape=shape)
-
-@hi.function('add', '0.1.0')
-def add(x, y):
-    return x + y
-
-db = hi.Database(
-    database='hither',
-    mongo_url='mongodb://localhost:27017'
-    # Assuming an instance of mongod is listening on localhost 27017
-    # Many other configurations are possible.
-)
-job_cache = hi.JobCache(
-    database=db,
-    cache_failing=False,
-    rerun_failing=False
-)
-
-job_handler = hi.ParallelJobHandler()
-
-with hi.Config(
-    job_handler=job_handler,
-    job_cache=job_cache,
-    container=True
-):
-    a = ones.run(shape=(4, 3))
-    b = add.run(x=a, y=a)
-```
-
-Job results will now be cached in the `job_cache` stored in the specified database.
-Before running any Job, hither will first check the cache to see if that result
-has already been computed; if it has, the cached result will be returned instead
-of redoing the computation.
-
-In the example above, the call to `add` takes for parameters two identical
-calls to `ones`. However, the `ones` function willl only be executed once;
-the second call will use the stored result value.
-
-The `cache_failing` and `rerun_failing` parameters determine how to handle failed
-Jobs. If `cache_failing` is set, then the cache will record (and continue to return)
-whatever error was produced when the function was run. If `rerun_failing` is set,
-then checking the job cache will instruct the job handler to rerun any Job whose
-hash matches the errored Job's.
-
-__TODO: Clarify the role and effect of cache_failing and rerun_failing__
+[See the job cache documentation.](./job-cache.md)
 
 ## Is the job cache always used?
 
-If the `force_run` parameter is set to True,
-the cache will return a cache miss result for any input. This will
-cause the Job to be re-executed every time it is scheduled for
-execution. However,
-the results of the Job will still be cached, and can be returned on
-subsequent accesses to the same job cache database if
-the `_force_run` parameter is later turned off.
-(As a reminder, records of hither Job runs may have a long lifetime of potentially
-days, weeks, or longer.)
+The job cache is only used if `job_cache` has been configured in the hither context and the `force_run` option has not been set to `True`.
 
+TODO: figure out where the `force_run=True` can be set.
 
 ### What information does hither use to form the job hash for purposes of job caching?
 Jobs in the job cache are identified by a hash value. This is the result of
