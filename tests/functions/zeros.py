@@ -3,7 +3,7 @@ import hither as hi
 import numpy as np
 
 @hi.function('zeros', '0.1.1')
-@hi.container('docker://jupyter/scipy-notebook:678ada768ab1')
+@hi.container('docker://jsoules/simplescipy:latest')
 def zeros(shape, delay=None):
     if delay is not None:
         time.sleep(delay)

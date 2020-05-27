@@ -3,7 +3,7 @@ import hither as hi
 import numpy as np
 
 @hi.function('additional_file', '0.1.0')
-@hi.container('docker://jupyter/scipy-notebook:678ada768ab1')
+@hi.container('docker://jsoules/simplescipy:latest')
 @hi.additional_files(['test_data.csv'])
 def additional_file():
     thisdir = os.path.dirname(os.path.realpath(__file__))

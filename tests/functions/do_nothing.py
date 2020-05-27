@@ -2,7 +2,7 @@ import time
 import hither as hi
 
 @hi.function('do_nothing', '0.1.0')
-@hi.container('docker://jupyter/scipy-notebook:678ada768ab1')
+@hi.container('docker://jsoules/simplescipy:latest')
 def do_nothing(x=None, delay=None):
     if delay is not None:
         time.sleep(delay)

@@ -2,7 +2,7 @@ import numpy as np
 import hither as hi
 
 @hi.function('mult', '0.1.0')
-@hi.container('docker://jupyter/scipy-notebook:678ada768ab1')
+@hi.container('docker://jsoules/simplescipy:latest')
 def mult(x, y):
     return x * y
 

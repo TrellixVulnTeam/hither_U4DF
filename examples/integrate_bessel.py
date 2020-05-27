@@ -3,7 +3,7 @@
 import hither as hi
 
 @hi.function('integrate_bessel', '0.1.0')
-@hi.container('docker://jupyter/scipy-notebook:dc57157d6316')
+@hi.container('docker://jsoules/simplescipy:latest')
 def integrate_bessel(v, a, b):
     # Definite integral of bessel function of first kind
     # of order v from a to b

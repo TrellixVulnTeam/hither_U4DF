@@ -3,7 +3,7 @@ import hither as hi
 import numpy as np
 
 @hi.function('identity2', '0.1.1')
-@hi.container('docker://jupyter/scipy-notebook:678ada768ab1')
+@hi.container('docker://jsoules/simplescipy:latest')
 def identity2(x):
     if type(x) == str:
         if x.startswith('/') and os.path.exists(x):

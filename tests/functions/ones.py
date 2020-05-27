@@ -2,7 +2,7 @@ import hither as hi
 import numpy as np
 
 @hi.function('ones', '0.1.0')
-@hi.container('docker://jupyter/scipy-notebook:678ada768ab1')
+@hi.container('docker://jsoules/simplescipy:latest')
 def ones(shape):
     return np.ones(shape=shape)
 
