@@ -16,7 +16,7 @@ def compute_resource(tmp_path):
     os.mkdir(kachery_storage_dir_compute_resource)
     _wait_for_kachery_server_to_start()
     _wait_for_event_stream_server_to_start()
-    process = multiprocessing.Process(target=run_service_compute_resource, kwargs=dict(event_stream_client=event_stream_client, kachery_storage_dir=kachery_storage_dir_compute_resource, compute_resource_id=COMPUTE_RESOURCE_ID, kachery=KACHERY_CONFIG))
+    process = multiprocessing.Process(target=run_service_compute_resource, kwargs=dict(event_stream_client=event_stream_client, kachery_storage_dir=kachery_storage_dir_compute_resource, compute_resource_id=COMPUTE_RESOURCE_ID, kachery_config=KACHERY_CONFIG))
     process.start()
     _wait_for_compute_resource_to_start()
 
@@ -27,7 +27,7 @@ def compute_resource(tmp_path):
     print('Terminated compute resource')
 
 
-def run_service_compute_resource(*, event_stream_client, kachery_storage_dir, compute_resource_id, kachery):
+def run_service_compute_resource(*, event_stream_client, kachery_storage_dir, compute_resource_id, kachery_config):
     # The following cleanup is needed because we terminate this compute resource process
     # See: https://pytest-cov.readthedocs.io/en/latest/subprocess-support.html
     from pytest_cov.embed import cleanup_on_sigterm
@@ -39,7 +39,7 @@ def run_service_compute_resource(*, event_stream_client, kachery_storage_dir, co
     with hi.ConsoleCapture(label='[compute-resource]'):
         pjh = hi.ParallelJobHandler(num_workers=4)
         # jc = hi.JobCache(database=db)
-        # CR = hi.ComputeResource(event_stream_client=event_stream_client, job_handler=pjh, compute_resource_id=compute_resource_id, kachery=kachery, job_cache=jc)
-        CR = hi.ComputeResource(event_stream_client=event_stream_client, job_handler=pjh, compute_resource_id=compute_resource_id, kachery=kachery)
+        # CR = hi.ComputeResource(event_stream_client=event_stream_client, job_handler=pjh, compute_resource_id=compute_resource_id, kachery_config=kachery, job_cache=jc)
+        CR = hi.ComputeResource(event_stream_client=event_stream_client, job_handler=pjh, compute_resource_id=compute_resource_id, kachery_config=kachery_config)
         CR.clear()
         CR.run()
