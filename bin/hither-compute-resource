@@ -252,7 +252,7 @@ def start_event_stream_server():
         raise Exception('Not configured to host event stream server. Use: hither-compute-resource config')
     dirname = os.getcwd() + '/event-stream-server'
     do_run_docker_container(
-        image='magland/eventstreamserver:0.1.0',
+        image='magland/eventstreamserver:0.1.1',
         docker_run_opts=f"-p {host_event_stream_server_port}:8080 -v {dirname}:/event-stream-server"
     )
 
