@@ -321,12 +321,12 @@ Consider this example:
 import numpy as np
 
 @hi.function('mult', '0.1.0')
-@hi.container('docker://jupyter/scipy-notebook:678ada768ab1')
+@hi.container('docker://jsoules/simplescipy:latest')
 def mult(x, y):
     return x * y
 
 @hi.function('invert', '0.1.0')
-@hi.container('docker://jupyter/scipy-notebook:678ada768ab1')
+@hi.container('docker://jsoules/simplescipy:latest')
 def invert(x):
     # You should probably be more careful about types than this in real code
     if isinstance(x, np.ndarray):
@@ -334,7 +334,7 @@ def invert(x):
     return (1/x)
 
 @hi.function('dot', '0.1.0')
-@hi.container('docker://jupyter/scipy-notebook:678ada768ab1')
+@hi.container('docker://jsoules/simplescipy:latest')
 def dot(x, y):
     return np.dot(x, y)
 
@@ -345,9 +345,9 @@ with hi.Config(job_handler=jh):
     a = np.array([[3, 4], [5, 6]])
     b = np.array([173, 214])
     
-    ainv_job = invert.run(a)
-    product_job = dot.run(b, ainv_job)
-    x_job = mult.run(xroot, xroot)
+    ainv_job = invert.run(x=a)
+    product_job = dot.run(x=b, y=ainv_job)
+    x_job = mult.run(x=xroot, y=xroot)
     
     x = x_job.wait()
     product = product_job.wait()
@@ -380,7 +380,7 @@ combined with its environment (parameters, job handlers, etc). In concrete terms
 
 ```python
     @hi.function('add', '0.1.0')
-    @hi.container('docker://jupyter/scipy-notebook:678ada768ab1')
+@hi.container('docker://jsoules/simplescipy:latest')
     def add(x, y):
         return x + y
 
@@ -550,7 +550,7 @@ import numpy as np
 import hither as hi
 
 @hi.function('sumsqr', '0.1.0')
-@hi.container('docker://jupyter/scipy-notebook:678ada768ab1')
+@hi.container('docker://jsoules/simplescipy:latest')
 def sumsqr(x):
     return np.sum(x**2)
 

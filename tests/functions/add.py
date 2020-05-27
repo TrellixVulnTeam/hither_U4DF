@@ -1,7 +1,7 @@
 import hither as hi
 
 @hi.function('add', '0.1.0')
-@hi.container('docker://jupyter/scipy-notebook:678ada768ab1')
+@hi.container('docker://jsoules/simplescipy:latest')
 def add(x, y):
     return x + y
 

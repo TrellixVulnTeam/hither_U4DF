@@ -2,7 +2,7 @@ import os
 import hither as hi
 
 @hi.function('write_text_file', '0.1.0')
-@hi.container('docker://jupyter/scipy-notebook:678ada768ab1')
+@hi.container('docker://jsoules/simplescipy:latest')
 def write_text_file(text):
     with hi.TemporaryDirectory() as tmpddir:
         fname = tmpddir + '/file.txt'

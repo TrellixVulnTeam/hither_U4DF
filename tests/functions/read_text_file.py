@@ -2,7 +2,7 @@ import os
 import hither as hi
 
 @hi.function('read_text_file', '0.1.0')
-@hi.container('docker://jupyter/scipy-notebook:678ada768ab1')
+@hi.container('docker://jsoules/simplescipy:latest')
 def read_text_file(file):
     with open(file, 'r') as f:
         return f.read()

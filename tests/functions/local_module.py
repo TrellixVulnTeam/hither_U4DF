@@ -3,7 +3,7 @@
 import hither as hi
 
 @hi.function('local_module', '0.1.0')
-@hi.container('docker://jupyter/scipy-notebook:678ada768ab1')
+@hi.container('docker://jsoules/simplescipy:latest')
 @hi.local_modules(['./test_modules/test_module1'])
 def local_module():
     import test_module1 
