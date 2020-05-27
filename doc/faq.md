@@ -345,9 +345,9 @@ with hi.Config(job_handler=jh):
     a = np.array([[3, 4], [5, 6]])
     b = np.array([173, 214])
     
-    ainv_job = invert.run(a)
-    product_job = dot.run(b, ainv_job)
-    x_job = mult.run(xroot, xroot)
+    ainv_job = invert.run(x=a)
+    product_job = dot.run(x=b, y=ainv_job)
+    x_job = mult.run(x=xroot, y=xroot)
     
     x = x_job.wait()
     product = product_job.wait()
