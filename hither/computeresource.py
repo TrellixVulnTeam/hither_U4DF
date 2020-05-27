@@ -126,12 +126,11 @@ class ConnectedClient:
         # Add a job that was sent from the client
         job_id, handler_id, job_serialized = JobKeys._unpack_serialized_job(action)
         label = job_serialized[JobKeys.LABEL]
-        print(f'Queuing job: {label}') # TODO: Convert to log statement
-        
         if not (self._hydrate_code_for_serialized_job(job_id, job_serialized)
                 and self._hydrate_container_for_serialized_job(job_id, job_serialized)):
             return
-       
+        print(f'Queuing job: {label}') # TODO: Convert to log statement
+        
         job = Job._deserialize(job_serialized)
         if self._job_cache and self._job_cache.fetch_cached_job_results(job):
             # Cache fetch will return false if the Job needs to be rerun, or else update the Job
