@@ -77,7 +77,7 @@ print(val1, val2, val3)
 
 Hither will remember the outputs of jobs if a job cache is used:
 
-```
+```python
 import hither as hi
 from expensive_calculation import expensive_calculation
 
