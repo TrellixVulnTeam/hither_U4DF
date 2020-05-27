@@ -1,8 +1,8 @@
 # Hosting a hither compute resource server
 
-Explain why you would want to host a compute resource.
+Explain why you would want to host a compute resource server.
 
-Describe the architecture with a diagram... kachery-server, event-stream-server, compute-resource-server, compute-resource client.
+Describe the architecture with a diagram... kachery-server, event-stream-server, compute-resource-server, remote job handler.
 
 Explain that these services can all be running in different locations. Or, for simplicity, they can all be running on the same machine.
 
