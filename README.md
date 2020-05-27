@@ -75,7 +75,24 @@ print(val1, val2, val3)
 
 ### Job cache
 
-TODO: describe the job cache with an example.
+Hither will remember the outputs of jobs if a job cache is used:
+
+```
+import hither as hi
+from expensive_calculation import expensive_calculation
+
+# Create a job cache that uses /tmp
+# You can also use a different location
+# or a mongo database
+jc = hi.JobCache(use_tempdir=True)
+
+with hi.Config(job_cache=jc):
+    # subsequent runs will use the cache
+    val = expensive_calculation.run(x=4).wait()
+    print(f'result = {val}')
+```
+
+[See job cache documentation for more details.](./doc/job-cache.md)
 
 ### Pipelines
 
