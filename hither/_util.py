@@ -2,7 +2,6 @@ import time
 import os
 from typing import Union, List, Any, Callable
 import random
-from ._enums import HitherFileType
 from .file import File
 
 def _serialize_item(x:Any, require_jsonable:bool=True) -> Any:
