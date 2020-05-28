@@ -45,6 +45,9 @@ class JobKeys:
     COMPUTE_RESOURCE_STATUS = 'compute_resource_status' # the Job's status on the remote resource.
     CONTAINER = 'container'
     DOWNLOAD_RESULTS = 'download_results'
+    FORCE_RUN = 'force_run'
+    RERUN_FAILING = 'rerun_failing'
+    CACHE_FAILING = 'cache_failing'
     EXCEPTION = 'exception'
     FUNCTION = 'function'
     FUNCTION_NAME = 'function_name'
@@ -131,8 +134,12 @@ class ConfigKeys:
     JOB_CACHE = 'job_cache'
     DOWNLOAD_RESULTS = 'download_results'
     TIMEOUT = 'job_timeout'
+    FORCE_RUN = 'force_run'
+    RERUN_FAILING = 'rerun_failing'
+    CACHE_FAILING = 'cache_failing'
 
     @staticmethod
     def known_configuration_keys() -> List[str]:
         return [ConfigKeys.CONTAINER, ConfigKeys.JOB_HANDLER, ConfigKeys.JOB_CACHE,
-                ConfigKeys.DOWNLOAD_RESULTS, ConfigKeys.TIMEOUT]
+                ConfigKeys.DOWNLOAD_RESULTS, ConfigKeys.TIMEOUT, ConfigKeys.FORCE_RUN,
+                ConfigKeys.RERUN_FAILING, ConfigKeys.CACHE_FAILING]

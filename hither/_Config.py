@@ -22,7 +22,10 @@ class Config:
         job_handler: Union[BaseJobHandler, Inherit]=Inherit.INHERIT,
         job_cache: Union['JobCache', Inherit, None]=Inherit.INHERIT,
         download_results: Union[bool, Inherit, None]=Inherit.INHERIT,
-        job_timeout: Union[float, Inherit, None]=Inherit.INHERIT
+        job_timeout: Union[float, Inherit, None]=Inherit.INHERIT,
+        force_run: Union[bool, Inherit]=Inherit.INHERIT,
+        rerun_failing: Union[bool, Inherit]=Inherit.INHERIT,
+        cache_failing: Union[bool, Inherit]=Inherit.INHERIT
     ):
         """Set hither config parameters in a context manager, inheriting unchanged parameters
         from the default config.
@@ -33,6 +36,18 @@ class Config:
         with hi.Config(container=True):
             # code goes here
         ```
+
+        Three options relate to the job cache if it is provided:
+            force_run=True will cause the job to rerun even if it is found in the cache.
+            cache_failing=True will cause errored jobs to be cached (as errored)
+            rerun_failing=True will cause the job to rerun even if a matching errored job is found in the cache.
+
+        Note that cache_failing=False and rerun_failing=True are similar but not
+        exactly the same. Indeed, if rerun_failing=True and cache_failing=True,
+        then the job will run even if a matching errored job is found in the
+        cache. But then at the end of the job, it will be cached, even if it
+        fails. This distinction is relevant when the cache is persistent across
+        multiple accesses which might have different configurations.
         
         Parameters
         ----------
@@ -47,6 +62,12 @@ class Config:
             Whether to download results after the function job runs (applied to remote job handler), by default None
         job_timeout : Union[float, None], optional
             A timeout time (in seconds) for each function job, by default None
+        force_run : Union[bool], optional
+            If True, run the job even if the result was found in the job cache (but still cache the job if a job cache has been set)
+        rerun_failing: Union[bool], optional
+            If True, run the job even if a failing result was found in the job cache (but still cache the job if a job cache has been set, and cache a failing job if cache_failing=True)
+        cache_failing: Union[bool], optional
+            If True, cache the job even if it fails, and use cached jobs even if they are failing
         """
         old_config = Config.config_stack[-1] # throws if no default set
         self.new_config = dict()
@@ -61,6 +82,9 @@ class Config:
         self.coalesce(ConfigKeys.JOB_CACHE, job_cache)
         self.coalesce(ConfigKeys.DOWNLOAD_RESULTS, download_results)
         self.coalesce(ConfigKeys.TIMEOUT, job_timeout)
+        self.coalesce(ConfigKeys.FORCE_RUN, force_run)
+        self.coalesce(ConfigKeys.RERUN_FAILING, rerun_failing)
+        self.coalesce(ConfigKeys.CACHE_FAILING, cache_failing)
 
     @staticmethod
     # TODO: python 3.8 gives better tools for typehinting dicts, revise this eventually
