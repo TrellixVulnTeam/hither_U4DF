@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from hither import computeresource
+from hither import computeresource, __version__
 import os
 import json
 import click
@@ -12,6 +12,12 @@ import hither as hi
 @click.group(help="Configure and run a hither compute resource. Start by entering a new directory and running the 'config' command.")
 def cli():
     pass
+
+@click.command(help="Display hither version and exit.")
+def version():
+    click.echo(f"This is hither version {__version__}.")
+    exit()
+
 
 class ComputeResourceConfig:
     def __init__(self, config_fname):
@@ -507,11 +513,13 @@ def _append_docker_image_name(x, y):
     else:
         raise Exception(f'Invalid docker image name: {x}')
 
+
 cli.add_command(config)
 cli.add_command(start)
 cli.add_command(start_kachery_server)
 cli.add_command(start_event_stream_server)
 cli.add_command(run_docker_container)
+cli.add_command(version)
 
 if __name__ == "__main__":
     cli()

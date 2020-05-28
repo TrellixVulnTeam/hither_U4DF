@@ -1,3 +1,5 @@
+__version__ = "0.1.5"
+
 from .core import function, container, additional_files, local_modules, opts
 from .core import Config
 from .core import wait
