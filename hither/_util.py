@@ -2,7 +2,8 @@ import time
 import os
 from typing import Union, List, Any, Callable
 import random
-from ._enums import HitherFileType
+
+from ._enums import HitherFileType, JobStatus
 from .file import File
 
 def _serialize_item(x:Any, require_jsonable:bool=True) -> Any:
@@ -33,6 +34,12 @@ def _serialize_item(x:Any, require_jsonable:bool=True) -> Any:
         if _is_jsonable(x):
             # this will capture int, float, str, bool
             return x
+        if hasattr(x, 'value'):
+            # handle enums
+            return dict(
+                _type='enum',
+                data=x.value
+            )
     if require_jsonable:
         # Did not return on any previous statement
         raise Exception(f'Unable to serialize item of type: {type(x)}')
@@ -51,6 +58,12 @@ def _deserialize_item(x:Any) -> Any:
     if type(x) == dict:
         if '_type' in x and x['_type'] == 'tuple':
             return _deserialize_item(tuple(x['data']))
+        if '_type' in x and x['_type'] == 'enum':
+            value0 = x['data']
+            for a in [JobStatus.ERROR, JobStatus.QUEUED, JobStatus.RUNNING, JobStatus.FINISHED]:
+                if value0 == a.value:
+                    return a
+            raise Exception(f'Unexpected enum with value: {value0}')
         if File.can_deserialize(x):
             return File.deserialize(x)
         ret = dict()

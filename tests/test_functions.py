@@ -137,3 +137,18 @@ def test_run_functions_with_job_cache(general, tmp_path):
 def test_run_functions_in_container(general):
     with hi.Config(container=True, job_handler=hi.ParallelJobHandler(num_workers=20)):
         do_test_run_functions()
+
+@pytest.mark.current
+@pytest.mark.container
+def test_slurmjobhandler(general):
+    with hi.TemporaryDirectory() as tmpdir:
+        working_dir = f'{tmpdir}/slurmjobhandler'
+        os.mkdir(working_dir)
+        jh = hi.SlurmJobHandler(
+            working_dir=working_dir,
+            num_workers_per_batch=14,
+            num_cores_per_job=2,
+            use_slurm=False
+        )
+        with hi.Config(job_handler=jh, container=True):
+            do_test_run_functions()
