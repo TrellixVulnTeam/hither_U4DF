@@ -16,7 +16,9 @@ from ._util import _random_string, _deserialize_item, _serialize_item, _flatten_
 class Job:
     def __init__(self, *, f, wrapped_function_arguments,
                 job_manager, job_handler, job_cache, container, label,
-                download_results, job_timeout: Union[float, None], code=None, function_name=None,
+                download_results, job_timeout: Union[float, None],
+                force_run: bool, rerun_failing: bool, cache_failing: bool,
+                code=None, function_name=None,
                 function_version=None, job_id=None, no_resolve_input_files=False):
         self._f = f
         self._code = code
@@ -32,6 +34,9 @@ class Job:
         self._container = container
         self._download_results = download_results
         self._job_timeout = None
+        self._force_run = force_run
+        self._rerun_failing = rerun_failing
+        self._cache_failing = cache_failing
 
         self._status = JobStatus.PENDING
         self._result = None
@@ -260,6 +265,9 @@ class Job:
             container=self._container,
             download_results=self._download_results,
             job_timeout=self._job_timeout,
+            force_run=self._force_run,
+            rerun_failing=self._rerun_failing,
+            cache_failing=self._cache_failing,
             no_resolve_input_files=self._no_resolve_input_files
         )
         self._efficiency_job_hash_ = ka.get_object_hash(efficiency_job_hash_obj)
@@ -411,6 +419,9 @@ class Job:
             JobKeys.CONTAINER: self._container,
             JobKeys.DOWNLOAD_RESULTS: self._download_results,
             JobKeys.JOB_TIMEOUT: self._job_timeout,
+            JobKeys.FORCE_RUN: self._force_run,
+            JobKeys.RERUN_FAILING: self._rerun_failing,
+            JobKeys.CACHE_FAILING: self._cache_failing,
             JobKeys.NO_RESOLVE_INPUT_FILES: self._no_resolve_input_files
         }
         x = _serialize_item(x, require_jsonable=False)
@@ -430,6 +441,9 @@ class Job:
             container=j[JobKeys.CONTAINER],
             download_results=j.get(JobKeys.DOWNLOAD_RESULTS, False),
             job_timeout=j.get(JobKeys.JOB_TIMEOUT, None),
+            force_run=j.get(JobKeys.FORCE_RUN, False),
+            rerun_failing=j.get(JobKeys.RERUN_FAILING, False),
+            cache_failing=j.get(JobKeys.CACHE_FAILING),
             job_manager=job_manager,
             job_handler=None,
             job_cache=None,

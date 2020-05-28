@@ -22,7 +22,10 @@ class Config:
         job_handler: Union[BaseJobHandler, Inherit]=Inherit.INHERIT,
         job_cache: Union['JobCache', Inherit, None]=Inherit.INHERIT,
         download_results: Union[bool, Inherit, None]=Inherit.INHERIT,
-        job_timeout: Union[float, Inherit, None]=Inherit.INHERIT
+        job_timeout: Union[float, Inherit, None]=Inherit.INHERIT,
+        force_run: Union[bool, Inherit]=Inherit.INHERIT,
+        rerun_failing: Union[bool, Inherit]=Inherit.INHERIT,
+        cache_failing: Union[bool, Inherit]=Inherit.INHERIT
     ):
         """Set hither config parameters in a context manager, inheriting unchanged parameters
         from the default config.
@@ -47,6 +50,12 @@ class Config:
             Whether to download results after the function job runs (applied to remote job handler), by default None
         job_timeout : Union[float, None], optional
             A timeout time (in seconds) for each function job, by default None
+        force_run : Union[bool], optional
+            Whether to run the job even if the result was found in the job cache
+        rerun_failing: Union[bool], optional
+            Whether to run the job even if a failing result was found in the job cache
+        cache_failing: Union[bool], optional
+            Whether to cache the job result in the case of failure. By default, failing jobs are not cached.
         """
         old_config = Config.config_stack[-1] # throws if no default set
         self.new_config = dict()
@@ -61,6 +70,9 @@ class Config:
         self.coalesce(ConfigKeys.JOB_CACHE, job_cache)
         self.coalesce(ConfigKeys.DOWNLOAD_RESULTS, download_results)
         self.coalesce(ConfigKeys.TIMEOUT, job_timeout)
+        self.coalesce(ConfigKeys.FORCE_RUN, force_run)
+        self.coalesce(ConfigKeys.RERUN_FAILING, rerun_failing)
+        self.coalesce(ConfigKeys.CACHE_FAILING, cache_failing)
 
     @staticmethod
     # TODO: python 3.8 gives better tools for typehinting dicts, revise this eventually

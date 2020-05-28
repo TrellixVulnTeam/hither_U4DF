@@ -13,10 +13,7 @@ class JobCache:
     def __init__(self,
         database: Union[Database, None]=None,
         use_tempdir: Union[bool, None]=None,
-        path: Union[str, None]=None,
-        cache_failing:bool=False,
-        rerun_failing:bool=False,
-        force_run:bool=False
+        path: Union[str, None]=None
     ):
         """Cache for storing a retrieving results of hither jobs.
 
@@ -27,14 +24,7 @@ class JobCache:
             database {Union[Database, None]} -- A Mongo database object (default: {None})
             use_tempdir {Union[bool, None]} -- Whether to use a directory inside /tmp (or wherever tempdir is configured) (default: {None})
             path {Union[str, None]} -- Path to directory on local disk (default: {None})
-            cache_failing {bool} -- Whether to cache failing jobs (default: {False})
-            rerun_failing {bool} -- Whether to rerun jobs that had previously failed and been cached (default: {False})
-            force_run {bool} -- Whether to force run jobs, even if results had previously been ached (default: {False})
         """
-        self._cache_failing = cache_failing
-        self._rerun_failing = rerun_failing
-        self._force_run = force_run
-        
         set_parameters = 0
         errmsg = "You must provide exactly one of: database, use_tempdir, path"
         for param in [database, path, use_tempdir]:
@@ -65,7 +55,7 @@ class JobCache:
             bool -- True if an acceptable cached result was found. False if the Job has not run,
             is unknown, or returned an error (and we're set to rerun errored Jobs).
         """
-        if self._force_run:
+        if job._force_run:
             return False
         job_dict = self._fetch_cached_job_result(job._compute_hash())
         if job_dict is None:
@@ -86,7 +76,7 @@ class JobCache:
             print(f'Using cached result for job: {job_description}') # TODO: Make log
         elif status == JobStatus.ERROR:
             exception = job_dict[JobKeys.EXCEPTION]
-            if self._cache_failing and (not self._rerun_failing):
+            if job._cache_failing and (not job._rerun_failing):
                 job._result = None
                 job._exception = Exception(exception)
                 print(f'Using cached error for job: {job_description}') # TODO: Make log
@@ -97,7 +87,7 @@ class JobCache:
         return True
 
     def cache_job_result(self, job:Job):
-        if job._status == JobStatus.ERROR and not self._cache_failing:
+        if job._status == JobStatus.ERROR and not job._cache_failing:
             return 
         job_hash = job._compute_hash()
         self._cache_provider._cache_job_result(job_hash, job)

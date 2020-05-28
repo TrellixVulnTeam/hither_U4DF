@@ -14,7 +14,10 @@ _default_global_config = dict(
     job_handler=None,
     job_cache=None,
     download_results=None,
-    job_timeout=None
+    job_timeout=None,
+    force_run=False,
+    rerun_failing=False,
+    cache_failing=False
 )
 
 Config.set_default_config(_default_global_config)
@@ -91,11 +94,15 @@ def function(name, version):
             if download_results is None:
                 download_results = False
             job_timeout = Config.get_current_config_value(ConfigKeys.TIMEOUT)
+            force_run = Config.get_current_config_value(ConfigKeys.FORCE_RUN)
+            rerun_failing = Config.get_current_config_value(ConfigKeys.RERUN_FAILING)
+            cache_failing = Config.get_current_config_value(ConfigKeys.CACHE_FAILING)
             label = name
             no_resolve_input_files = getattr(f, JobKeys.NO_RESOLVE_INPUT_FILES, False)
             job = Job(f=f, wrapped_function_arguments=arguments_for_wrapped_function,
                       job_manager=_global_job_manager, job_handler=job_handler, job_cache=job_cache,
                       container=container, label=label, download_results=download_results,
+                      force_run=force_run, rerun_failing=rerun_failing, cache_failing=cache_failing,
                       function_name=name, function_version=version,
                       job_timeout=job_timeout, no_resolve_input_files=no_resolve_input_files)
             _global_job_manager.queue_job(job)
