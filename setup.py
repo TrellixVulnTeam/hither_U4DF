@@ -16,8 +16,9 @@ setuptools.setup(
     install_requires=[
         "pymongo",
         "click",
-        "inquirer"
-        # non-explicit dependencies: kachery, numpy
+        "inquirer",
+        "kachery>=0.5.0"
+        # non-explicit dependencies: numpy
     ],
     classifiers=(
         "Programming Language :: Python :: 3",
