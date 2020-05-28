@@ -555,7 +555,7 @@ class _Worker():
 
         if result_serialized:
             # Here's the result that we read above
-            self._job._status = result_serialized['status']
+            self._job._status = JobStatus(result_serialized['status'])
             self._job._result = _deserialize_item(result_serialized['result'])
             if result_serialized['exception'] is not None:
                 self._job._exception = Exception(result_serialized['exception'])
@@ -697,7 +697,7 @@ class _SlurmProcess():
                             job._execute()
                             result = dict(
                                 result=job._result,
-                                status=job._status,
+                                status=job._status.value,
                                 exception=_serialize_exception(job._exception),
                                 runtime_info=job._runtime_info
                             )
