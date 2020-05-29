@@ -208,10 +208,19 @@ class Job:
         self._label = label
         return self
 
-    def get_runtime_info(self) -> Optional[dict]: # NOTE: Unused
+    def get_runtime_info(self) -> Optional[dict]:
         if self._runtime_info is None:
             return None
         return deepcopy(self._runtime_info)
+    
+    def print_console_out(self) -> None:
+        if self._status not in JobStatus.complete_statuses():
+            # don't print anything if the job is not complete
+            return
+        runtime_info = self.get_runtime_info()
+        assert runtime_info is not None
+        assert runtime_info['console_out']
+        _print_console_out(runtime_info['console_out'])
     
     def cancel(self):
         assert self._job_handler is not None, 'Cannot cancel a job that does not have a job handler'
@@ -450,3 +459,13 @@ class Job:
             job_id=j[JobKeys.JOB_ID],
             no_resolve_input_files=j[JobKeys.NO_RESOLVE_INPUT_FILES]
         )
+
+def _print_console_out(x):
+    for a in x['lines']:
+        t = _fmt_time(a['timestamp'])
+        txt = a['text']
+        print(f'{t}: {txt}')
+
+def _fmt_time(t):
+    import datetime
+    return datetime.datetime.fromtimestamp(t).isoformat()

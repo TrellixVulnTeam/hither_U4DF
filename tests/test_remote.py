@@ -10,10 +10,11 @@ def test_remote_1(general, mongodb, event_stream_server, kachery_server, compute
     jh = hi.RemoteJobHandler(event_stream_client=event_stream_client, compute_resource_id=COMPUTE_RESOURCE_ID)
     for passnum in [1, 2]: # do it twice so we can cover the job cache code on the compute resource
         with hi.Config(job_handler=jh, container=True):
-            a = fun.ones.run(shape=(4, 3))
-            a = a.wait()
+            job = fun.ones.run(shape=(4, 3))
+            a = job.wait()
             assert np.array_equal(a, np.ones((4, 3)))
             assert jh._internal_counts.num_jobs == 1 * passnum, f'Unexpected number of jobs: {jh._internal_counts.num_jobs}'
+            job.print_console_out()
 
 @pytest.mark.remote
 def test_remote_1b(general, mongodb, event_stream_server, kachery_server, compute_resource):
