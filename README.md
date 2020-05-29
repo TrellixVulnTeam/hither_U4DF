@@ -17,6 +17,7 @@ TODO: Need to describe other tools, how hither differs, and why it is needed.
 
 **Prequisites**
 
+* Linux (preferred) or macOS
 * Python >= 3.6
 * Docker (optional)
 * Singularity (optional)
