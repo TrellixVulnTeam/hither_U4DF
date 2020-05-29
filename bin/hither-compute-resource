@@ -453,7 +453,7 @@ def _print_info():
         print('hither-compute-resource start-event-stream-server')
     print('hither-compute-resource start')
 
-@click.command()
+@click.command(help="Display information about the current configuration and exit.")
 def info():
     _print_info()
 
