@@ -215,7 +215,8 @@ class Job:
     
     def print_console_out(self) -> None:
         if self._status not in JobStatus.complete_statuses():
-            raise Exception('Cannot print console_out for incomplete job.') # pragma: no cover
+            # don't print anything if the job is not complete
+            return
         runtime_info = self.get_runtime_info()
         assert runtime_info is not None
         assert runtime_info['console_out']
