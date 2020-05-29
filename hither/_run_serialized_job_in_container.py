@@ -259,7 +259,7 @@ def _run_serialized_job_in_container(job_serialized, cancel_filepath: Union[str,
                 #!/bin/bash
 
                 docker stop {docker_container_name} || true
-                docker kill {docker_container_name} || true
+                docker kill {docker_container_name} 2>&1 | grep -v 'is not running' || true
                 docker rm {docker_container_name} || true
                 """)
                 ss_cleanup.start()
