@@ -12,6 +12,7 @@ from .bad_container import bad_container
 from .additional_file import additional_file
 from .local_module import local_module
 from .identity import identity2
+from .arraysum import arraysum
 
 functions = SimpleNamespace(
     zeros=zeros,
@@ -25,6 +26,7 @@ functions = SimpleNamespace(
     bad_container=bad_container,
     additional_file=additional_file,
     local_module=local_module,
-    identity=identity2
+    identity=identity2,
+    arraysum=arraysum
 )
 

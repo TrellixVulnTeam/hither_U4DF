@@ -5,6 +5,15 @@ import hither as hi
 from .functions import functions as fun
 
 def assert_same_result(r1, r2):
+    if isinstance(r1, np.integer):
+        r1 = int(r1)
+    elif isinstance(r2, np.integer):
+        r2 = int(r2)
+    if isinstance(r1, np.floating):
+        r1 = float(r1)
+    elif isinstance(r2, np.floating):
+        r2 = float(r2)
+
     assert type(r1) == type(r2)
     if isinstance(r1, np.ndarray):
         np.testing.assert_array_equal(r1, r2)
