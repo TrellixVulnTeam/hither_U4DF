@@ -29,7 +29,7 @@ def _wait_for_event_stream_server_to_start():
     num_retries = 0
     delay_between_retries = 0.2
     while True:
-        print(f'Probing kachery server. Try {num_retries + 1}')
+        print(f'Probing event-stream server. Try {num_retries + 1}')
         url = f'http://localhost:{EVENT_STREAM_SERVER_PORT}/probe'
         try:
             req = request.urlopen(url)
@@ -40,7 +40,7 @@ def _wait_for_event_stream_server_to_start():
             assert obj['success'] == True
             return
         if num_retries >= max_retries:
-            raise Exception('Problem waiting for kachery to start.')
+            raise Exception('Problem waiting for event stream server to start.')
         num_retries += 1
         time.sleep(delay_between_retries)
 
