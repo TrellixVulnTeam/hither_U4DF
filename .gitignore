@@ -3,6 +3,7 @@ kachery-storage*
 cov.xml
 .vscode
 .devcontainer/.env
+tmp
 
 # node
 node_modules

@@ -28,6 +28,8 @@ class ComputeResourceConfig:
         except:
             raise Exception(f'Problem loading configuration file: {config_fname}')
         self._config_fname = config_fname
+    def all_keys(self):
+        return self._config.keys()
     def get(self, key, default=None):
         if type(key) == list:
             if len(key) == 0:
@@ -218,10 +220,10 @@ def start():
     kachery_password = config.get(['kachery', 'password'])
 
     print('')
-    print(f"EventStreamServer URL: {eventstreamserver_url}")
-    print(f"EventStreamServer channel: {eventstreamserver_channel}")
-    print(f"EventStreamServer password: {eventstreamserver_password}")
-    print(f"Compute resource ID: {compute_resource_id}")
+    print(f"{bcolors.HEADER}EventStreamServer URL{bcolors.ENDC}: {eventstreamserver_url}")
+    print(f"{bcolors.HEADER}EventStreamServer channel{bcolors.ENDC}: {eventstreamserver_channel}")
+    print(f"{bcolors.HEADER}EventStreamServer password{bcolors.ENDC}: {eventstreamserver_password}")
+    print(f"{bcolors.HEADER}Compute resource ID{bcolors.ENDC}: {compute_resource_id}")
     print('')
 
     event_stream_client = hi.EventStreamClient(url=eventstreamserver_url, channel=eventstreamserver_channel, password=eventstreamserver_password)
@@ -245,7 +247,7 @@ def start():
         job_handler=jh,
         job_cache=jc
     )
-    print(f'Starting compute resource: {compute_resource_id}')
+    print(f'{bcolors.HEADER}Starting compute resource{bcolors.ENDC}: {compute_resource_id}')
     cr.run()
 
 @click.command(help='Start an event stream server.')
@@ -282,18 +284,18 @@ def config():
     config_fname = os.getcwd() + '/compute_resource.json'
     if not os.path.isfile(config_fname):
         if not inquirer.confirm(f'Create a new configuration file at {config_fname}?', default=True):
-            print('Aborting configuration.')
+            print(f'{bcolors.FAIL}Aborting configuration.{bcolors.ENDC}')
             return
         with open(config_fname, 'w') as f:
             json.dump({}, f, indent=4)
-    print(f'Loading configuration from {config_fname}')
+    print(f'{bcolors.HEADER}Loading configuration from{bcolors.ENDC}: {config_fname}')
     config = ComputeResourceConfig(config_fname)
 
     # Kachery server
     print('')
-    print('Kachery server')
-    print('==============')
-    print('You can either connect to an existing kachery server or host one on this computer along with your compute resource.')
+    print(f'{bcolors.HEADER}Kachery server{bcolors.ENDC}')
+    print(f'{bcolors.HEADER}=============={bcolors.ENDC}')
+    print(f'{bcolors.HEADER}You can either connect to an existing kachery server or host one on this computer along with your compute resource.{bcolors.ENDC}')
     host_kachery_server = inquirer.confirm(f'Do you want to host your own kachery server on this computer?', default=config.get('host_kachery_server', True))
     if host_kachery_server:
         config.set('host_kachery_server', True)
@@ -312,9 +314,9 @@ def config():
             do_config_kachery_server = inquirer.confirm('Do you want to configure the kachery server?')
         if do_config_kachery_server:
             print('')
-            print('Kachery server config')
-            print('=======')
-            print(f'Loading kachery server configuration from: {kachery_server_config_file}')
+            print(f'{bcolors.HEADER}Kachery server config{bcolors.ENDC}')
+            print(f'{bcolors.HEADER}====================={bcolors.ENDC}')
+            print(f'{bcolors.HEADER}Loading kachery server configuration from{bcolors.ENDC}: {kachery_server_config_file}')
             kachery_server_config = KacheryServerConfig(kachery_server_config_file)
             if not kachery_server_config.get_channel_config('readwrite'):
                 if inquirer.confirm('Would you like to create a readwrite channel for your kachery server?', default=True):
@@ -324,7 +326,7 @@ def config():
                 if inquirer.confirm('Would you like to reset the password for the readwrite channel on your kachery server?', default=False):
                     password = inquirer.password('Enter a password for the readwrite channel on your kachery server (e.g., readwrite)')
                     kachery_server_config.set_channel_password(name='readwrite', password=password)
-            print(f'To further configure your kachery server, edit this file: {kachery_server_config_file}')
+            print(f'{bcolors.HEADER}To further configure your kachery server, edit this file{bcolors.ENDC}: {kachery_server_config_file}')
             
     else:
         config.set('host_kachery_server', False)
@@ -332,9 +334,9 @@ def config():
 
     # EventStreamServer
     print('')
-    print('EventStreamServer')
-    print('=================')
-    print('You can either connect to an existing event stream server or host one on this computer along with your compute resource.')
+    print(f'{bcolors.HEADER}EventStreamServer{bcolors.ENDC}')
+    print(f'{bcolors.HEADER}================={bcolors.ENDC}')
+    print(f'{bcolors.HEADER}You can either connect to an existing event stream server or host one on this computer along with your compute resource.{bcolors.ENDC}')
     host_event_stream_server = inquirer.confirm(f'Do you want to host your own event stream server on this computer?', default=config.get('host_event_stream_server', True))
     if host_event_stream_server:
         config.set('host_event_stream_server', True)
@@ -353,9 +355,9 @@ def config():
             do_config_event_stream_server = inquirer.confirm('Do you want to configure the event stream server?')
         if do_config_event_stream_server:
             print('')
-            print('Event stream server config')
-            print('=======')
-            print(f'Loading event stream server configuration from: {event_stream_server_config_file}')
+            print(f'{bcolors.HEADER}Event stream server config{bcolors.ENDC}')
+            print(f'{bcolors.HEADER}======={bcolors.ENDC}')
+            print(f'{bcolors.HEADER}Loading event stream server configuration from{bcolors.ENDC}: {event_stream_server_config_file}')
             event_stream_server_config = EventStreamServerConfig(event_stream_server_config_file)
             if not event_stream_server_config.get_channel_config('readwrite'):
                 if inquirer.confirm('Would you like to create a readwrite channel for your event stream server?', default=True):
@@ -365,7 +367,7 @@ def config():
                 if inquirer.confirm('Would you like to reset the password for the readwrite channel on your event stream server?', default=False):
                     password = inquirer.password('Enter a password for the readwrite channel on your event stream server (e.g., readwrite)')
                     event_stream_server_config.set_channel_password(name='readwrite', password=password)
-            print(f'To further configure your event stream server, edit this file: {event_stream_server_config_file}')
+            print(f'{bcolors.HEADER}To further configure your event stream server, edit this file{bcolors.ENDC}: {event_stream_server_config_file}')
             
     else:
         config.set('host_event_stream_server', False)
@@ -373,8 +375,8 @@ def config():
 
     # Hither compute resource server
     print('')
-    print('Hither compute resource server')
-    print('==============================')
+    print(f'{bcolors.HEADER}Hither compute resource server{bcolors.ENDC}')
+    print(f'{bcolors.HEADER}=============================={bcolors.ENDC}')
     compute_resource_id = inquirer.text('Choose a compute resource ID', default=config.get('compute_resource_id', socket.gethostname()))
     config.set('compute_resource_id', compute_resource_id)
 
@@ -404,23 +406,56 @@ def config():
         raise Exception(f'Job handler type not yet supported by this config utility: {job_handler_type}')
 
     print('')
-    print(f'To further configure your compute resource server, rerun this utility, or directly edit this file: {config_fname}')
+    print(f'{bcolors.HEADER}To further configure your compute resource server, rerun this utility, or directly edit this file{bcolors.ENDC}: {config_fname}')
     print('')
+    print('')
+
+    _print_info()
+
+def _hide_password(x):
+    if type(x) == dict:
+        ret = dict()
+        for k, v in x.items():
+            if k == 'password' and isinstance(v, str):
+                ret[k] = '****'
+            else:
+                ret[k] = v
+        return ret
+    else:
+        return x
+
+def _print_info():
+    config_fname = os.getcwd() + '/compute_resource.json'
+    print(f'{bcolors.HEADER}Loading configuration from {config_fname}{bcolors.ENDC}')
+    if not os.path.exists(config_fname):
+        print(f'{bcolors.FAIL}Problem loading configuration file. Use config command to create one in this directory.{bcolors.ENDC}')
+        return
+    config = ComputeResourceConfig(config_fname)
+
+    print('')
+
+    keys = config.all_keys()
+    for key in keys:
+        print(f'{key}: {_hide_password(config.get(key))}')
+
     print('')
     
     host_kachery_server = config.get('host_kachery_server')
     host_event_stream_server = config.get('host_event_stream_server')
 
     if host_kachery_server or host_event_stream_server:
-        print('You can now start the compute resource server by running the following in separate terminals from this working directory:')
+        print(f'{bcolors.HEADER}You can start the compute resource server by running the following in separate terminals from this working directory:{bcolors.ENDC}')
     else:
-        print('You can now start the compute resource server by running the following command:')
+        print(f'{bcolors.HEADER}You can start the compute resource server by running the following command:{bcolors.ENDC}')
     if host_kachery_server:
         print('hither-compute-resource start-kachery-server')
     if host_event_stream_server:
         print('hither-compute-resource start-event-stream-server')
     print('hither-compute-resource start')
 
+@click.command()
+def info():
+    _print_info()
 
 @click.command()
 @click.option('--docker_run_opts', help='Additional options to send to docker run')
@@ -513,8 +548,20 @@ def _append_docker_image_name(x, y):
     else:
         raise Exception(f'Invalid docker image name: {x}')
 
+# Thanks: https://stackoverflow.com/questions/287871/how-to-print-colored-text-in-terminal-in-python
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
 
 cli.add_command(config)
+cli.add_command(info)
 cli.add_command(start)
 cli.add_command(start_kachery_server)
 cli.add_command(start_event_stream_server)
