@@ -99,19 +99,9 @@ class Config:
         Config.config_stack.append(cfg)
 
     @staticmethod
-    def get_current_config() -> Dict[str, Any]:
-        return Config.config_stack[-1]
-
-    @staticmethod
     def get_current_config_value(key: str) -> Any:
         d = Config.config_stack[-1]
         return d[key]
-
-    def get_local_config(self) -> Dict[str, Any]:
-        return self.new_config
-    
-    def get_local_config_value(self, key: str) -> Any:
-        return self.new_config[key]
 
     def __enter__(self):
         Config.config_stack.append(self.new_config)
