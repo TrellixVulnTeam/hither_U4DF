@@ -8,26 +8,23 @@ import urllib.request as request
 
 class EventStreamClient:
     def __init__(self, url: str, channel: str, password: Union[dict, str]):
-        self.url = url
-        self.channel = channel
-        self.password = password
+        self._url = url
+        self._channel = channel
+        self._password = password
 
-    def get_stream(self, stream_id: Union[dict, str], start_at_end=False):
+    def _resolve_password(self):
+        return _resolve_password(self._password)
+
+    def get_stream(self, stream_id: Union[dict, str], start_at_end: bool=False):
         return _EventStream(stream_id=stream_id, client=self, start_at_end=start_at_end)
 
 
 class _EventStream:
-    def __init__(self, stream_id: Union[dict, str], client: EventStreamClient, start_at_end=False):
-        self._url = client.url
-        self._channel = client.channel
-        self._password = client.password
-        if isinstance(stream_id, str):
-            self._stream_id = stream_id
-        elif isinstance(stream_id, dict):
-            self._stream_id = _sha1_of_object(stream_id)
-        else:
-            raise Exception(
-                f'Unexpected type for stream_id: {type(stream_id)}')
+    def __init__(self, stream_id: dict, client: EventStreamClient, start_at_end: bool=False):
+        self._url = client._url
+        self._channel = client._channel
+        self._password = client._password
+        self._stream_id_hash = _sha1_of_object(stream_id)
         self._position = 0
         if start_at_end:
             self.goto_end()
@@ -36,53 +33,53 @@ class _EventStream:
         num_events = self.get_num_events()
         self.set_position(num_events)
 
-    def set_position(self, position):
+    def set_position(self, position: int):
         self._position = position
 
-    def read_events(self, wait_sec=0):
+    def read_events(self, wait_sec: float=0) -> List[dict]:
         signature = _sha1_of_object(dict(
             # keys in alphabetical order
-            password=_get_password(self._password),
-            streamId=self._stream_id,
+            password=_resolve_password(self._password),
+            streamId=self._stream_id_hash,
             taskName='readEvents'
         ))
-        url = f'''{self._url}/readEvents/{self._stream_id}/{self._position}'''
+        url = f'''{self._url}/readEvents/{self._stream_id_hash}/{self._position}'''
         result = _http_post_json(url, dict(channel=self._channel, signature=signature, waitMsec=wait_sec * 1000))
         assert result is not None, f'Error loading json from: {url}'
         assert result.get('success', False), 'Error reading from event stream.'
         self._position = result['newPosition']
         return result['events']
     
-    def get_num_events(self):
+    def get_num_events(self) -> int:
         signature = _sha1_of_object(dict(
             # keys in alphabetical order
-            password=_get_password(self._password),
-            streamId=self._stream_id,
+            password=_resolve_password(self._password),
+            streamId=self._stream_id_hash,
             taskName='getNumEvents'
         ))
-        url = f'''{self._url}/getNumEvents/{self._stream_id}'''
+        url = f'''{self._url}/getNumEvents/{self._stream_id_hash}'''
         result = _http_post_json(url, dict(channel=self._channel, signature=signature))
         assert result is not None, f'Error loading json from: {url}'
         assert result.get('success', False), 'Error getting num results.'
         return result['numEvents']
 
-    def write_event(self, event):
+    def write_event(self, event: dict):
         self.write_events([event])
 
-    def write_events(self, events):
+    def write_events(self, events: List[dict]):
         signature = _sha1_of_object(dict(
             # keys in alphabetical order
-            password=_get_password(self._password),
-            streamId=self._stream_id,
+            password=_resolve_password(self._password),
+            streamId=self._stream_id_hash,
             taskName='writeEvents'
         ))
-        url = f'''{self._url}/writeEvents/{self._stream_id}'''
+        url = f'''{self._url}/writeEvents/{self._stream_id_hash}'''
         result = _http_post_json(url, dict(channel=self._channel, signature=signature, events=events))
         assert result is not None, f'Error loading json from: {url}'
         assert result.get('success', False), 'Error writing to event stream.'
 
 
-def _get_password(x):
+def _resolve_password(x):
     if type(x) == str:
         return x
     elif type(x) == dict:
@@ -106,42 +103,6 @@ def _sha1_of_string(txt: str) -> str:
 def _sha1_of_object(obj: object) -> str:
     txt = json.dumps(obj, sort_keys=True, separators=(',', ':'))
     return _sha1_of_string(txt)
-
-
-def _http_get_json(url: str, use_cache_on_found: bool = False, verbose: Optional[bool] = False, retry_delays: Optional[List[float]] = None) -> dict:
-    if use_cache_on_found:
-        cache = getattr(_http_get_json, 'cache')
-        if url in cache:
-            return cache[url]
-    timer = time.time()
-    if retry_delays is None:
-        retry_delays = [0.2, 0.5]
-    if verbose is None:
-        verbose = (os.environ.get('HTTP_VERBOSE', '') == 'TRUE')
-    if verbose:
-        print('_http_get_json::: ' + url)
-    try:
-        req = request.urlopen(url)
-    except:
-        if len(retry_delays) > 0:
-            print('Retrying http request in {} sec: {}'.format(
-                retry_delays[0], url))
-            time.sleep(retry_delays[0])
-            return _http_get_json(url, verbose=verbose, retry_delays=retry_delays[1:])
-        else:
-            return dict(success=False, error='Unable to open url: ' + url)
-    try:
-        ret = json.load(req)
-    except:
-        return dict(success=False, error='Unable to load json from url: ' + url)
-    if verbose:
-        print('Elapsed time for _http_get_json: {} {}'.format(
-            time.time() - timer, url))
-    elif use_cache_on_found:
-        if ret['success'] and ret['found']:
-            cache = getattr(_http_get_json, 'cache')
-            cache[url] = ret
-    return ret
 
 
 def _http_post_json(url: str, data: dict, verbose: Optional[bool] = None) -> dict:

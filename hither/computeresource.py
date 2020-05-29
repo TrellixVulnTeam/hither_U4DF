@@ -92,14 +92,12 @@ class ConnectedClient:
                 self._mark_job_as_error(job_id=job_id, runtime_info=job._runtime_info, exception=job._exception)
                 del self._jobs[job._job_id]
                 self._report_action
-            elif job._status == JobStatus.WAITING:
-                pass
             elif job._status == JobStatus.PENDING:
                 pass # Local status will remain PENDING until changed by remote. This is expected.
             elif job._status == JobStatus.QUEUED:
                 pass
             else:
-                raise Exception(f"Job {job_id} has unexpected status in compute resource: {job._status} {type(job._status)} {JobStatus.ERROR}")
+                raise Exception(f"Job {job_id} has unexpected status in compute resource: {job._status} {type(job._status)} {JobStatus.ERROR}") # pragma: no cover
 
     def cancel_all_jobs(self):
         for job in self._jobs.values():
@@ -122,10 +120,8 @@ class ConnectedClient:
             action['handler_id'] = self._handler_id
             self._add_job(action)
             self._report_action()
-        elif _type == ComputeResourceActionTypes.COMPUTE_RESOURCE_STARTED:
-            pass
         else:
-            print(f'Unexpected action type: {_type}')
+            raise Exception(f'Unexpected action type: {_type}') # pragma: no cover
     
     def _add_job(self, action):
         # Add a job that was sent from the client
@@ -169,8 +165,7 @@ class ConnectedClient:
         """
         code = serialized_job[JobKeys.CODE]
         label = serialized_job[JobKeys.LABEL]
-        if code is None:
-            return True
+        assert code is not None, 'Code is None in serialized job.'
         try:
             code_obj = ka.load_object(code, fr=self._kachery_config)
             if code_obj is None:
@@ -289,7 +284,7 @@ class ComputeResource:
         elif _type == ComputeResourceActionTypes.COMPUTE_RESOURCE_STARTED:
             pass
         else:
-            print(f'Unexpected action type: {_type}')
+            raise Exception(f'Unexpected action type: {_type}') # pragma: no cover
 
     def _iterate(self):
         # self._iterate_timer = time.time() # Never actually used
@@ -315,12 +310,12 @@ class ComputeResource:
     def _report_action(self):
         self._timestamp_last_action = time.time()
     
-def _print_console_out(x):
-    for a in x['lines']:
-        t = _fmt_time(a['timestamp'])
-        txt = a['text']
-        print(f'{t}: {txt}')
+# def _print_console_out(x):
+#     for a in x['lines']:
+#         t = _fmt_time(a['timestamp'])
+#         txt = a['text']
+#         print(f'{t}: {txt}')
 
-def _fmt_time(t):
-    import datetime
-    return datetime.datetime.fromtimestamp(t).isoformat()
+# def _fmt_time(t):
+#     import datetime
+#     return datetime.datetime.fromtimestamp(t).isoformat()

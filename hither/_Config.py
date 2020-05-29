@@ -92,9 +92,9 @@ class Config:
         # TODO: Add a guard against resetting default config when one already exists?
         for k in ConfigKeys.known_configuration_keys():
             if k not in cfg:
-                raise Exception(f"Proposed default configuration is missing a value for {k}")
+                raise Exception(f"Proposed default configuration is missing a value for {k}") # pragma: no cover
             if cfg[k] == Inherit.INHERIT:
-                raise Exception(f"Default configuration has no way to inherit the value of {k}.")
+                raise Exception(f"Default configuration has no way to inherit the value of {k}.") # pragma: no cover
         Config.config_stack.clear()
         Config.config_stack.append(cfg)
 

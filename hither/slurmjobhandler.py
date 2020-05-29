@@ -1,13 +1,11 @@
 import json
 import os
-import random
 import shutil
 import signal
-from sys import version
+from enum import Enum
 import time
 import traceback
 from typing import Optional, List, Union
-from os import rename
 
 from ._basejobhandler import BaseJobHandler
 from ._enums import JobStatus
@@ -191,6 +189,12 @@ class SlurmJobHandler(BaseJobHandler):
         # we'll add the job later
         return False
 
+class BatchStatus(Enum):
+    ERROR = 'error'
+    PENDING = 'pending'
+    WAITING = 'waiting'
+    RUNNING = 'running'
+    FINISHED = 'finished'
 
 class _Batch():
     def __init__(self, *,
@@ -212,7 +216,7 @@ class _Batch():
             A label for display purposes
         """
         os.mkdir(working_dir)
-        self._status = JobStatus.PENDING
+        self._status = BatchStatus.PENDING
         self._time_started: Optional[float] = None
         self._working_dir = working_dir
         self._batch_label = batch_label
@@ -239,16 +243,16 @@ class _Batch():
         )
 
     def isPending(self) -> bool:
-        return self._status == JobStatus.PENDING
+        return self._status == BatchStatus.PENDING
 
     def isWaitingToStart(self) -> bool:
-        return self._status == JobStatus.WAITING
+        return self._status == BatchStatus.WAITING
 
     def isRunning(self) -> bool:
-        return self._status == JobStatus.RUNNING
+        return self._status == BatchStatus.RUNNING
 
     def isFinished(self) -> bool:
-        return self._status == JobStatus.FINISHED
+        return self._status == BatchStatus.FINISHED
 
     def timeStarted(self) -> Optional[float]:
         return self._time_started
@@ -274,7 +278,7 @@ class _Batch():
                 w.iterate()
             if os.path.exists(self._working_dir):
                 if os.path.exists(os.path.join(self._working_dir, 'slurm_started.txt')):
-                    self._status = JobStatus.RUNNING
+                    self._status = BatchStatus.RUNNING
                     self._time_started = time.time()
                 # else:
                 #     # the following is probably not needed
@@ -366,7 +370,7 @@ class _Batch():
         -------
         None
         """
-        if self._status != JobStatus.RUNNING:
+        if self._status != BatchStatus.RUNNING:
             raise Exception('Cannot add job to batch that is not running.')
 
         # Determine number running, for display information
@@ -397,7 +401,7 @@ class _Batch():
         -------
         None
         """
-        assert self._status == JobStatus.PENDING, "Unexpected... cannot start a batch that is not pending."
+        assert self._status == BatchStatus.PENDING, "Unexpected... cannot start a batch that is not pending."
 
         # Write the running.txt file
         running_fname = self._working_dir + '/running.txt'
@@ -409,7 +413,7 @@ class _Batch():
         self._slurm_process.start()
         self._timestamp_slurm_process_started = time.time()
 
-        self._status = JobStatus.WAITING
+        self._status = BatchStatus.WAITING
         # self._time_started = time.time()  # instead of doing it here, let's wait until a worker has actually started.
 
     def halt(self) -> None:
@@ -420,7 +424,7 @@ class _Batch():
         if os.path.exists(running_fname):
             with FileLock(running_fname + '.lock', exclusive=True):
                 os.remove(self._working_dir + '/running.txt')
-        self._status = JobStatus.FINISHED
+        self._status = BatchStatus.FINISHED
         # wait a bit for it to resolve on its own (because we removed the running.txt)
         if not self._slurm_process.wait(5):
             print('Waiting for slurm process to end.')
@@ -540,7 +544,7 @@ class _Worker():
                     os.remove(result_fname + '.complete')
                 os.rename(result_fname, result_fname + '.complete')
 
-            elif os.path.exists(result_fname + '.error'):
+            elif os.path.exists(result_fname + '.error'): # pragma: no cover
                 # It looks like there was an error processing the job
                 # This is not a job error, this is a framework error
                 # So we are going to read the exception information from the .error

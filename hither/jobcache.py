@@ -63,7 +63,7 @@ class JobCache:
 
         status:JobStatus = JobStatus(job_dict[JobKeys.STATUS])
         if status not in JobStatus.complete_statuses():
-            return False
+            raise Exception('Unexpected: cached job status not in complete statuses.') # pragma: no cover
 
         job_description = f"{job._label} ({job._function_name} {job._function_version})"
         if status == JobStatus.FINISHED:

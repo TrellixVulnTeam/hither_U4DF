@@ -22,6 +22,7 @@ from .jobcache import JobCache
 from ._enums import JobStatus, HitherFileType
 from .file import File
 from .eventstreamclient import EventStreamClient
+from ._exceptions import JobCancelledException, DeserializationException, DuplicateFunctionException
 
 # Run a function by name
 from .core import run

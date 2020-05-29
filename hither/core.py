@@ -8,6 +8,7 @@ from .defaultjobhandler import DefaultJobHandler
 from ._enums import ConfigKeys, JobKeys
 from .job import Job
 from ._jobmanager import _JobManager
+from ._exceptions import DuplicateFunctionException
 
 _default_global_config = dict(
     container=None,
@@ -62,7 +63,7 @@ _global_registered_functions_by_name = dict()
 # run a registered function by name
 def run(function_name, **kwargs):
     assert function_name in _global_registered_functions_by_name, f'Hither function {function_name} not registered'
-    f = _global_registered_functions_by_name[function_name]
+    f = _global_registered_functions_by_name[function_name]['function']
     return f.run(**kwargs)
 
 ############################################################
@@ -72,11 +73,16 @@ def function(name, version):
         assert f.__name__ == name, f"Name does not match function name: {name} <> {f.__name__}"
         if name in _global_registered_functions_by_name:
             path1 = _function_path(f)
-            path2 = _function_path(_global_registered_functions_by_name[name])
+            path2 = _function_path(_global_registered_functions_by_name[name]['function'])
             if path1 != path2:
-                print(f"Warning: Hither function with name {name} is registered in two different files: {path1} {path2}")
+                if version != _global_registered_functions_by_name[name]['version']:
+                    raise DuplicateFunctionException(f'Hither function {name} is registered in two different files with different versions: {path1} {path2}')
+                print(f"Warning: Hither function with name {name} is registered in two different files: {path1} {path2}") # pragma: no cover
         else:
-            _global_registered_functions_by_name[name] = f
+            _global_registered_functions_by_name[name] = dict(
+                function=f,
+                version=version
+            )
         
         def run(**arguments_for_wrapped_function):
             configured_container = Config.get_current_config_value(ConfigKeys.CONTAINER)
