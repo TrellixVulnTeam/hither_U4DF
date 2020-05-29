@@ -65,7 +65,10 @@ def do_test_run_functions(container=False):
                 if do_run:
                     args = test_call.get('args')
                     print(f'Running {function.__name__} {args}')
-                    job = function.run(**args)
+                    job = function.run(**args).set_label(f'Job: {function.__name__}')
+                    assert job.get_label() == f'Job: {function.__name__}' # for coverage
+                    assert job.get_function_name() == function.__name__# for coverage
+                    assert isinstance(job.get_function_version(), str) # for coverage
                     tasks.append(dict(
                         job=job,
                         test_call=test_call
@@ -77,6 +80,7 @@ def do_test_run_functions(container=False):
             result = job.wait()
             print(result, type(result))
             if 'result' in test_call:
+                assert job.get_status() == hi.JobStatus.FINISHED
                 assert_same_result(result, test_call['result'])
         except Exception as e:
             if 'result' in test_call:
@@ -138,7 +142,6 @@ def test_run_functions_in_container(general):
     with hi.Config(container=True, job_handler=hi.ParallelJobHandler(num_workers=20)):
         do_test_run_functions()
 
-@pytest.mark.current
 @pytest.mark.container
 def test_slurmjobhandler(general):
     with hi.TemporaryDirectory() as tmpdir:

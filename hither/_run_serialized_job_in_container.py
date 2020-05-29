@@ -43,10 +43,11 @@ def _run_serialized_job_in_container(job_serialized, cancel_filepath: Union[str,
                 HOME='$HOME'
             )
         else:
-            run_in_container_path = temp_path
-            env_vars_inside_container = dict(
-                PYTHONPATH=f'{run_in_container_path}/function_src/_local_modules'
-            )
+            raise Exception('Unexpected: container is None') # pragma: no cover
+            # run_in_container_path = temp_path
+            # env_vars_inside_container = dict(
+            #     PYTHONPATH=f'{run_in_container_path}/function_src/_local_modules'
+            # )
 
         run_py_script = """
             #!/usr/bin/env python
@@ -143,19 +144,20 @@ def _run_serialized_job_in_container(job_serialized, cancel_filepath: Union[str,
         ShellScript(run_inside_container_script).write(os.path.join(temp_path, 'run.sh'))
 
         if not os.getenv('KACHERY_STORAGE_DIR'):
-            raise Exception('You must set the environment variable: KACHERY_STORAGE_DIR')
+            raise Exception('You must set the environment variable: KACHERY_STORAGE_DIR') # pragma: no cover
 
         docker_container_name = None
 
         # fancy_command = 'bash -c "((bash /run_in_container/run.sh | tee /run_in_container/stdout.txt) 3>&1 1>&2 2>&3 | tee /run_in_container/stderr.txt) 3>&1 1>&2 1>&3 | tee /run_in_container/console_out.txt"'
         if container is None:
-            run_outside_container_script = """
-                #!/bin/bash
+            raise Exception('Unexpected: container is None') # pragma: no cover
+            # run_outside_container_script = """
+            #     #!/bin/bash
 
-                exec {run_in_container_path}/run.sh
-            """.format(
-                run_in_container_path=run_in_container_path
-            )
+            #     exec {run_in_container_path}/run.sh
+            # """.format(
+            #     run_in_container_path=run_in_container_path
+            # )
         elif os.getenv(ConfigKeys.HITHER_USE_SINGULARITY_ENV, None) == 'TRUE':
             if gpu:
                 gpu_opt = '--nv'
@@ -295,8 +297,7 @@ def _run_serialized_job_in_container(job_serialized, cancel_filepath: Union[str,
 
 def _write_python_code_to_directory(dirname: str, code: dict) -> None:
     if os.path.exists(dirname):
-        raise Exception(
-            'Cannot write code to already existing directory: {}'.format(dirname))
+        raise Exception('Unexpected: Cannot write code to already existing directory: {}'.format(dirname)) # pragma: no cover
     os.mkdir(dirname)
     for item in code['files']:
         fname0 = dirname + '/' + item['name']

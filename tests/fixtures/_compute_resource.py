@@ -40,6 +40,7 @@ def run_service_compute_resource(*, event_stream_client, kachery_storage_dir, co
         pjh = hi.ParallelJobHandler(num_workers=4)
         # jc = hi.JobCache(database=db)
         # CR = hi.ComputeResource(event_stream_client=event_stream_client, job_handler=pjh, compute_resource_id=compute_resource_id, kachery_config=kachery, job_cache=jc)
-        CR = hi.ComputeResource(event_stream_client=event_stream_client, job_handler=pjh, compute_resource_id=compute_resource_id, kachery_config=kachery_config)
+        jc = hi.JobCache(use_tempdir=True)
+        CR = hi.ComputeResource(event_stream_client=event_stream_client, job_handler=pjh, compute_resource_id=compute_resource_id, kachery_config=kachery_config, job_cache=jc)
         CR.clear()
         CR.run()

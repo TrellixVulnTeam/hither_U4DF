@@ -10,7 +10,6 @@ from typing import Any, Union, Callable, List, Type, Dict, Tuple
 class JobStatus(Enum):
     ERROR = 'error'
     PENDING = 'pending' # remote-only status
-    WAITING = 'waiting' # remote-only status
     QUEUED = 'queued'
     RUNNING = 'running'
     FINISHED = 'finished'

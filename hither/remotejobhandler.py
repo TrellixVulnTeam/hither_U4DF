@@ -5,7 +5,6 @@ from ._basejobhandler import BaseJobHandler
 from .database import Database
 from ._enums import JobStatus, JobKeys
 from .file import File
-from ._load_config import _load_preset_config_from_github
 from ._util import _random_string, _deserialize_item, _flatten_nested_collection, _get_poll_interval
 from .eventstreamclient import EventStreamClient
 from .computeresource import ComputeResourceActionTypes
