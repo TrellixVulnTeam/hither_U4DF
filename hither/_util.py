@@ -47,7 +47,11 @@ def _is_jsonable(x:Any) -> bool:
         return False
 
 def _deserialize_item(x:Any) -> Any:
-    if type(x) == dict:
+    if isinstance(x, np.integer):
+        return int(x)
+    elif isinstance(x, np.floating):
+        return float(x)
+    elif type(x) == dict:
         if '_type' in x and x['_type'] == 'tuple':
             return _deserialize_item(tuple(x['data']))
         if File.can_deserialize(x):
