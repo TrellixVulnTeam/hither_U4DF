@@ -1,5 +1,6 @@
 import time
 import os
+import numpy as np
 from typing import Union, List, Any, Callable
 import random
 from .file import File
@@ -7,11 +8,10 @@ from .file import File
 def _serialize_item(x:Any, require_jsonable:bool=True) -> Any:
     if isinstance(x, File):
         return x.serialize()
-    # TODO: move these cases where they belong
-    # elif isinstance(x, np.integer):
-    #     return int(x)
-    # elif isinstance(x, np.floating):
-    #     return float(x)
+    elif isinstance(x, np.integer):
+        return int(x)
+    elif isinstance(x, np.floating):
+        return float(x)
     # TODO: This will be required when file enums are working
     # elif isinstance(x, HitherFileType):
     #     return x.value
