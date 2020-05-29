@@ -22,6 +22,8 @@ TODO: Need to describe other tools, how hither differs, and why it is needed.
 * Docker (optional)
 * Singularity (optional)
 
+**Note:** It is recommended that you use either a [conda environment](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html) or a [virtualenv](https://virtualenv.pypa.io/en/latest/) when using the `pip` and `python` commands. This will prevent ambiguities and conflicts between different Python installations.
+
 ```bash
 # Install from PyPI
 pip install --upgrade hither
