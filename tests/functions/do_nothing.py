@@ -4,6 +4,7 @@ import hither as hi
 @hi.function('do_nothing', '0.1.0')
 @hi.container('docker://jsoules/simplescipy:latest')
 def do_nothing(x=None, delay=None):
+    print('Running do_nothing')
     if delay is not None:
         time.sleep(delay)
 

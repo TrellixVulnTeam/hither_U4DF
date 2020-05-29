@@ -309,13 +309,3 @@ class ComputeResource:
     
     def _report_action(self):
         self._timestamp_last_action = time.time()
-    
-# def _print_console_out(x):
-#     for a in x['lines']:
-#         t = _fmt_time(a['timestamp'])
-#         txt = a['text']
-#         print(f'{t}: {txt}')
-
-# def _fmt_time(t):
-#     import datetime
-#     return datetime.datetime.fromtimestamp(t).isoformat()

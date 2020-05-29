@@ -81,6 +81,7 @@ def do_test_run_functions(container=False):
             print(result, type(result))
             if 'result' in test_call:
                 assert job.get_status() == hi.JobStatus.FINISHED
+                job.print_console_out()
                 assert_same_result(result, test_call['result'])
         except Exception as e:
             if 'result' in test_call:
