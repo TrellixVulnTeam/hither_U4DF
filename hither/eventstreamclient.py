@@ -15,12 +15,12 @@ class EventStreamClient:
     def _resolve_password(self):
         return _resolve_password(self._password)
 
-    def get_stream(self, stream_id: Union[dict, str], start_at_end=False):
+    def get_stream(self, stream_id: Union[dict, str], start_at_end: bool=False):
         return _EventStream(stream_id=stream_id, client=self, start_at_end=start_at_end)
 
 
 class _EventStream:
-    def __init__(self, stream_id: dict, client: EventStreamClient, start_at_end=False):
+    def __init__(self, stream_id: dict, client: EventStreamClient, start_at_end: bool=False):
         self._url = client._url
         self._channel = client._channel
         self._password = client._password
@@ -33,10 +33,10 @@ class _EventStream:
         num_events = self.get_num_events()
         self.set_position(num_events)
 
-    def set_position(self, position):
+    def set_position(self, position: int):
         self._position = position
 
-    def read_events(self, wait_sec=0):
+    def read_events(self, wait_sec: float=0) -> List[dict]:
         signature = _sha1_of_object(dict(
             # keys in alphabetical order
             password=_resolve_password(self._password),
@@ -50,7 +50,7 @@ class _EventStream:
         self._position = result['newPosition']
         return result['events']
     
-    def get_num_events(self):
+    def get_num_events(self) -> int:
         signature = _sha1_of_object(dict(
             # keys in alphabetical order
             password=_resolve_password(self._password),
@@ -63,10 +63,10 @@ class _EventStream:
         assert result.get('success', False), 'Error getting num results.'
         return result['numEvents']
 
-    def write_event(self, event):
+    def write_event(self, event: dict):
         self.write_events([event])
 
-    def write_events(self, events):
+    def write_events(self, events: List[dict]):
         signature = _sha1_of_object(dict(
             # keys in alphabetical order
             password=_resolve_password(self._password),

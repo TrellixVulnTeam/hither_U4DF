@@ -165,7 +165,7 @@ class ConnectedClient:
         """
         code = serialized_job[JobKeys.CODE]
         label = serialized_job[JobKeys.LABEL]
-        assert code is not None, 'Code is None is serialized job.'
+        assert code is not None, 'Code is None in serialized job.'
         try:
             code_obj = ka.load_object(code, fr=self._kachery_config)
             if code_obj is None:
