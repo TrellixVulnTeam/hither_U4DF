@@ -4,6 +4,7 @@ import EventStreamServer from './EventStreamServer.js';
 import fs from 'fs';
 
 checkEnvironmentVariable('EVENT_STREAM_SERVER_DIR', {checkDirExists: true});
+checkEnvironmentVariable('EVENT_STREAM_WEBSOCKET_URL', {})
 checkEnvironmentVariable('PORT', {checkIsInt: true});
 
 if (process.env.EVENT_STREAM_SERVER_TEST_SIGNATURE) {
@@ -11,7 +12,7 @@ if (process.env.EVENT_STREAM_SERVER_TEST_SIGNATURE) {
 }
 
 async function main() {
-    const server = new EventStreamServer(process.env.EVENT_STREAM_SERVER_DIR);
+    const server = new EventStreamServer(process.env.EVENT_STREAM_SERVER_DIR, process.env.EVENT_STREAM_WEBSOCKET_URL);
     await server.listen(process.env.PORT);
 }
 
