@@ -3,6 +3,7 @@ import pytest
 import multiprocessing
 import shutil
 import hither as hi
+import kachery as ka
 from ._config import MONGO_PORT, DATABASE_NAME, COMPUTE_RESOURCE_ID, KACHERY_CONFIG, EVENT_STREAM_SERVER_CONFIG
 from ._common import _random_string
 from ._util import _wait_for_compute_resource_to_start, _wait_for_event_stream_server_to_start, _wait_for_kachery_server_to_start
@@ -32,6 +33,11 @@ def run_service_compute_resource(*, event_stream_client, kachery_storage_dir, co
     # See: https://pytest-cov.readthedocs.io/en/latest/subprocess-support.html
     from pytest_cov.embed import cleanup_on_sigterm
     cleanup_on_sigterm()
+
+    try:
+        ka.set_config(use_hard_links=True)
+    except:
+        print('WARNING: You should update your version of kachery so that the "use_hard_links" configuration option is available.')
 
     os.environ['RUNNING_PYTEST'] = 'TRUE'
 

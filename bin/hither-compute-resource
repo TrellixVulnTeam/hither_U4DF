@@ -7,6 +7,7 @@ import click
 import socket
 from copy import deepcopy
 import inquirer
+import kachery as ka
 import hither as hi
 
 @click.group(help="Configure and run a hither compute resource. Start by entering a new directory and running the 'config' command.")
@@ -208,6 +209,11 @@ class EventStreamServerConfig:
 
 @click.command(help='Start the configured compute resource.')
 def start():
+    try:
+        ka.set_config(use_hard_links=True)
+    except:
+        print('WARNING: You should update your version of kachery so that the "use_hard_links" configuration option is available.')
+
     config_fname = os.getcwd() + '/compute_resource.json'
     config = ComputeResourceConfig(config_fname)
 
