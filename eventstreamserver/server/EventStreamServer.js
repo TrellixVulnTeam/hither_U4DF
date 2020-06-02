@@ -7,14 +7,13 @@ import WebSocket from 'ws';
 import ESSTaskRegulator from './ESSTaskRegulator.js';
 
 export default class EventStreamServer {
-    constructor(serverDir, webSocketUrl) {
+    constructor(serverDir) {
         const config = readJsonFileSync(serverDir + '/eventstreamserver.json', null);
         if (!config) {
             throw Error(`Unable to read configuration file: ${serverDir}/eventstreamserver.json`);
         }
         mkdirIfNeeded(serverDir + '/streams');
         this._serverDir = serverDir;
-        this._webSocketUrl = webSocketUrl;
         this._regulator = new ESSTaskRegulator(config);;
         this._eventStreamManager = new EventStreamManager();
         this._eventStreamManager.setDirectory(this._serverDir);
@@ -34,15 +33,6 @@ export default class EventStreamServer {
                 await this._errorResponse(req, res, 500, err.message);
             }
         });
-        this._app.get('/getWebSocketUrl', async (req, res) => {
-            console.log('getWebSocketUrl');
-            try {
-                await this._apiGetWebSocketUrl(req, res);
-            }
-            catch(err) {
-                await this._errorResponse(req, res, 500, err.message);
-            }
-        })
         // todo: provide max num events to read
         this._app.post('/readEvents/:streamId/:position', async (req, res) => {
             const reqData = req.body
@@ -113,11 +103,6 @@ export default class EventStreamServer {
     }
     async _apiProbe(req, res) {
         res.json({ success: true });
-    }
-    async _apiGetWebSocketUrl(req, res) {
-        res.json({
-            webSocketUrl: this._webSocketUrl
-        });
     }
     async _apiReadEvents(req, res) {
         let params = req.params;
