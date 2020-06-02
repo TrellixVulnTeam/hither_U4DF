@@ -138,7 +138,7 @@ class ShellScript():
                     pass
     
     def _send_docker_signal(self, sig_str):
-        cmd = f"docker kill {self._docker_container_name} -s {sig_str} 2>&1 | grep -v 'is not running'"
+        cmd = f"docker kill {self._docker_container_name} -s {sig_str} 2>&1 | grep -v 'is not running' | grep -v 'No such container'"
         print(cmd)
         os.system(cmd)
 
