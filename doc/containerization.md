@@ -40,3 +40,21 @@ The `image_url` can refer to an image on a public hosting solution such as
 DockerHub, or to any other location which can be accessed by the system which will be running hither.
 
 The second argument to `@hi.function` is the version of the function, which is relevant to the optional [job cache](./job-cache.md).
+
+## Job Serialization
+
+In the context of computing, [serialization](https://en.wikipedia.org/wiki/Serialization) means converting
+data into a format that can be stored or transmitted between processes and machines, and then later
+reconstructed. In order for a hither function to run in a container, the Job (that is, the function code,
+with its specific inputs) must be serialized. hither converts function code (in text format) and
+basic [data types](https://docs.python.org/3/library/stdtypes.html) to
+[JSON](https://www.json.org/json-en.html).
+
+However, the JSON format is not necessarily appropriate for large files or complex objects
+such as [numpy arrays](https://numpy.org/doc/1.18/reference/generated/numpy.array.html). Numpy
+arrays are written out to files on the file system. The corresponding file is then stored
+in kachery, hither's universal content manager, and the file contents are retrieved when the
+Job is deserialized and run in a container.
+
+Functions that take input objects with non-serializable types are not currently supported
+by hither.

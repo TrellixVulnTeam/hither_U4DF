@@ -656,6 +656,21 @@ A WHILE. IS THIS CORRECT?__
 Large numpy arrays are serialized to the filesystem and stored in
 kachery when they would otherwise need to be shipped over the network. 
 
+When hither runs a Job on a remote compute resource, it first
+[converts the job to a format that can be transmitted over a network
+connection](./containerization.md#job-serialization). As part of this process,
+numpy arrays are written to file and stored in kachery.
+
+Similarly, whenever a Job object is created, any numpy-array-typed inputs
+are stored in kachery. And, any numpy-type object in the results of a
+hither function will be stored in kachery by default if the function is
+run outside of a container.
+
+__QUESTION: I think the above is actually just a long-winded way of saying
+"this always happens," because the cases I've enumerated are 1) results,
+when run locally; 2) results, when run in container; and 3) parameters, always.
+Is this correct? Does anything else need to be said about this?__
+
 ### What is a hither `File` object?
 
 A `File` object in hither represents a regular file that has been stored in the
