@@ -24,6 +24,7 @@ setuptools.setup(
     author="Jeremy Magland",
     author_email="jmagland@flatironinstitute.org",
     description="Run batches of Python functions in containers and on remote servers",
+    url="https://github.com/flatironinstitute/hither",
     packages=setuptools.find_packages(),
     include_package_data=True,
     scripts=[

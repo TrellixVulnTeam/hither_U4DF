@@ -5,9 +5,9 @@ import hither as hi
 from ._config import KACHERY_PORT, EVENT_STREAM_SERVER_PORT, COMPUTE_RESOURCE_ID, EVENT_STREAM_SERVER_CONFIG
 
 def _wait_for_kachery_server_to_start():
-    max_retries = 50
+    max_retries = 90
     num_retries = 0
-    delay_between_retries = 0.2
+    delay_between_retries = 0.3
     while True:
         print(f'Probing kachery server. Try {num_retries + 1}')
         url = f'http://localhost:{KACHERY_PORT}/probe'
@@ -25,11 +25,11 @@ def _wait_for_kachery_server_to_start():
         time.sleep(delay_between_retries)
 
 def _wait_for_event_stream_server_to_start():
-    max_retries = 50
+    max_retries = 90
     num_retries = 0
-    delay_between_retries = 0.2
+    delay_between_retries = 0.3
     while True:
-        print(f'Probing kachery server. Try {num_retries + 1}')
+        print(f'Probing event-stream server. Try {num_retries + 1}')
         url = f'http://localhost:{EVENT_STREAM_SERVER_PORT}/probe'
         try:
             req = request.urlopen(url)
@@ -40,7 +40,7 @@ def _wait_for_event_stream_server_to_start():
             assert obj['success'] == True
             return
         if num_retries >= max_retries:
-            raise Exception('Problem waiting for kachery to start.')
+            raise Exception('Problem waiting for event stream server to start.')
         num_retries += 1
         time.sleep(delay_between_retries)
 
