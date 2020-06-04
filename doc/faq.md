@@ -223,7 +223,11 @@ tool that is specifically designed for high-performance computing clusters. Its 
  specific support for high-performance networking and communication standards
  (e.g. Infiniband) and libraries (e.g. OpenMPI) common in HPC environments.
 
-### Are docker and singularity required in order to use hither?
+### How can I tell hither to use Singularity instead of Docker?
+
+[See this section in the containerization docs](./containerization.md#using-hither)
+
+### Are Docker and Singularity required in order to use hither?
 
 While most interesting use cases for hither will depend on containers, they are not required
 to run functions; a hither function declared with no container will be run on the host system
