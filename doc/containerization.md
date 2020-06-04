@@ -11,7 +11,7 @@ See also:
 * [Can I use local docker images with hither, or do they need to be stored on Docker Hub?](can-i-use-local-docker-images-with-hither-or-do-they-need-to-be-stored-on-docker-hub)
 * [When using a remote compute resource, where are docker images downloaded to?](./faq.md#when-using-a-remote-compute-resource-where-are-docker-images-downloaded-to)
 * [How does Hither manage dependencies on Python modules or other code outside my function?](./faq.md#how-does-hither-manage-dependencies-on-python-modules-or-other-code-outside-my-function)
-* [How can I tell hither to use Singularity instead of Docker?][#using-singularity]
+* [How can I tell hither to use Singularity instead of Docker?](#using-singularity)
 
 ## Using hither to run Python code in a container
 
