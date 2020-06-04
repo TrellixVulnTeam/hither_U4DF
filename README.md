@@ -165,6 +165,12 @@ One of the most powerful capabilities of hither is to use a remote computer (or 
 
 For a complete list of hither capabilities, see the [reference documentation](./doc/reference.md)
 
+## For developers
+
+[Opening the hither source code in a development environment](./doc/devel.md)
+
+[Running unit tests](./doc/unit_tests.md)
+
 ## Authors
 
 Jeremy Magland and Jeff Soules<br>
