@@ -10,10 +10,10 @@ Here we describe how to open the hither source code in a containerized developme
 
 ## Create a kachery storage directory
 
-Create a directory where (potentially large) temporary data files will be stored. For example:
+Create a directory where (potentially large) temporary data files will be stored. For example (replace `<user>` by your user name):
 
 ```bash
-mkdir /home/user/kachery-storage
+mkdir /home/<user>/kachery-storage
 ```
 
 and set a corresponding environment variable in your `.bashrc`
@@ -22,7 +22,7 @@ and set a corresponding environment variable in your `.bashrc`
 export KACHERY_STORAGE_DIR="..."
 ```
 
-Note that when your `.bashrc` file changes, you may need to logout and log back in again prior to opening Visual Studio Code.
+Note that when your `.bashrc` file changes in this way, you may need to restart VS Code and/or log out and log back in again.
 
 ## Open the project in a development container
 
@@ -40,6 +40,6 @@ This will build the development container and reopen the project in that contain
 
 Note: if the process hangs on the final step of launching the container, you may need to close Visual Studio Code and try again.
 
-## Unit tests
+## Diagnostic tests
 
-The first thing to try would be the [unit tests]('./unit_tests.md).
+The first thing to try would be the [unit and integration tests]('./tests.md).

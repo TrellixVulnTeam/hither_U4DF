@@ -169,7 +169,7 @@ For a complete list of hither capabilities, see the [reference documentation](./
 
 [Opening the hither source code in a development environment](./doc/devel.md)
 
-[Running unit tests](./doc/unit_tests.md)
+[Running diagnostic tests](./doc/tests.md)
 
 ## Authors
 

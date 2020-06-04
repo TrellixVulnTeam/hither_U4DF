@@ -1,6 +1,12 @@
-# Hither unit tests
+# Hither diagnostic tests
 
-Run basic unit tests:
+To run the diagnostic tests using pytest, first be sure you are in the root of the source directory:
+
+```
+cd hither
+```
+
+Run the basic tests (no containers and no servers):
 
 ```
 pytest --pyargs hither -s
