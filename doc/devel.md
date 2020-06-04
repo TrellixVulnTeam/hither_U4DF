@@ -1,40 +1,45 @@
-## Installation for developers
+# Hither for developers
 
-Here we describe how to open the hither project in a containerized development environment within vscode.
+Here we describe how to open the hither source code in a containerized development environment within Visual Studio Code.
 
 ## Prerequisites
 
-* Install vscode
-* Install docker
+* Linux
+* [Visual Studio Code](https://code.visualstudio.com/) with the [Remote-Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) extension
+* Docker
 
 ## Create a kachery storage directory
 
-Create a directory where (potentially large) temporary data files will be stored. For example:
+Create a directory where (potentially large) temporary data files will be stored. For example (replace `<user>` by your user name):
 
 ```bash
-mkdir /data/kachery-storage
+mkdir /home/<user>/kachery-storage
 ```
 
-TODO: explain about the kachery storage directory.
-
-## Create .env file
-
-Create an empty environment file at: `.devcontainer/.env`.
-
-TODO: explain about this
-
-## Environment variables
-
-Set the following environment variables in your `~/.bashrc` or `~/.bash_profile`. Note that if any of these change, you may need to logout and log back in again [more details needed].
+and set a corresponding environment variable in your `.bashrc`
 
 ```bash
-# Replace /data/kachery-storage by the appropriate path on your system
-export KACHERY_STORAGE_DIR=/data/kachery-storage
+export KACHERY_STORAGE_DIR="..."
 ```
+
+Note that when your `.bashrc` file changes in this way, you may need to restart VS Code and/or log out and log back in again.
 
 ## Open the project in a development container
 
-Install the vscode "Remote-Containers" extension if not already installed.
+Clone the source and open in Visual Studio Code:
 
-Use the green button in the lower-left corner of the vscode window and click: "Remote-Containers: Reopen-in-container".
+```
+git clone [this-repo-url]
+cd hither
+code .
+```
 
+Use the green button in the lower-left corner of the Visual Studio Code window and click: "Remote-Containers: Reopen-in-container".
+
+This will build the development container and reopen the project in that container.
+
+Note: if the process hangs on the final step of launching the container, you may need to close Visual Studio Code and try again.
+
+## Diagnostic tests
+
+The first thing to try would be the [unit and integration tests]('./tests.md).
