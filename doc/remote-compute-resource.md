@@ -30,7 +30,7 @@ handle occasional processing jobs.
 
 ## Architecture
 
-Describe the architecture with a diagram... kachery-server, event-stream-server, compute-resource-server, remote job handler.
+![Remote Compute Resource Architecture Diagram](remote-compute-components.png)
 
 As the above diagram shows, a distributed hither setup suggests four or five main components. In the simplest
 setup (such as for testing) these could all be running on the same machine, though in real
