@@ -5,6 +5,8 @@ import os
 import json
 import click
 import socket
+from urllib import request
+import time
 from copy import deepcopy
 import inquirer
 import kachery as ka
@@ -208,7 +210,8 @@ class EventStreamServerConfig:
             json.dump(self._config, f, indent=4)
 
 @click.command(help='Start the configured compute resource.')
-def start():
+@click.option('--all', is_flag=True)
+def start(all):
     try:
         ka.set_config(use_hard_links=True)
     except:
@@ -232,6 +235,31 @@ def start():
     print(f"{bcolors.HEADER}Compute resource ID{bcolors.ENDC}: {compute_resource_id}")
     print('')
 
+    ess_script = None
+    ka_script = None
+    if all:
+        host_event_stream_server = config.get('host_event_stream_server', False)
+        host_kachery_server = config.get('host_kachery_server', False)
+        if host_event_stream_server:
+            print(f"{bcolors.HEADER}Starting event stream server{bcolors.ENDC}")
+            ess_script = hi.ShellScript("""
+            #!/bin/bash
+
+            hither-compute-resource start-event-stream-server
+            """)
+            ess_script.start()
+            _wait_for_event_stream_server_to_start(eventstreamserver_url)
+        
+        if host_kachery_server:
+            print(f"{bcolors.HEADER}Starting kachery server{bcolors.ENDC}")
+            ka_script = hi.ShellScript("""
+            #!/bin/bash
+
+            hither-compute-resource start-kachery-server
+            """)
+            ka_script.start()
+            _wait_for_kachery_server_to_start(kachery_url)
+
     event_stream_client = hi.EventStreamClient(url=eventstreamserver_url, channel=eventstreamserver_channel, password=eventstreamserver_password)
     jh = hi.ParallelJobHandler(num_workers=4)
 
@@ -253,8 +281,57 @@ def start():
         job_handler=jh,
         job_cache=jc
     )
+
     print(f'{bcolors.HEADER}Starting compute resource{bcolors.ENDC}: {compute_resource_id}')
-    cr.run()
+    try:
+        cr.run()
+    except:
+        # will capture Ctrl+C halt
+        if all:
+            if ess_script is not None:
+                ess_script.stop()
+            if ka_script is not None:
+                ka_script.stop()
+
+# TODO: this is duplicate code -- see test fixtures
+def _wait_for_kachery_server_to_start(url):
+    max_retries = 90
+    num_retries = 0
+    delay_between_retries = 0.3
+    while True:
+        print(f'Probing kachery server. Try {num_retries + 1}')
+        try:
+            req = request.urlopen(url + '/probe')
+        except: # pragma: no cover
+            req = None
+        if req is not None:
+            obj = json.load(req)
+            assert obj['success'] == True
+            return
+        if num_retries >= max_retries:
+            raise Exception('Problem waiting for kachery to start.')
+        num_retries += 1
+        time.sleep(delay_between_retries)
+
+# TODO: this is duplicate code -- see test fixtures
+def _wait_for_event_stream_server_to_start(url):
+    max_retries = 90
+    num_retries = 0
+    delay_between_retries = 0.3
+    while True:
+        print(f'Probing event-stream server. Try {num_retries + 1}')
+        try:
+            req = request.urlopen(url + '/probe')
+        except: # pragma: no cover
+            req = None
+        if req is not None:
+            obj = json.load(req)
+            assert obj['success'] == True
+            return
+        if num_retries >= max_retries:
+            raise Exception('Problem waiting for event stream server to start.')
+        num_retries += 1
+        time.sleep(delay_between_retries)
 
 @click.command(help='Start an event stream server.')
 def start_event_stream_server():
@@ -459,6 +536,11 @@ def _print_info():
         print('hither-compute-resource start-event-stream-server')
     print('hither-compute-resource start')
 
+    if host_kachery_server or host_event_stream_server:
+        print('')
+        print('Or, for convenience, you can run all the above in one command:')
+        print('hither-compute-resource start --all')
+
 @click.command(help="Display information about the current configuration and exit.")
 def info():
     _print_info()
@@ -535,7 +617,7 @@ def do_run_docker_container(image, docker_run_opts=None, tmp=None, data=None, ka
             --build-arg NEW_GID=$GROUP_ID \\
             $INJECT_USER_DIR
         
-        docker run \\
+        exec docker run \\
             {docker_run_opts} \\
             {volume_opts} \\
             {env_opts} \\
