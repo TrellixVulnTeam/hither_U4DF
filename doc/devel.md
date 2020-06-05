@@ -54,10 +54,12 @@ Use the following pattern for versioning
 * `x.x.x` - deploy these
 
 To release a new version, use the following flow (subject to change):
-* Get on the master branch
-* Increment the version string in `hither/__init__.py`
-* Commit the change and push to github
-* Switch to the release branch and merge in all changes from master (master and release should now be equal)
+* Make sure master branch is what you want to release
+* Change to release branch `git checkout release`
+* Increment the version string in `hither/__init__.py` and commit the change
 * Tag the commit with the version string: e.g., `git tag 0.2.0`
 * Push to github (including tags): `git push && git push --tags`
-* That should trigger travis to deploy to PyPI after unit tests have all passed
+* Switch back to master branch: `git checkout master`
+* Merge the changes from release `git merge release`
+
+These steps should trigger travis to deploy to PyPI after unit tests have all passed
