@@ -63,7 +63,7 @@ Job handlers determine when, where, and how hither jobs are run. There are three
 * RemoteJobHandler
     - Sends jobs in parallel to a remote compute resource
 * SlurmJobHandler
-    - Sends job in parallel to a SLURM compute cluster
+    - Sends job in parallel to a Slurm compute cluster
 
 ### Local modules
 
