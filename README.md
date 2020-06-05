@@ -15,7 +15,7 @@ TODO: Need to describe other tools, how hither differs, and why it is needed.
 
 ## Installation
 
-**Prequisites**
+**Prerequisites**
 
 * Linux (preferred) or macOS
 * Python >= 3.6

@@ -8,29 +8,30 @@ the network from another location. Typically this will be a machine with
 more computational power than the researcher's own development machine,
 such as a central workstation vs. a laptop.
 
-Note that a different remote setup should be used for cluster
-environments using Slurm; see [TODO SLURM DOCUMENTATION]().
+Compute resources hosted on a computer attached to a Slurm-enabled cluster can be configured to use Slurm; see [TODO SLURM DOCUMENTATION]().
 
 ## Benefits
 
-Setting up a remote compute resource facilitiates the use of more powerful
+Setting up a remote compute resource facilitates the use of more powerful
 (usually shared) resources to run hither Jobs. It also allows multiple
 researchers with multiple machines to run hither jobs against
 a single compute resource, centralizing the acquisition and maintenance
 of higher-capacity compute resources.
 
-It can also be useful for computational results to be available
+It can also be used to allow computational results to be available
 on demand to a resource whose primary responsibility is
 something like serving web pages. There's no reason to provision a web
 server to do high-powered computations for a monthly or weekly update of results, but
 it would also be burdensome to attempt those computations on an underpowered
-machine, or to rqeuire scaling a virtual resource up and down in order to
+machine, or to require scaling a virtual resource up and down in order to
 handle occasional processing jobs.
 
 
 ## Architecture
 
 ![Remote Compute Resource Architecture Diagram](remote-compute-components.png)
+
+TODO: question -- why are there multiple compute resources in the diagram? Certainly this can be true for a given pipeline, but there will also be multiple remote job handlers. For each remote job handler there would be exactly one remote compute resource.
 
 As the above diagram shows, a distributed hither setup suggests four or five main components. In the simplest
 setup (such as for testing) these could all be running on the same machine, though in real
@@ -52,7 +53,7 @@ distributing data files and processing results. Deployment can be as simple as t
 file system of a remote compute resource, or as sophisticated as a dedicated resource with
 high-throughput drives and an individualized backup plan.
 
-- **event-stream server**
+- **event stream server**
 
 The event stream server [LINK?] coordinates communication among the different compute resources
 handling hither Jobs. This server stores serialized Jobs and dispatches them to their scheduled
@@ -62,21 +63,19 @@ underlying filesystem will probably see substantial file turnover.
 
 - **compute resource server**
 
-This is the server (or servers) which will actually execute hither Jobs. Its provisioning needs
+This is the server (perhaps connected to a cluster) which will actually execute hither Jobs. Its provisioning needs
 will be determined by the requirements of the underlying Jobs being run on it.
 
 - **job cache** (optional)
 
 The [job cache improves efficiency](./job-cache.md) by recording the results of Jobs
-which have already been executed, and returning the recorded result instead of re-running
+which have already been executed, and returning the recorded result instead of re-running a
 Job whose outcome has already been determined.
 
-Use of a job cache is optional--if it is omitted, a Job will be rerun every time it
-is requested--but if it is used, for the sake of clarity, it is highly advisable to
-ensure that all configured compute resource servers point to the same job cache,
+Use of a job cache is optional. If it is omitted, a Job will be rerun every time it
+is requested. If it is used, results of Jobs are stored and retrieved on subsequent runs of an identical Job (same function name, version, input file hashes, and parameters). If multiple compute resources are used, it is advisable to
+ensure that they all point to the same job cache,
 unless there is a compelling reason to do otherwise.
-
-
 
 ## Setup
 
@@ -115,13 +114,7 @@ that it is waiting for jobs.
 
 Communication between your local hither functions (dispatched by the
 `RemoteJobHandler`) and the `ComputeResource` is handled by a communication
-bus, the `EventStreamServer`. The `ComputeResource` polls the
-job dispatch channel at regular intervals to retrieve any Jobs which have
-been assigned to it, and then launches these on its own local hither job handler
-(in the above example, it is using a `ParallelJobHandler` set to 8 worker threads;
-a `ParallelJobHandler` is used so that the Jobs will be run local to the
-`ComputeResource` managing their execution).
-
+bus, the `EventStreamServer`. When a new Job (initiated from the `RemoteJobHandler`) is assigned to the `ComputeResource`, a hither job handler on the compute resource machine is used to execute the Job. In the above example, a `ParallelJobHandler` with 8 worker threads is used; it is running local to the `ComputeResource`.
 
 ## What runs on the Remote Compute Resource?
 
@@ -129,7 +122,7 @@ The remote compute resource will run at least the following:
 - An instance of the compute resource server, which communicates with the
 Event Stream Server to coordinate Job dispatch and return results;
 - A `ParallelJobHandler` (usually) which actually manages execution
-of individual Jobs on the comute resource; and
+of individual Jobs on the compute resource; and
 - A container execution environment (Docker or Singularity).
 
 It is expected that the container images supplied with the hither functions
@@ -138,20 +131,20 @@ to run the Jobs themselves, and the compute resource will need access
 to a kachery server and event stream server, but these do not need to run
 locally on the compute resource.
 
-
 ## Remote Compute Resources and Job Cache
 
 Any job cache configured for the compute resource must be set up
 in the `compute_resource.json` configuration file on the compute
 resource itself. The local machine--the one running the
 `RemoteJobHandler`--does not directly configure the remote compute
-resource.
+resource used remotely.
 
-__TODO: IS THAT CORRECT? IT LOOKS LIKE THE SYSTEM RIGHT NOW JUST
-READS A DIRECTORY--ARE WE EVEN SUPPORTING A REMOTE CACHE ATM?__
+__TODO: Allow implement user configuration of the job cache on the remote resource__
 
-Note that for clarity, it is highly recommended that if multiple
-compute resources (local or remote) are to be used, they all
+It is recommended that if multiple
+compute resources (local or remote) are used with the same pipeline, they all
 point to the same job cache.
+
+TODO: need to discuss recommendations regarding multiple compute resources.
 
 
