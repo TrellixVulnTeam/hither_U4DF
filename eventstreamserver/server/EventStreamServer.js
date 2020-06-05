@@ -3,6 +3,7 @@ import cors from 'cors';
 import https from 'https';
 import http from 'http';
 import fs from 'fs';
+import WebSocket from 'ws';
 import ESSTaskRegulator from './ESSTaskRegulator.js';
 
 export default class EventStreamServer {
@@ -95,7 +96,7 @@ export default class EventStreamServer {
     async _startIterate() {
         setTimeout(async () => {
             while (true) {
-                await sleepMsec(5000);
+                await sleepMsec(100);
                 await this._eventStreamManager.iterate();
             }
         }, 5000);
@@ -196,7 +197,7 @@ export default class EventStreamServer {
         return this._regulator.finalizeTask(taskName, channel, numBytes, approvalObject);
     }
     async listen(port) {
-        await start_http_server(this._app, port);
+        await start_http_server(this, this._app, port);
     }
 }
 
@@ -348,7 +349,7 @@ function waitMsec(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function start_http_server(app, listen_port) {
+async function start_http_server(parentServer, app, listen_port) {
     app.port = listen_port;
     if (process.env.SSL != null ? process.env.SSL : listen_port % 1000 == 443) {
         // The port number ends with 443, so we are using https
@@ -369,8 +370,45 @@ async function start_http_server(app, listen_port) {
         // Create the http server and start listening
         app.server = http.createServer(app);
     }
+
+    ///////////////////////////////////////////////////////////////////////////////
+    const websocketServer = new WebSocket.Server({ server: app.server });
+    let webSocketConnections = {};
+    let last_connection_id = 1;
+    websocketServer.on('connection', (ws) => {
+        let id = last_connection_id + 1;
+        let X = new IncomingWebSocketConnection(parentServer, ws);
+        last_connection_id = id;
+        webSocketConnections[id] = X;
+    });
+    ///////////////////////////////////////////////////////////////////////////////
+
     await app.server.listen(listen_port);
     console.info(`Server is running ${app.protocol} on port ${app.port}`);
+}
+
+class IncomingWebSocketConnection {
+    constructor(parentServer, webSocket) {
+        this._parentServer = parentServer;
+        this._webSocket = webSocket;
+        this._webSocket.on('message', (message) => {this._handleMessage(JSON.parse(message));});
+    }
+    async _handleMessage(message) {
+        if (message.name === 'readEvents') {
+            const requestId = message.requestId;
+            const position = message.position;
+            const streamId = message.streamId;
+            const waitMsec = message.waitMsec;
+            const result = await this._parentServer._eventStreamManager.getEvents(streamId, position, {waitMsec: waitMsec});
+            const msg = {
+                name: 'response',
+                requestId: requestId,
+                streamId: streamId,
+                result: result
+            };
+            this._webSocket.send(JSON.stringify(msg));
+        }
+    }
 }
 
 async function writeJsonFile(path, x) {

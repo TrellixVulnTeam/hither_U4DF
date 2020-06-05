@@ -5,7 +5,6 @@ from ._basejobhandler import BaseJobHandler
 from .database import Database
 from ._enums import JobStatus, JobKeys
 from .file import File
-from ._load_config import _load_preset_config_from_github
 from ._util import _random_string, _deserialize_item, _flatten_nested_collection, _get_poll_interval
 from .eventstreamclient import EventStreamClient
 from .computeresource import ComputeResourceActionTypes
@@ -13,6 +12,7 @@ from .computeresource import HITHER_COMPUTE_RESOURCE_TO_REMOTE_JOB_HANDLER, HITH
 
 class RemoteJobHandler(BaseJobHandler):
     def __init__(self, *, event_stream_client, compute_resource_id):
+        super().__init__()
         self.is_remote = True
         
         self._event_stream_Client = event_stream_client

@@ -80,8 +80,9 @@ RUN apt-get update && \
 
 RUN apt-get update && apt-get install -y mongodb
 
-RUN pip install kachery==0.4.13
+RUN pip install kachery==0.5.2
 RUN pip install numpy pymongo
+RUN pip install click inquirer
 RUN pip install pylint ipython pytest pytest-cov
 RUN pip install rope
 RUN apt-get install -y nano

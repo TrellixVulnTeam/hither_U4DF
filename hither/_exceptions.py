@@ -3,3 +3,6 @@ class DeserializationException(Exception):
 
 class JobCancelledException(Exception):
     pass
+
+class DuplicateFunctionException(Exception):
+    pass

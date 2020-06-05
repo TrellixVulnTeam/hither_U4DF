@@ -11,6 +11,9 @@ from .file import File
 from .job import Job
 
 class ComputeResourceActionTypes:
+    # sent by compute resource at startup
+    COMPUTE_RESOURCE_STARTED = 'COMPUTE_RESOURCE_STARTED'
+
     # sent from job handler to compute resource
     ADD_JOB_HANDLER = 'ADD_JOB_HANDLER'
     ADD_JOB = 'ADD_JOB'
@@ -31,7 +34,7 @@ class ConnectedClient:
         self._compute_resource = compute_resource
         self._job_handler = compute_resource._job_handler
         self._job_cache = compute_resource._job_cache
-        self._kachery = compute_resource._kachery
+        self._kachery_config = compute_resource._kachery_config
 
         # for polling
         self._timestamp_event_poll = 0
@@ -60,7 +63,7 @@ class ConnectedClient:
         # write initial message sharing the kachery config
         self._stream_outgoing.write_event(dict(
             type=ComputeResourceActionTypes.SET_KACHERY_CONFIG,
-            kachery_config=compute_resource._kachery
+            kachery_config=compute_resource._kachery_config
         ))
 
         # timestamp for when the client last reported being alive
@@ -89,14 +92,12 @@ class ConnectedClient:
                 self._mark_job_as_error(job_id=job_id, runtime_info=job._runtime_info, exception=job._exception)
                 del self._jobs[job._job_id]
                 self._report_action
-            elif job._status == JobStatus.WAITING:
-                pass
             elif job._status == JobStatus.PENDING:
                 pass # Local status will remain PENDING until changed by remote. This is expected.
             elif job._status == JobStatus.QUEUED:
                 pass
             else:
-                raise Exception(f"Job {job_id} has unexpected status in compute resource: {job._status} {type(job._status)} {JobStatus.ERROR}")
+                raise Exception(f"Job {job_id} has unexpected status in compute resource: {job._status} {type(job._status)} {JobStatus.ERROR}") # pragma: no cover
 
     def cancel_all_jobs(self):
         for job in self._jobs.values():
@@ -120,18 +121,17 @@ class ConnectedClient:
             self._add_job(action)
             self._report_action()
         else:
-            print(f'Unexpected action type: {_type}')
+            raise Exception(f'Unexpected action type: {_type}') # pragma: no cover
     
     def _add_job(self, action):
         # Add a job that was sent from the client
         job_id, handler_id, job_serialized = JobKeys._unpack_serialized_job(action)
         label = job_serialized[JobKeys.LABEL]
-        print(f'Queuing job: {label}') # TODO: Convert to log statement
-        
         if not (self._hydrate_code_for_serialized_job(job_id, job_serialized)
                 and self._hydrate_container_for_serialized_job(job_id, job_serialized)):
             return
-       
+        print(f'Queuing job: {label}') # TODO: Convert to log statement
+        
         job = Job._deserialize(job_serialized)
         if self._job_cache and self._job_cache.fetch_cached_job_results(job):
             # Cache fetch will return false if the Job needs to be rerun, or else update the Job
@@ -165,10 +165,9 @@ class ConnectedClient:
         """
         code = serialized_job[JobKeys.CODE]
         label = serialized_job[JobKeys.LABEL]
-        if code is None:
-            return True
+        assert code is not None, 'Code is None in serialized job.'
         try:
-            code_obj = ka.load_object(code, fr=self._kachery)
+            code_obj = ka.load_object(code, fr=self._kachery_config)
             if code_obj is None:
                 raise DeserializationException("Kachery returned no serialized code for function.")
             serialized_job[JobKeys.CODE] = code_obj
@@ -203,13 +202,13 @@ class ConnectedClient:
         return True
     def _handle_finished_job(self, job):
         print(f'Job finished: {job._job_id}') # TODO: Change to formal log statement?
-        job.kache_results_if_needed(kachery=self._kachery)
+        job.kache_results_if_needed(kachery=self._kachery_config)
         self._mark_job_as_finished(job=job)
         if self._job_cache is not None:
             self._job_cache.cache_job_result(job)
     def _queue_job(self, job:Job, handler_id:str) -> None:
         try:
-            job.download_parameter_files_if_needed(kachery=self._kachery)
+            job.download_parameter_files_if_needed(kachery=self._kachery_config)
         except Exception as e:
             print(f"Error downloading input files for job: {job._label}\n{e}")
             self._mark_job_as_error(job_id=job._job_id, exception=e, runtime_info=None)
@@ -247,10 +246,10 @@ class ConnectedClient:
         self._timestamp_last_action = time.time()
 
 class ComputeResource:
-    def __init__(self, *, event_stream_client, compute_resource_id, kachery, job_handler, job_cache=None):
+    def __init__(self, *, event_stream_client, compute_resource_id, kachery_config, job_handler, job_cache=None):
         self._event_stream_client = event_stream_client
         self._compute_resource_id = compute_resource_id
-        self._kachery = kachery
+        self._kachery_config = kachery_config
         self._instance_id = _random_string(15)
         self._timestamp_event_poll = 0
         self._timestamp_last_action = time.time()
@@ -270,7 +269,7 @@ class ComputeResource:
 
     def run(self):
         self._stream.write_event(dict(
-            type='compute-resource-started'
+            type=ComputeResourceActionTypes.COMPUTE_RESOURCE_STARTED
         ))
         while True:
             self._iterate()
@@ -282,8 +281,10 @@ class ComputeResource:
             handler_id = action['handler_id']
             self._connected_clients[handler_id] = ConnectedClient(self, handler_id)
             self._report_action()
+        elif _type == ComputeResourceActionTypes.COMPUTE_RESOURCE_STARTED:
+            pass
         else:
-            print(f'Unexpected action type: {_type}')
+            raise Exception(f'Unexpected action type: {_type}') # pragma: no cover
 
     def _iterate(self):
         # self._iterate_timer = time.time() # Never actually used
@@ -308,13 +309,3 @@ class ComputeResource:
     
     def _report_action(self):
         self._timestamp_last_action = time.time()
-    
-def _print_console_out(x):
-    for a in x['lines']:
-        t = _fmt_time(a['timestamp'])
-        txt = a['text']
-        print(f'{t}: {txt}')
-
-def _fmt_time(t):
-    import datetime
-    return datetime.datetime.fromtimestamp(t).isoformat()

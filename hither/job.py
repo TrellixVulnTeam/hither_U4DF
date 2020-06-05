@@ -1,6 +1,6 @@
 from copy import deepcopy
 import time
-from typing import List, Union, Any, Optional
+from typing import List, Dict, Union, Any, Optional
 
 import kachery as ka
 from ._Config import Config
@@ -16,7 +16,9 @@ from ._util import _random_string, _deserialize_item, _serialize_item, _flatten_
 class Job:
     def __init__(self, *, f, wrapped_function_arguments,
                 job_manager, job_handler, job_cache, container, label,
-                download_results, job_timeout: Union[float, None], code=None, function_name=None,
+                download_results, job_timeout: Union[float, None],
+                force_run: bool, rerun_failing: bool, cache_failing: bool,
+                code=None, function_name=None,
                 function_version=None, job_id=None, no_resolve_input_files=False):
         self._f = f
         self._code = code
@@ -32,6 +34,9 @@ class Job:
         self._container = container
         self._download_results = download_results
         self._job_timeout = None
+        self._force_run = force_run
+        self._rerun_failing = rerun_failing
+        self._cache_failing = cache_failing
 
         self._status = JobStatus.PENDING
         self._result = None
@@ -203,10 +208,19 @@ class Job:
         self._label = label
         return self
 
-    def get_runtime_info(self) -> Optional[dict]: # NOTE: Unused
+    def get_runtime_info(self) -> Optional[dict]:
         if self._runtime_info is None:
             return None
         return deepcopy(self._runtime_info)
+    
+    def print_console_out(self) -> None:
+        if self._status not in JobStatus.complete_statuses():
+            # don't print anything if the job is not complete
+            return
+        runtime_info = self.get_runtime_info()
+        assert runtime_info is not None
+        assert runtime_info['console_out']
+        _print_console_out(runtime_info['console_out'])
     
     def cancel(self):
         assert self._job_handler is not None, 'Cannot cancel a job that does not have a job handler'
@@ -260,6 +274,9 @@ class Job:
             container=self._container,
             download_results=self._download_results,
             job_timeout=self._job_timeout,
+            force_run=self._force_run,
+            rerun_failing=self._rerun_failing,
+            cache_failing=self._cache_failing,
             no_resolve_input_files=self._no_resolve_input_files
         )
         self._efficiency_job_hash_ = ka.get_object_hash(efficiency_job_hash_obj)
@@ -276,7 +293,6 @@ class Job:
         for f in _flatten_nested_collection(self._result, _type=File):
             f.kache(kachery_dest=kachery)
 
-    # TODO: is str the correct type for kachery parameter?
     def download_results_if_needed(self, kachery:Union[str, None] = None) -> None:
         for f in _flatten_nested_collection(self._result, _type=File):
             assert isinstance(f, File), "Filter failed."
@@ -371,6 +387,16 @@ class Job:
         if self._no_resolve_input_files:
             hash_object[JobKeys.NO_RESOLVE_INPUT_FILES] = True
         return ka.get_object_hash(hash_object)
+
+    def _as_cached_result(self) -> Dict[str, Any]:
+        cached_result = {
+            JobKeys.JOB_HASH: self._compute_hash(),
+            JobKeys.STATUS: self._status.value,
+            JobKeys.RESULT: self._serialized_result(),
+            JobKeys.RUNTIME_INFO: self._runtime_info,
+            JobKeys.EXCEPTION: '{}'.format(self._exception)
+        }
+        return cached_result
     
     def _serialized_result(self) -> Any:
         return _serialize_item(self._result)
@@ -402,6 +428,9 @@ class Job:
             JobKeys.CONTAINER: self._container,
             JobKeys.DOWNLOAD_RESULTS: self._download_results,
             JobKeys.JOB_TIMEOUT: self._job_timeout,
+            JobKeys.FORCE_RUN: self._force_run,
+            JobKeys.RERUN_FAILING: self._rerun_failing,
+            JobKeys.CACHE_FAILING: self._cache_failing,
             JobKeys.NO_RESOLVE_INPUT_FILES: self._no_resolve_input_files
         }
         x = _serialize_item(x, require_jsonable=False)
@@ -421,9 +450,22 @@ class Job:
             container=j[JobKeys.CONTAINER],
             download_results=j.get(JobKeys.DOWNLOAD_RESULTS, False),
             job_timeout=j.get(JobKeys.JOB_TIMEOUT, None),
+            force_run=j.get(JobKeys.FORCE_RUN, False),
+            rerun_failing=j.get(JobKeys.RERUN_FAILING, False),
+            cache_failing=j.get(JobKeys.CACHE_FAILING),
             job_manager=job_manager,
             job_handler=None,
             job_cache=None,
             job_id=j[JobKeys.JOB_ID],
             no_resolve_input_files=j[JobKeys.NO_RESOLVE_INPUT_FILES]
         )
+
+def _print_console_out(x):
+    for a in x['lines']:
+        t = _fmt_time(a['timestamp'])
+        txt = a['text']
+        print(f'{t}: {txt}')
+
+def _fmt_time(t):
+    import datetime
+    return datetime.datetime.fromtimestamp(t).isoformat()

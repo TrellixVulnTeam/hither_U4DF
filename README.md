@@ -7,78 +7,173 @@
 
 # hither
 
-Run Python functions and pipelines in containers and on remote servers.
+Hither is a flexible, platform-agnostic job manager that allows researchers to easily deploy code across local, remote, and cluster environments with minimal changes. It ensures that different scientific tools can be run through a consistent pipeline, even when they have different configurations or conflicting dependencies. This works through universal containerization. Because jobs are run through a universal interface, code becomes much more portable between labs; the same pipelines can be run locally, or even on a cluster environment. In this way, development on small datasets can take place on your laptop, with the confidence that the code will work on large datasets in the cluster with minimal modifications.
 
-## Overview
-
-Needs to describe other tools, how hither differs, and why it is needed.
+TODO: Need to describe other tools, how hither differs, and why it is needed.
 
 [Frequently asked questions](doc/faq.md)
 
-## A first example
+## Installation
 
-Add an interesting example. Should be something that computes something useful and illustrates the various functionalities.
+**Prequisites**
 
-```python
-# Explain that this can be replaced by other job handlers, including sending jobs to a remote compute resource
-job_handler = hi.ParallelJobHandler()
+* Linux (preferred) or macOS
+* Python >= 3.6
+* [Docker](https://docs.docker.com/engine/) and/or [Singularity](https://sylabs.io/singularity/) (optional)
 
-# Make sure the function uses a container
-# e.g., docker://jupyter/scipy-notebook:678ada768ab1
+**Note:** It is recommended that you use either a [conda environment](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html) or a [virtualenv](https://virtualenv.pypa.io/en/latest/) when using the `pip` and `python` commands. This will prevent ambiguities and conflicts between different Python installations.
 
-# point out that it is not necessary to install scipy locally if docker is present
-
-# Set this to false if you don't want
-# to use docker. You must have the python
-# libraries installed on your machine
-use_container = True
-
-# Explain what a job cache does
-# TODO: change database argument to database_name, or something else appropriate
-# Explain that to use a job cache, you need to have a mongo database running.
-# Otherwise, use job_cache = None
-db = hi.Database(
-    mongo_url='mongodb://localhost:27017',
-    database='hither'
-)
-job_cache = hi.JobCache(
-    database=db,
-    cache_failing=False,
-    rerun_failing=False
-)
-# TEST
-# TODO: maybe replace this with some useful computation that uses something from scipy - think about this
-@hi.function('sumsqr', '0.1.0')
-@hi.container('docker://jupyter/scipy-notebook:678ada768ab1')
-def sumsqr(x):
-    return np.sum(x**2)
-
-with hi.Config(
-    job_handler=job_handler,
-    job_cache=job_cache,
-    container=use_container
-):
-    # TODO: think about doing something more interesting
-    x = np.array([1, 2, 3, 4])
-    result = sumsqr.run(x=x).wait()
-    print(f'Result: {result}')
-
+```bash
+# Install from PyPI
+pip install --upgrade hither
 ```
 
-## Pipeline example
+## Basic usage
 
-Give another full example showing how to pass the output of one function as an input to another.
+### Containerization
 
-## Parallel computing example
+Decorate your Python function to specify a Docker image from Docker Hub.
 
-Give another full example of looping through a list of arguments, accumulating a list of job results, and then aggregating the outputs after processing completes.
+```python
+# integrate_bessel.py
+
+import hither as hi
+
+@hi.function('integrate_bessel', '0.1.0')
+@hi.container('docker://jsoules/simplescipy:latest')
+def integrate_bessel(v, a, b):
+    # Definite integral of bessel function of first kind
+    # of order v from a to b
+    import scipy.integrate as integrate
+    import scipy.special as special
+    return integrate.quad(lambda x: special.jv(v, x), a, b)[0]
+```
+
+You can then run the function either inside or outside the container.
+
+```python
+import hither as hi
+
+# Import the hither function from a .py file
+from integrate_bessel import integrate_bessel
+
+# call function directly
+val1 = integrate_bessel(v=2.5, a=0, b=4.5)
+
+# call using hither pipeline
+job = integrate_bessel.run(v=2.5, a=0, b=4.5)
+val2 = job.wait()
+
+# run inside container
+with hi.Config(container=True):
+    job = integrate_bessel.run(v=2.5, a=0, b=4.5)
+    val3 = job.wait()
+
+print(val1, val2, val3)
+```
+
+It is also possible to select between using Docker or Singularity for running the containerization.
+
+[See containerization documentation for more details.](./doc/containerization.md)
 
 
-## Reference documentation
+### Job cache
 
-[Reference documentation](doc/reference.md)
+Hither will remember the outputs of jobs if a job cache is used:
+
+```python
+import hither as hi
+from expensive_calculation import expensive_calculation
+
+# Create a job cache that uses /tmp
+# You can also use a different location
+# or a mongo database
+jc = hi.JobCache(use_tempdir=True)
+
+with hi.Config(job_cache=jc):
+    # subsequent runs will use the cache
+    val = expensive_calculation.run(x=4).wait()
+    print(f'result = {val}')
+```
+
+[See the job cache documentation for more details.](./doc/job-cache.md)
+
+### Parallel computing
+
+You can run jobs in parallel by using a parallel job handler:
+
+```python
+import hither as hi
+from expensive_calculation import expensive_calculation
+
+# Create a job handler than runs 4 jobs simultaneously
+jh = hi.ParallelJobHandler(num_workers=4)
+
+with hi.Config(job_handler=jh):
+    # Run 4 jobs in parallel
+    jobs = [
+        expensive_calculation.run(x=x)
+        for x in [3, 3.3, 3.6, 4]
+    ]
+    # Wait for all jobs to finish
+    hi.wait()
+    # Collect the results from the finished jobs
+    results = [job.get_result() for job in jobs]
+    print('results:', results)
+```
+
+It is also possible to achieve parallelization using SLURM or remote resources.
+
+[See the parallel computing documentation for more details.](./doc/parallel-computing.md)
+
+### Pipelines
+
+Hither provides tools to generate pipelines of chained functions, so that the output of one processing step can be fed seamlessly as input to another, and to coordinate execution of jobs.
+
+```python
+import hither as hi
+from expensive_calculation import expensive_calculation
+from arraysum import arraysum
+
+# Create a job handler than runs 4 jobs simultaneously
+jh = hi.ParallelJobHandler(num_workers=4)
+
+with hi.Config(job_handler=jh):
+    # Run 4 jobs in parallel
+    jobs = [
+        expensive_calculation.run(x=x)
+        for x in [3, 3.3, 3.6, 4]
+    ]
+    # we don't need to wait for these
+    # jobs to finish. Just pass them in
+    # to the next function
+    sumjob = arraysum.run(x=jobs)
+    # wait for the arraysum job to finish
+    result = sumjob.wait()
+    print('result:', result)
+```
+
+[See the pipelines documentation for more details.](./doc/pipelines.md)
+
+
+## Remote compute resources
+
+One of the most powerful capabilities of hither is to use a remote computer (or compute cluster) as a resource for running individual jobs. To achieve this, use a `hi.RemoteJobHandler()` job handler.
+
+[See the remote compute resource documentation for more details.](./doc/remote-compute-resource.md)
+
+## Reference
+
+For a complete list of hither capabilities, see the [reference documentation](./doc/reference.md)
+
+## For developers
+
+[Opening the hither source code in a development environment](./doc/devel.md)
+
+[Running diagnostic tests](./doc/tests.md)
 
 ## Authors
 
-* Jeremy Magland
-* Jeff Soules
+Jeremy Magland and Jeff Soules<br>
+Center for Computational Mathematics<br>
+Flatiron Institute, Simons Foundation

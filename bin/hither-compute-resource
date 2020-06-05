@@ -1,97 +1,578 @@
 #!/usr/bin/env python
 
-from typing import Dict, Any
+from hither import computeresource, __version__
 import os
 import json
-import argparse
+import click
+import socket
+from copy import deepcopy
+import inquirer
+import kachery as ka
 import hither as hi
 
-def main():
-    parser = argparse.ArgumentParser(description='Host a compute resource', formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument('command', help='init or start')
+@click.group(help="Configure and run a hither compute resource. Start by entering a new directory and running the 'config' command.")
+def cli():
+    pass
 
-    args = parser.parse_args()
+@click.command(help="Display hither version and exit.")
+def version():
+    click.echo(f"This is hither version {__version__}.")
+    exit()
 
-    command = args.command
 
-    if command == 'init':
-        x = {
-            "compute_resource_id": "[fill-in-compute-resource-id]",
-            "database": {
-                "mongo_url": "[fill-in-mongo-url]",
-                "database": "[fill-in-database-name]"
-            },
-            "kachery": {
-                "url": "[fill-in-url-to-kachery-server]",
-                "channel": "[fill-in-channel]",
-                "password": "[fill-in-password]"
-            },
-            "job_handler": {
-                "type": "parallel",
-                "config": {
-                    "num_workers": 4
+class ComputeResourceConfig:
+    def __init__(self, config_fname):
+        assert os.path.isfile(config_fname), f'File {config_fname} not found.'
+        try:
+            with open(config_fname, 'r') as f:
+                self._config = json.load(f)
+        except:
+            raise Exception(f'Problem loading configuration file: {config_fname}')
+        self._config_fname = config_fname
+    def all_keys(self):
+        return self._config.keys()
+    def get(self, key, default=None):
+        if type(key) == list:
+            if len(key) == 0:
+                raise Exception('Invalid key', key)
+            elif len(key) == 1:
+                return self.get(key=key[0], default=default)
+            else:
+                a = self.get(key=key[:-1], default=dict())
+                if type(a) != dict:
+                    return None
+                return a.get(key[-1], default)
+        return deepcopy(self._config.get(key, default))
+    def set(self, key, value):
+        if type(key) == list:
+            if len(key) == 0:
+                raise Exception('Invalid key', key)
+            elif len(key) == 1:
+                return self.set(key=key[0], value=value)
+            else:
+                config = self._config
+                for k in key[:-1]:
+                    if k not in config or type(config[k]) != dict:
+                        config[k] = dict()
+                    config = config[k]
+                config[key[-1]] = value
+                self._write_config()
+        else:
+            self._config[key] = value
+            self._write_config()
+    def unset(self, key):
+        if type(key) == list:
+            if len(key) == 0:
+                raise Exception('Invalid key', key)
+            elif len(key) == 1:
+                return self.unset(key=key[0])
+            else:
+                config = self._config
+                for k in key[:-1]:
+                    if k not in config:
+                        return
+                    config = config[k]
+                k_last = key[-1]
+                if k_last in config:
+                    del config[k_last]
+                    self._write_config()
+        else:
+            if key in self._config:
+                del self._config[key]
+                self._write_config()
+    def _write_config(self):
+        with open(self._config_fname, 'w') as f:
+            json.dump(self._config, f, indent=4)
+
+class KacheryServerConfig:
+    def __init__(self, config_fname):
+        assert os.path.isfile(config_fname), f'File {config_fname} not found.'
+        try:
+            with open(config_fname, 'r') as f:
+                self._config = json.load(f)
+        except:
+            raise Exception(f'Problem loading configuration file: {config_fname}')
+        self._config_fname = config_fname
+        if 'channels' not in self._config:
+            self._config['channels'] = []
+            self._write_config()
+    def get_channel_config(self, name):
+        for c in self._config['channels']:
+            if c['name'] == name:
+                return deepcopy(c)
+        return None
+    def add_readwrite_channel(self, *, name, password):
+        self._config['channels'].append(dict(
+            name=name,
+            password=password,
+            downloadQuotas=[
+                {
+                    "name": "small",
+                    "maxFileSize": 1e6,
+                    "maxSimultaneous": 2,
+                    "maxNumFilesPerDay": 10000,
+                    "maxNumBytesPerDay": 1e9
+                },
+                {
+                    "name": "medium",
+                    "maxSimultaneous": 2,
+                    "maxFileSize": 100e6,
+                    "maxNumFilesPerDay": 10000,
+                    "maxNumBytesPerDay": 1e9
+                },
+                {
+                    "name": "large",
+                    "maxFileSize": 100e9,
+                    "maxSimultaneous": 2,
+                    "maxNumFilesPerDay": 10000,
+                    "maxNumBytesPerDay": 100e9
                 }
-            }
-        }
-        with open('compute_resource.json', 'w') as f:
-            json.dump(x, f, indent=4)
-        print('Example configuration has been written to compute_resource.json. Edit that file and then run "hither-compute-resource start".')
-        return
-    elif command == 'start':
-        with open('compute_resource.json', 'r') as f:
-            config = json.load(f)
-        config = _replace_env(config)
-        database = config['database']
-        compute_resource_id = config['compute_resource_id']
-        kachery = config['kachery']
-        job_handler = config['job_handler']
-        if type(database) == str:
-            db = hi.Database.preset(database)
-        else:
-            db = hi.Database(**database)
-        jc = hi.JobCache(database=db)
+            ],
+            uploadQuotas=[
+                {
+                    "name": "small",
+                    "maxFileSize": 1e6,
+                    "maxSimultaneous": 10,
+                    "maxNumFilesPerDay": 100000,
+                    "maxNumBytesPerDay": 1000e9
+                },
+                {
+                    "name": "medium",
+                    "maxFileSize": 100e6,
+                    "maxSimultaneous": 10,
+                    "maxNumFilesPerDay": 100000,
+                    "maxNumBytesPerDay": 1000e9
+                },
+                {
+                    "name": "large",
+                    "maxFileSize": 100e9,
+                    "maxSimultaneous": 10,
+                    "maxNumFilesPerDay": 100000,
+                    "maxNumBytesPerDay": 1000e9
+                }
+            ]
+        ))
+        self._write_config()
+    def set_channel_password(self, *, name, password):
+        x = self._find_channel_config(name=name)
+        if x is None:
+            raise Exception(f'Unable to find kachery channel in configuration file: {name}')
+        x['password'] = password
+        self._write_config()
+    def _find_channel_config(self, name):
+        for c in self._config['channels']:
+            if c['name'] == name:
+                return c
+        return None
+    def _write_config(self):
+        with open(self._config_fname, 'w') as f:
+            json.dump(self._config, f, indent=4)
 
-        if job_handler['type'] == 'slurm':
-            slurm_working_dir = 'slurm-working-dir'
-            if not os.path.exists(slurm_working_dir):
-                os.mkdir(slurm_working_dir)
-            jh = hi.SlurmJobHandler(
-                working_dir=slurm_working_dir,
-                **job_handler['config']
-            )
-        elif job_handler['type'] == 'parallel':
-            jh = hi.ParallelJobHandler(
-                num_workers=job_handler['config']['num_workers']
-            )
-        else:
-            raise Exception(f'Unexpected job handler type: {job_handler["type"]}')
+class EventStreamServerConfig:
+    def __init__(self, config_fname):
+        assert os.path.isfile(config_fname), f'File {config_fname} not found.'
+        try:
+            with open(config_fname, 'r') as f:
+                self._config = json.load(f)
+        except:
+            raise Exception(f'Problem loading configuration file: {config_fname}')
+        self._config_fname = config_fname
+        if 'channels' not in self._config:
+            self._config['channels'] = []
+            self._write_config()
+    def get_channel_config(self, name):
+        for c in self._config['channels']:
+            if c['name'] == name:
+                return deepcopy(c)
+        return None
+    def add_readwrite_channel(self, *, name, password):
+        self._config['channels'].append(dict(
+            name=name,
+            password=password,
+            readonly=False
+        ))
+        self._write_config()
+    def set_channel_password(self, *, name, password):
+        x = self._find_channel_config(name=name)
+        if x is None:
+            raise Exception(f'Unable to find event stream channel in configuration file: {name}')
+        x['password'] = password
+        self._write_config()
+    def _find_channel_config(self, name):
+        for c in self._config['channels']:
+            if c['name'] == name:
+                return c
+        return None
+    def _write_config(self):
+        with open(self._config_fname, 'w') as f:
+            json.dump(self._config, f, indent=4)
 
-        cr = hi.ComputeResource(
-            database=db,
-            compute_resource_id=compute_resource_id,
-            kachery=kachery,
-            job_handler=jh,
-            job_cache=jc
-        )
-        print(f'Starting compute resource: {compute_resource_id}')
-        cr.run()
+@click.command(help='Start the configured compute resource.')
+def start():
+    try:
+        ka.set_config(use_hard_links=True)
+    except:
+        print('WARNING: You should update your version of kachery so that the "use_hard_links" configuration option is available.')
+
+    config_fname = os.getcwd() + '/compute_resource.json'
+    config = ComputeResourceConfig(config_fname)
+
+    eventstreamserver_url = config.get(['eventstreamserver', 'url'])
+    eventstreamserver_channel = config.get(['eventstreamserver', 'channel'])
+    eventstreamserver_password = config.get(['eventstreamserver', 'password'])
+    compute_resource_id = config.get('compute_resource_id')
+    kachery_url = config.get(['kachery', 'url'])
+    kachery_channel = config.get(['kachery', 'channel'])
+    kachery_password = config.get(['kachery', 'password'])
+
+    print('')
+    print(f"{bcolors.HEADER}EventStreamServer URL{bcolors.ENDC}: {eventstreamserver_url}")
+    print(f"{bcolors.HEADER}EventStreamServer channel{bcolors.ENDC}: {eventstreamserver_channel}")
+    print(f"{bcolors.HEADER}EventStreamServer password{bcolors.ENDC}: {eventstreamserver_password}")
+    print(f"{bcolors.HEADER}Compute resource ID{bcolors.ENDC}: {compute_resource_id}")
+    print('')
+
+    event_stream_client = hi.EventStreamClient(url=eventstreamserver_url, channel=eventstreamserver_channel, password=eventstreamserver_password)
+    jh = hi.ParallelJobHandler(num_workers=4)
+
+    job_cache_dir = os.getcwd() + '/job_cache'
+    if not os.path.exists(job_cache_dir):
+        os.mkdir(job_cache_dir)
+    jc = hi.JobCache(path=job_cache_dir)
+
+    kachery_config = dict(
+        url=kachery_url,
+        channel=kachery_channel,
+        password=kachery_password
+    )
+
+    cr = hi.ComputeResource(
+        event_stream_client=event_stream_client,
+        compute_resource_id=compute_resource_id,
+        kachery_config=kachery_config,
+        job_handler=jh,
+        job_cache=jc
+    )
+    print(f'{bcolors.HEADER}Starting compute resource{bcolors.ENDC}: {compute_resource_id}')
+    cr.run()
+
+@click.command(help='Start an event stream server.')
+def start_event_stream_server():
+    config_fname = os.getcwd() + '/compute_resource.json'
+    config = ComputeResourceConfig(config_fname)
+    host_event_stream_server = config.get('host_event_stream_server', False)
+    host_event_stream_server_port = config.get('host_event_stream_server_port', None)
+    if not host_event_stream_server:
+        raise Exception('Not configured to host event stream server. Use: hither-compute-resource config')
+    dirname = os.getcwd() + '/event-stream-server'
+    do_run_docker_container(
+        image='magland/eventstreamserver:0.1.1',
+        docker_run_opts=f"-p {host_event_stream_server_port}:8080 -v {dirname}:/event-stream-server"
+    )
+
+@click.command(help='Start a kachery server')
+def start_kachery_server():
+    config_fname = os.getcwd() + '/compute_resource.json'
+    config = ComputeResourceConfig(config_fname)
+    host_kachery_server = config.get('host_kachery_server', False)
+    host_kachery_server_port = config.get('host_kachery_server_port', None)
+    if not host_kachery_server:
+        raise Exception('Not configured to host a kachery server. Use: hither-compute-resource config')
+    dirname = os.getcwd() + '/kachery-server'
+    do_run_docker_container(
+        image='magland/kachery-server:0.1.1',
+        data=dirname,
+        docker_run_opts=f"-p {host_kachery_server_port}:8080"
+    )
+
+@click.command(help='Configure a new compute resource server or update an existing one.')
+def config():
+    config_fname = os.getcwd() + '/compute_resource.json'
+    if not os.path.isfile(config_fname):
+        if not inquirer.confirm(f'Create a new configuration file at {config_fname}?', default=True):
+            print(f'{bcolors.FAIL}Aborting configuration.{bcolors.ENDC}')
+            return
+        with open(config_fname, 'w') as f:
+            json.dump({}, f, indent=4)
+    print(f'{bcolors.HEADER}Loading configuration from{bcolors.ENDC}: {config_fname}')
+    config = ComputeResourceConfig(config_fname)
+
+    # Kachery server
+    print('')
+    print(f'{bcolors.HEADER}Kachery server{bcolors.ENDC}')
+    print(f'{bcolors.HEADER}=============={bcolors.ENDC}')
+    print(f'{bcolors.HEADER}You can either connect to an existing kachery server or host one on this computer along with your compute resource.{bcolors.ENDC}')
+    host_kachery_server = inquirer.confirm(f'Do you want to host your own kachery server on this computer?', default=config.get('host_kachery_server', True))
+    if host_kachery_server:
+        config.set('host_kachery_server', True)
+        host_kachery_server_port = int(inquirer.text('Host the kachery server on port', default=str(config.get('host_kachery_server_port', 15401))))
+        config.set('host_kachery_server_port', host_kachery_server_port)
+        config.set(['kachery', 'url'], f'http://localhost:{host_kachery_server_port}')
+        kachery_server_dir = os.getcwd() + '/kachery-server'
+        if not os.path.isdir(kachery_server_dir):
+            os.mkdir(kachery_server_dir)
+        kachery_server_config_file = kachery_server_dir + '/kachery.json'
+        if not os.path.isfile(kachery_server_config_file):
+            with open(kachery_server_config_file, 'w') as f:
+                json.dump(dict(), f, indent=4)
+            do_config_kachery_server = True
+        else:
+            do_config_kachery_server = inquirer.confirm('Do you want to configure the kachery server?')
+        if do_config_kachery_server:
+            print('')
+            print(f'{bcolors.HEADER}Kachery server config{bcolors.ENDC}')
+            print(f'{bcolors.HEADER}====================={bcolors.ENDC}')
+            print(f'{bcolors.HEADER}Loading kachery server configuration from{bcolors.ENDC}: {kachery_server_config_file}')
+            kachery_server_config = KacheryServerConfig(kachery_server_config_file)
+            if not kachery_server_config.get_channel_config('readwrite'):
+                if inquirer.confirm('Would you like to create a readwrite channel for your kachery server?', default=True):
+                    password = inquirer.password('Enter a password for the readwrite channel on your kachery server (e.g., readwrite)')
+                    kachery_server_config.add_readwrite_channel(name='readwrite', password=password)
+            else:
+                if inquirer.confirm('Would you like to reset the password for the readwrite channel on your kachery server?', default=False):
+                    password = inquirer.password('Enter a password for the readwrite channel on your kachery server (e.g., readwrite)')
+                    kachery_server_config.set_channel_password(name='readwrite', password=password)
+            print(f'{bcolors.HEADER}To further configure your kachery server, edit this file{bcolors.ENDC}: {kachery_server_config_file}')
+            
     else:
-        print(f'Unexpected command: {command}')
+        config.set('host_kachery_server', False)
+        config.unset('host_kachery_server_port')
 
-def _replace_env(x):
+    # EventStreamServer
+    print('')
+    print(f'{bcolors.HEADER}EventStreamServer{bcolors.ENDC}')
+    print(f'{bcolors.HEADER}================={bcolors.ENDC}')
+    print(f'{bcolors.HEADER}You can either connect to an existing event stream server or host one on this computer along with your compute resource.{bcolors.ENDC}')
+    host_event_stream_server = inquirer.confirm(f'Do you want to host your own event stream server on this computer?', default=config.get('host_event_stream_server', True))
+    if host_event_stream_server:
+        config.set('host_event_stream_server', True)
+        host_event_stream_server_port = int(inquirer.text('Host the event stream server on port', default=str(config.get('host_event_stream_server_port', 15402))))
+        config.set('host_event_stream_server_port', host_event_stream_server_port)
+        config.set(['eventstreamserver', 'url'], f'http://localhost:{host_event_stream_server_port}')
+        event_stream_server_dir = os.getcwd() + '/event-stream-server'
+        if not os.path.isdir(event_stream_server_dir):
+            os.mkdir(event_stream_server_dir)
+        event_stream_server_config_file = event_stream_server_dir + '/eventstreamserver.json'
+        if not os.path.isfile(event_stream_server_config_file):
+            with open(event_stream_server_config_file, 'w') as f:
+                json.dump(dict(), f, indent=4)
+            do_config_event_stream_server = True
+        else:
+            do_config_event_stream_server = inquirer.confirm('Do you want to configure the event stream server?')
+        if do_config_event_stream_server:
+            print('')
+            print(f'{bcolors.HEADER}Event stream server config{bcolors.ENDC}')
+            print(f'{bcolors.HEADER}======={bcolors.ENDC}')
+            print(f'{bcolors.HEADER}Loading event stream server configuration from{bcolors.ENDC}: {event_stream_server_config_file}')
+            event_stream_server_config = EventStreamServerConfig(event_stream_server_config_file)
+            if not event_stream_server_config.get_channel_config('readwrite'):
+                if inquirer.confirm('Would you like to create a readwrite channel for your event stream server?', default=True):
+                    password = inquirer.password('Enter a password for the readwrite channel on your event stream server (e.g., readwrite)')
+                    event_stream_server_config.add_readwrite_channel(name='readwrite', password=password)
+            else:
+                if inquirer.confirm('Would you like to reset the password for the readwrite channel on your event stream server?', default=False):
+                    password = inquirer.password('Enter a password for the readwrite channel on your event stream server (e.g., readwrite)')
+                    event_stream_server_config.set_channel_password(name='readwrite', password=password)
+            print(f'{bcolors.HEADER}To further configure your event stream server, edit this file{bcolors.ENDC}: {event_stream_server_config_file}')
+            
+    else:
+        config.set('host_event_stream_server', False)
+        config.unset('host_event_stream_server_port')
+
+    # Hither compute resource server
+    print('')
+    print(f'{bcolors.HEADER}Hither compute resource server{bcolors.ENDC}')
+    print(f'{bcolors.HEADER}=============================={bcolors.ENDC}')
+    compute_resource_id = inquirer.text('Choose a compute resource ID', default=config.get('compute_resource_id', socket.gethostname()))
+    config.set('compute_resource_id', compute_resource_id)
+
+    kachery_url = inquirer.text('Kachery server URL', default=config.get(['kachery', 'url'], 'http://localhost:15401'))
+    config.set(['kachery', 'url'], kachery_url)
+    kachery_channel = inquirer.text('Kachery server channel', default=config.get(['kachery', 'channel'], 'readwrite'))
+    config.set(['kachery', 'channel'], kachery_channel)
+    kachery_password = inquirer.password(f'Kachery server password for channel {kachery_channel}', default=config.get(['kachery', 'password'], ''))
+    config.set(['kachery', 'password'], kachery_password)
+
+    event_stream_server_url = inquirer.text('Event stream server URL', default=config.get(['eventstreamserver', 'url'], 'http://localhost:15401'))
+    config.set(['eventstreamserver', 'url'], event_stream_server_url)
+    event_stream_server_channel = inquirer.text('Event stream server channel', default=config.get(['eventstreamserver', 'channel'], 'readwrite'))
+    config.set(['eventstreamserver', 'channel'], event_stream_server_channel)
+    event_stream_server_password = inquirer.password(f'Event stream server password for channel {event_stream_server_channel}', default=config.get(['eventstreamserver', 'password'], ''))
+    config.set(['eventstreamserver', 'password'], event_stream_server_password)
+
+    # todo: allow slurm type
+    job_handler_type = inquirer.list_input('Job handler type', choices=['parallel'], default=config.get(['job_handler', 'type'], 'parallel'))
+    if job_handler_type != config.get(['job_handler', 'type'], 'parallel'):
+        config.unset(['job_handler', 'config'])
+    config.set(['job_handler', 'type'], job_handler_type)
+    if job_handler_type == 'parallel':
+        num_workers = int(inquirer.text('num_workers', default=config.get(['job_handler', 'config', 'num_workers'], 4)))
+        config.set(['job_handler', 'config', 'num_workers'], num_workers)
+    else:
+        raise Exception(f'Job handler type not yet supported by this config utility: {job_handler_type}')
+
+    print('')
+    print(f'{bcolors.HEADER}To further configure your compute resource server, rerun this utility, or directly edit this file{bcolors.ENDC}: {config_fname}')
+    print('')
+    print('')
+
+    _print_info()
+
+def _hide_password(x):
     if type(x) == dict:
-        if 'env' in x:
-            return os.environ[x['env']]
         ret = dict()
         for k, v in x.items():
-            ret[k] = _replace_env(v)
+            if k == 'password' and isinstance(v, str):
+                ret[k] = '****'
+            else:
+                ret[k] = v
         return ret
-    elif type(x) == list:
-        return [_replace_env(a) for a in x]
-    elif type(x) == tuple:
-        return tuple([_replace_env(a) for a in x])
     else:
         return x
 
+def _print_info():
+    config_fname = os.getcwd() + '/compute_resource.json'
+    print(f'{bcolors.HEADER}Loading configuration from {config_fname}{bcolors.ENDC}')
+    if not os.path.exists(config_fname):
+        print(f'{bcolors.FAIL}Problem loading configuration file. Use config command to create one in this directory.{bcolors.ENDC}')
+        return
+    config = ComputeResourceConfig(config_fname)
+
+    print('')
+
+    keys = config.all_keys()
+    for key in keys:
+        print(f'{key}: {_hide_password(config.get(key))}')
+
+    print('')
+    
+    host_kachery_server = config.get('host_kachery_server')
+    host_event_stream_server = config.get('host_event_stream_server')
+
+    if host_kachery_server or host_event_stream_server:
+        print(f'{bcolors.HEADER}You can start the compute resource server by running the following in separate terminals from this working directory:{bcolors.ENDC}')
+    else:
+        print(f'{bcolors.HEADER}You can start the compute resource server by running the following command:{bcolors.ENDC}')
+    if host_kachery_server:
+        print('hither-compute-resource start-kachery-server')
+    if host_event_stream_server:
+        print('hither-compute-resource start-event-stream-server')
+    print('hither-compute-resource start')
+
+@click.command(help="Display information about the current configuration and exit.")
+def info():
+    _print_info()
+
+@click.command()
+@click.option('--docker_run_opts', help='Additional options to send to docker run')
+@click.option('--tmp', help='Optional host directory to mount as /tmp in the container', default=None)
+@click.option('--data', help='Optional host directory to mount as /data in the container', default=None)
+@click.option('--kachery', help='Optional kachery storage directory to use inside the container', default=None)
+@click.option('--command', help='Optional command to run inside the container', default=None)
+@click.argument('image')
+def run_docker_container(image, docker_run_opts, tmp, data, kachery, command):
+    do_run_docker_container(image=image, docker_run_opts=docker_run_opts, tmp=tmp, data=data, kachery=kachery, command=command)
+
+def do_run_docker_container(image, docker_run_opts=None, tmp=None, data=None, kachery=None, command=None):
+    inject_user_dir = hi._docker_inject_user_dir()
+
+    new_image = _append_docker_image_name(image, '-nonroot')
+
+    volume_mounts = []
+    environment_variables = []
+    if kachery is not None:
+        volume_mounts.append(dict(
+            host_dir=kachery,
+            container_dir=kachery
+        ))
+        environment_variables.append(dict(
+            name='KACHERY_STORAGE_DIR',
+            value=kachery
+        ))
+    if tmp is not None:
+        assert os.path.exists(tmp), f'No such directory: {tmp}'
+        volume_mounts.append(dict(
+            host_dir=tmp,
+            container_dir='/tmp'
+        ))
+    if data is not None:
+        assert os.path.exists(data), f'No such directory: {data}'
+        volume_mounts.append(dict(
+            host_dir=data,
+            container_dir='/data'
+        ))
+    volume_opts = ' '.join([
+        f'-v {x["host_dir"]}:{x["container_dir"]}'
+        for x in volume_mounts
+    ])
+    env_opts = ' '.join([
+        f'-e {x["name"]}="{x["value"]}"'
+        for x in environment_variables
+    ])
+
+    if command is not None:
+        commandstr = command
+    else:
+        commandstr = ''
+
+    ss = hi.ShellScript(f"""
+        #!/bin/bash
+
+        set -ex
+
+        USER_ID="$(id -u)"
+        GROUP_ID="$(id -g)"
+        USER_INSIDE_CONTAINER="labbox"
+        BASE_IMAGE="{image}" # docker image name
+        NEW_IMAGE="{new_image}"
+        INJECT_USER_DIR="{inject_user_dir}"
+        docker build \\
+            -f $INJECT_USER_DIR/injectUser.Dockerfile \\
+            -t $NEW_IMAGE \\
+            --build-arg BASE_IMAGE=$BASE_IMAGE \\
+            --build-arg NEW_USER=$USER_INSIDE_CONTAINER \\
+            --build-arg NEW_UID=$USER_ID \\
+            --build-arg NEW_GID=$GROUP_ID \\
+            $INJECT_USER_DIR
+        
+        docker run \\
+            {docker_run_opts} \\
+            {volume_opts} \\
+            {env_opts} \\
+            -it $NEW_IMAGE {commandstr}
+    """, verbose=True)
+
+    ss.start()
+    ss.wait()
+
+def _append_docker_image_name(x, y):
+    a = x.split(':')
+    if len(a) == 1:
+        return x + y
+    elif len(a) == 2:
+        return a[0] + y + ':' + a[1]
+    else:
+        raise Exception(f'Invalid docker image name: {x}')
+
+# Thanks: https://stackoverflow.com/questions/287871/how-to-print-colored-text-in-terminal-in-python
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
+
+cli.add_command(config)
+cli.add_command(info)
+cli.add_command(start)
+cli.add_command(start_kachery_server)
+cli.add_command(start_event_stream_server)
+cli.add_command(run_docker_container)
+cli.add_command(version)
+
 if __name__ == "__main__":
-    main()
+    cli()

@@ -1,18 +1,17 @@
 import time
-
+import os
+import numpy as np
 from typing import Union, List, Any, Callable
 import random
-from ._enums import HitherFileType
 from .file import File
 
 def _serialize_item(x:Any, require_jsonable:bool=True) -> Any:
     if isinstance(x, File):
         return x.serialize()
-    # TODO: move these cases where they belong
-    # elif isinstance(x, np.integer):
-    #     return int(x)
-    # elif isinstance(x, np.floating):
-    #     return float(x)
+    elif isinstance(x, np.integer):
+        return int(x)
+    elif isinstance(x, np.floating):
+        return float(x)
     # TODO: This will be required when file enums are working
     # elif isinstance(x, HitherFileType):
     #     return x.value
@@ -48,7 +47,11 @@ def _is_jsonable(x:Any) -> bool:
         return False
 
 def _deserialize_item(x:Any) -> Any:
-    if type(x) == dict:
+    if isinstance(x, np.integer):
+        return int(x)
+    elif isinstance(x, np.floating):
+        return float(x)
+    elif type(x) == dict:
         if '_type' in x and x['_type'] == 'tuple':
             return _deserialize_item(tuple(x['data']))
         if File.can_deserialize(x):
@@ -189,4 +192,6 @@ def _copy_structure_with_changes(structure: Any, replacement_function: Callable[
     elif entrytype == tuple:
         return tuple([_copy_structure_with_changes(v, replacement_function, _type=_type) for v in structure])
 
-
+def _docker_inject_user_dir():
+    thisdir = os.path.dirname(os.path.realpath(__file__))
+    return f'{thisdir}/docker_inject_user'

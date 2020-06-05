@@ -1,3 +1,5 @@
+__version__ = "0.2.0-alpha.1"
+
 from .core import function, container, additional_files, local_modules, opts
 from .core import Config
 from .core import wait
@@ -9,7 +11,7 @@ from ._exceptions import JobCancelledException
 from ._filelock import FileLock
 from ._consolecapture import ConsoleCapture
 from .core import _deserialize_job
-from ._util import _serialize_item, _deserialize_item, _copy_structure_with_changes
+from ._util import _serialize_item, _deserialize_item, _copy_structure_with_changes, _docker_inject_user_dir
 from .defaultjobhandler import DefaultJobHandler
 from .paralleljobhandler import ParallelJobHandler
 from .slurmjobhandler import SlurmJobHandler
@@ -20,6 +22,7 @@ from .jobcache import JobCache
 from ._enums import JobStatus, HitherFileType
 from .file import File
 from .eventstreamclient import EventStreamClient
+from ._exceptions import JobCancelledException, DeserializationException, DuplicateFunctionException
 
 # Run a function by name
 from .core import run
