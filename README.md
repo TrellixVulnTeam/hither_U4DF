@@ -19,8 +19,7 @@ TODO: Need to describe other tools, how hither differs, and why it is needed.
 
 * Linux (preferred) or macOS
 * Python >= 3.6
-* Docker (optional)
-* Singularity (optional)
+* [Docker](https://docs.docker.com/engine/) and/or [Singularity](https://sylabs.io/singularity/) (optional)
 
 **Note:** It is recommended that you use either a [conda environment](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html) or a [virtualenv](https://virtualenv.pypa.io/en/latest/) when using the `pip` and `python` commands. This will prevent ambiguities and conflicts between different Python installations.
 
@@ -33,7 +32,7 @@ pip install --upgrade hither
 
 ### Containerization
 
-Decorate your Python function to specify a docker image from DockerHub.
+Decorate your Python function to specify a Docker image from Docker Hub.
 
 ```python
 # integrate_bessel.py
@@ -72,6 +71,8 @@ with hi.Config(container=True):
 
 print(val1, val2, val3)
 ```
+
+It is also possible to select between using Docker or Singularity for running the containerization.
 
 [See containerization documentation for more details.](./doc/containerization.md)
 
@@ -164,6 +165,12 @@ One of the most powerful capabilities of hither is to use a remote computer (or 
 ## Reference
 
 For a complete list of hither capabilities, see the [reference documentation](./doc/reference.md)
+
+## For developers
+
+[Opening the hither source code in a development environment](./doc/devel.md)
+
+[Running diagnostic tests](./doc/tests.md)
 
 ## Authors
 

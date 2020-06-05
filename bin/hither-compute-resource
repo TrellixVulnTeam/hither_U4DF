@@ -38,10 +38,10 @@ class ComputeResourceConfig:
             elif len(key) == 1:
                 return self.get(key=key[0], default=default)
             else:
-                a = self.get(key=key[:len(key) - 1], default=dict())
+                a = self.get(key=key[:-1], default=dict())
                 if type(a) != dict:
                     return None
-                return a.get(key[len(key) - 1], default)
+                return a.get(key[-1], default)
         return deepcopy(self._config.get(key, default))
     def set(self, key, value):
         if type(key) == list:
@@ -51,11 +51,11 @@ class ComputeResourceConfig:
                 return self.set(key=key[0], value=value)
             else:
                 config = self._config
-                for k in key[:len(key)- 1]:
+                for k in key[:-1]:
                     if k not in config or type(config[k]) != dict:
                         config[k] = dict()
                     config = config[k]
-                config[key[len(key) - 1]] = value
+                config[key[-1]] = value
                 self._write_config()
         else:
             self._config[key] = value
@@ -68,11 +68,11 @@ class ComputeResourceConfig:
                 return self.unset(key=key[0])
             else:
                 config = self._config
-                for k in key[:len(key)- 1]:
+                for k in key[:-1]:
                     if k not in config:
                         return
                     config = config[k]
-                k_last = key[len(key) - 1]
+                k_last = key[-1]
                 if k_last in config:
                     del config[k_last]
                     self._write_config()

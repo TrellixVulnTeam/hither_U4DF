@@ -24,6 +24,7 @@ setuptools.setup(
     author="Jeremy Magland",
     author_email="jmagland@flatironinstitute.org",
     description="Run batches of Python functions in containers and on remote servers",
+    url="https://github.com/flatironinstitute/hither",
     packages=setuptools.find_packages(),
     include_package_data=True,
     scripts=[
@@ -33,7 +34,7 @@ setuptools.setup(
         "pymongo",
         "click",
         "inquirer",
-        "kachery>=0.5.1"
+        "kachery>=0.5.2"
         # non-explicit dependencies: numpy
     ],
     classifiers=[

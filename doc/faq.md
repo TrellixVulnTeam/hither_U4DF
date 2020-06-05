@@ -223,7 +223,11 @@ tool that is specifically designed for high-performance computing clusters. Its 
  specific support for high-performance networking and communication standards
  (e.g. Infiniband) and libraries (e.g. OpenMPI) common in HPC environments.
 
-### Are docker and singularity required in order to use hither?
+### How can I tell hither to use Singularity instead of Docker?
+
+[See this section in the containerization docs](./containerization.md#using-hither)
+
+### Are Docker and Singularity required in order to use hither?
 
 While most interesting use cases for hither will depend on containers, they are not required
 to run functions; a hither function declared with no container will be run on the host system
@@ -572,8 +576,8 @@ def main():
 
 By setting the `compute_resource_id` parameter in the call to `hi.Config`, this code
 specifies that the `RemoteJobHandler` should talk to a remote compute resource
-named `resource1`. This communication is mediated by a job dispatch bus,
-presently implemented in MongoDB. The `RemoteJobHandler` serializes any Job to
+named `resource1`. This communication is mediated by a job dispatch bus (the
+EventStreamServer). The `RemoteJobHandler` serializes any Job to
 be run (the hither function, its arguments, etc) and passes this to the job resource
 bus, along with the ID of the remote compute resource which is intended to handle
 that Job. The remote compute resource manager running on the remote server
@@ -582,45 +586,24 @@ listens for its name and initiates execution of any Job assigned to it.
 While it would be possible for a hither instance to run jobs against multiple
 remote compute resources simultaneously, we do not presently support
 load-balancing among multiple remote compute resources from within a single
-configuration context.
+configuration context. If you configure multiple remote compute resources,
+you will need to manually assign jobs to each by manipulating the
+configuration context through the remote job handler you choose to
+pass to `hi.Config`.
 
 __IT WOULD BE NONTRIVIAL BUT MAYBE WE SHOULD LOOK INTO THIS__
 
 ### How can I host my own hither compute resource server?
 
-__TODO: This may be changing as we migrate away from the
-strong MongoDB depdencny__
+The recommended way to set up a remote compute resource is to use the
+`hither-compute-resource` tool distributed in the `bin` directory along with
+the hither package. [See here for full instructions.](./hosting_compute_resource.md)
+This tool will walk you through setting up a configuration file for the
+remote compute resource, and provides instructions for how to start the
+process that will handle incoming Jobs.
 
-You will need to run something like the following on the remote resource:
-```python
-#!/usr/bin/env python
-
-import os
-import hither as hi
-
-def main():
-    mongo_url = os.getenv('MONGO_URL', 'mongodb://localhost:27017')
-    db = hi.Database(mongo_url=mongo_url, database='hither')
-    jh = hi.ParallelJobHandler(num_workers=8)
-    jc = hi.JobCache(database=db)
-    CR = hi.ComputeResource(database=db, compute_resource_id='resource1', job_handler=jh, kachery='default_readwrite', job_cache=jc)
-    CR.clear()
-    CR.run()
-
-if __name__ == '__main__':
-    main()
-```
-
-This code creates an instance of `ComputeResource` (the hither class that
-manages activity on a remote resource) and initiates its main loop, so
-that it is waiting for jobs.
-
-Communication between your local hither functions (dispatched by the
-`RemoteJobHandler`) and the `ComputeResource` is handled by a communication
-bus, currently implemented in MongoDB. The `ComputeResource` polls the
-job dispatch database at regular intervals to retrieve any Jobs which have
-been assigned to it, and then launches these on its own local hither job handler
-(in the above example, it is using a `ParallelJobHandler` set to 8 worker threads).
+For further information about how this operates behind the scenes,
+see [the remote compute resource documentation](./remote-compute-resource.md).
 
 ### Which job handlers can be used by a compute resource server?
 
@@ -655,6 +638,21 @@ A WHILE. IS THIS CORRECT?__
 
 Large numpy arrays are serialized to the filesystem and stored in
 kachery when they would otherwise need to be shipped over the network. 
+
+When hither runs a Job on a remote compute resource, it first
+[converts the job to a format that can be transmitted over a network
+connection](./containerization.md#job-serialization). As part of this process,
+numpy arrays are written to file and stored in kachery.
+
+Similarly, whenever a Job object is created, any numpy-array-typed inputs
+are stored in kachery. And, any numpy-type object in the results of a
+hither function will be stored in kachery by default if the function is
+run outside of a container.
+
+__QUESTION: I think the above is actually just a long-winded way of saying
+"this always happens," because the cases I've enumerated are 1) results,
+when run locally; 2) results, when run in container; and 3) parameters, always.
+Is this correct? Does anything else need to be said about this?__
 
 ### What is a hither `File` object?
 
