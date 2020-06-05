@@ -1,10 +1,17 @@
 # Hosting a hither compute resource server
 
-Explain why you would want to host a compute resource server.
+Researchers often have acecss to several machines of varying computational
+capabilities. It is not uncommon for a researcher to have primary access to
+a personal laptop with modest hardware, while also having rights to
+log in to a shared resource with greater power.
 
-Describe the architecture with a diagram... kachery-server, event-stream-server, compute-resource-server, remote job handler.
+In these circumstances, a remote compute resource is ideal. [This documentation
+provides more information on the architecture and rationale for remote
+compute resources.](./remote-compute-resource.md)
 
-Explain that these services can all be running in different locations. Or, for simplicity, they can all be running on the same machine.
+Note that the instructions below are for a standalone remote compute resource;
+for a compute cluster with job management through a tool such as Slurm,
+see [TODO SLURM DOCUMENTATION]().
 
 ## Prerequisites
 
@@ -13,7 +20,10 @@ Explain that these services can all be running in different locations. Or, for s
 
 ## Configuration
 
-The first step is to configure your compute resource. Create a new directory on the computer where the compute resource server will run. For convenience, we'll assume that the environment variable HITHER_COMPUTE_RESOURCE_SERVER_DIR has been set.
+The first step is to configure your compute resource. Create a new directory on the computer where the compute resource server will run. For convenience, we'll assume that the environment variable HITHER_COMPUTE_RESOURCE_SERVER_DIR has been set to this directory on the resource. (Note that
+all commands below should be executed on the intended remote compute resource. Furthermore,
+for persistent setups or more-than-incidental use, it is recommended that the compute resource
+server be run by a service account with separate credentials from any individual user.)
 
 ```bash
 # make new directory if needed
