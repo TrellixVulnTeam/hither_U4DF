@@ -41,6 +41,6 @@ RUN apt-get install -y nano
 
 RUN pip install pylint ipython pytest pytest-cov
 
-RUN pip install hither==0.2.0-alpha.1
+RUN pip install hither==0.2.0-alpha.2
 
 COPY ./inside_container /working

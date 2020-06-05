@@ -1,4 +1,5 @@
 recursive-include hither/tests *py *json *txt *csv
+recursive-include hither/docker_inject_user *Dockerfile
 
 prune __pycache__
 global-exclude *.py[cod]
