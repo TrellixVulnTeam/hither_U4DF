@@ -62,5 +62,6 @@ To release a new version, use the following flow (subject to change):
 * Push to github (including tags): `git push && git push --tags`
 * Switch back to master branch: `git checkout master`
 * Merge the changes from release `git merge release`
+* Push master `git push`
 
 These steps should trigger travis to deploy to PyPI after unit tests have all passed
