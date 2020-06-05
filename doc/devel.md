@@ -56,7 +56,8 @@ Use the following pattern for versioning
 To release a new version, use the following flow (subject to change):
 * Make sure master branch is what you want to release
 * Change to release branch `git checkout release`
-* Increment the version string in `hither/__init__.py` and commit the change
+* Merge the changes from master `git merge master`
+* Increment the version string in `hither/__init__.py` and `devel/test_deployed/Dockerfile` and commit the changes
 * Tag the commit with the version string: e.g., `git tag 0.2.0`
 * Push to github (including tags): `git push && git push --tags`
 * Switch back to master branch: `git checkout master`
