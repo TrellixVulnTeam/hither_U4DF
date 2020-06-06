@@ -1,4 +1,5 @@
 #!/bin/bash
+set -ex
 
 docker build -t hither_test_deployed .
 
