@@ -7,11 +7,10 @@
 
 # hither
 
-Hither is a flexible, platform-agnostic job manager that allows researchers to easily deploy code across local, remote, and cluster environments with minimal changes. It ensures that different scientific tools can be run through a consistent pipeline, even when they have different configurations or conflicting dependencies. This works through universal containerization. Because jobs are run through a universal interface, code becomes much more portable between labs; the same pipelines can be run locally, or even on a cluster environment. In this way, development on small datasets can take place on your laptop, with the confidence that the code will work on large datasets in the cluster with minimal modifications.
+hither is a flexible, platform-agnostic job manager that allows researchers to easily deploy code across local, remote, and cluster environments with minimal changes. It ensures that different scientific tools can be run through a consistent pipeline, even when they have different configurations or conflicting dependencies. This works through universal containerization. Because jobs are run through a universal interface, code becomes much more portable between labs; the same pipelines can be run locally, or even on a cluster environment. In this way, development on small datasets can take place on your laptop, with the confidence that the code will work on large datasets in the cluster with minimal modifications.
 
-TODO: Need to describe other tools, how hither differs, and why it is needed.
-
-[Frequently asked questions](doc/faq.md)
+Here's [an overview of the goals and purposes of the hither project, including a comparison with
+other tools](doc/overview.md), and [frequently asked questions about hither](doc/faq.md).
 
 ## Installation
 
