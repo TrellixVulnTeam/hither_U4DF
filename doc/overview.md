@@ -2,21 +2,11 @@
 
 ## What is hither?
 
-hither is a tool to make it easier for you to focus on doing research consistently,
-reproducibly, and objectively: in a word, *scientifically*.
+hither is a flexible, platform-agnostic job manager that allows researchers to easily deploy code across local, remote, and cluster environments with minimal changes. It ensures that different scientific tools can be run through a consistent pipeline, even when they have different configurations or conflicting dependencies. This works through universal containerization. Because jobs are run through a universal interface, code becomes much more portable between labs; the same pipelines can be run locally, or even on a cluster environment. In this way, development on small datasets can take place on your laptop, with the confidence that the code will work on large datasets in the cluster with minimal modifications.
 
-It offers:
+## Why use hither?
 
- - An easy declarative interface to [containerized](./containerization.md)
- execution of your computing tasks
- - A unified approach to job execution across many environments at dev scale
- or production scale
- - Built-in support for [task-level data parallelism](./parallel-computing.md),
- across multiple algorithms and pipelines
-
-## Why?
-
-The goal of any containerized system is *consistency:* ensuring that code will
+- **Consistency**. The goal of any containerized system is *consistency:* ensuring that code will
 run with a stable environment, and thus give reliable results. By leveraging
 containerization, hither brings this consistency to scientific code. Moreover,
 by giving scientific code a well-defined, portable environment in which to
@@ -50,9 +40,6 @@ resources to run data processing pipelines in parallel.
 ## How does hither compare with other tools?
 
 ### For containerization
-
-__I'm not aware of any tools that actually try to solve this problem?
-Most people would just put the thing you want to do in the dockerfile?__
 
 The conventional approach to running a process in a container is to describe the
 container through a container definition file, which may include the actual
@@ -138,12 +125,7 @@ in graphics processing units.
 
  - **[Apache Airflow](https://airflow.apache.org/)**, much like Celery, is
  more about task management. Building data science pipelines in Airflow is a
- common use case. What sets hither apart (in addition to its much lower barrier
- to entry) is, again, that hither wraps independent function elements. An
- Airflow workflow is likely to involve complex graphs of interrelated components,
- while a core hither use case is to bring together contributions from many
- different sources that do not need to interact with each other.
- __I THINK THE ABOVE PARAGRAPH IS PRETTY WEAK...__
+ common use case. But this tool is quite complex and is certainly overkill when one wants to simply run many non-interacting jobs simultaneously. Hither has a much lower barrier to entry and has a simpler interface with minimal overhead.
 
 ### For reproducibility
 
@@ -155,11 +137,6 @@ best case, [Jupyter notebooks](https://jupyter.org/)
 are available, but they present their own challenges to version control,
 collaboration, and code-sharing as well. hither makes it easy to define an
 exectuion environment (in the container definition) and a set of steps to produce
-a result; and with kachery, the hither ecosystem can even make it easy to
+a result; and with [kachery](https://github.com/flatironinstitute/kachery), the hither ecosystem can even make it easy to
 distribute data files to interested parties, leading to truly reproducible
 research.
-
-
-__I don't know if there is another tool I should be mentioning here???__
-
-
