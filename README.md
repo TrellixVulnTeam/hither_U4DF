@@ -20,7 +20,7 @@ execution of your computing tasks defined as Python functions
 across multiple algorithms and pipelines
 * Automatic [result caching](./doc/job-cache.md), so that lengthy computations only need to run once
 * The ability to run scripts locally (*hither*) and have jobs execute on a [remote compute resource](./doc/remote-compute-resource.md) (*thither*).
-* A unified and untuitive approach to [job pipelining](./doc/pipelines.md) and batch processing
+* A unified and intuitive approach to [job pipelining](./doc/pipelines.md) and batch processing
 
 Learn more:
 
