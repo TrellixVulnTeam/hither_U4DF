@@ -122,7 +122,7 @@ class DiskJobCache:
         return f'{dirpath}/{job_hash}.json'
 
 class DatabaseJobCache:
-    def __init__(self, db):
+    def __init__(self, db: Database):
         self._database = db
 
     def _cache_job_result(self, job_hash:str, job:Job):
