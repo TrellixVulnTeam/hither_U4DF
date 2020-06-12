@@ -21,6 +21,26 @@ def version():
     click.echo(f"This is hither version {__version__}.")
     exit()
 
+ESS_HOST_BOOL_KEY = 'host_event_stream_server'
+ESS_HOST_PORT_KEY = 'host_event_stream_server_port'
+KACHERY_HOST_BOOL_KEY = 'host_kachery_server'
+KACHERY_HOST_PORT_KEY = 'host_kachery_server_port'
+KACHERY_HIVE_KEY = 'kachery'
+KACHERY_URL_KEY = 'url'
+KACHERY_CHANNEL_KEY = 'channel'
+KACHERY_PASSWORD_KEY = 'password'
+EVENTSTREAMSERVER_HIVE_KEY = 'eventstreamserver'
+ESS_URL_KEY = 'url'
+ESS_CHANNEL_KEY = 'channel'
+ESS_PASSWORD_KEY = 'password'
+COMPUTE_RESOURCE_ID_KEY = 'compute_resource_id'
+JOB_HANDLER_HIVE_KEY = 'job_handler'
+JOB_HANDLER_TYPE_KEY = 'type'
+JOB_HANDLER_CONFIG_KEY = 'config'
+JOB_HANDLER_WORKERCOUNT_KEY = 'num_workers'
+JOB_CACHE_HIVE_KEY = 'job_cache_database'
+JOB_CACHE_URL_KEY = 'cache_url'
+JOB_CACHE_SCHEMA_NAME_KEY = 'cache_schema'
 
 class ComputeResourceConfig:
     def __init__(self, config_fname):
@@ -232,15 +252,15 @@ def start(all):
     config_fname = os.getcwd() + '/compute_resource.json'
     config = ComputeResourceConfig(config_fname)
 
-    eventstreamserver_url = config.get(['eventstreamserver', 'url'])
-    eventstreamserver_channel = config.get(['eventstreamserver', 'channel'])
-    eventstreamserver_password = config.get(['eventstreamserver', 'password'])
-    compute_resource_id = config.get('compute_resource_id')
-    kachery_url = config.get(['kachery', 'url'])
-    kachery_channel = config.get(['kachery', 'channel'])
-    kachery_password = config.get(['kachery', 'password'])
-    cache_db_url = config.get(['database', 'mongo_url'])
-    cache_db_name = config.get(['database', 'database'])
+    eventstreamserver_url:str = str(config.get([EVENTSTREAMSERVER_HIVE_KEY, ESS_URL_KEY]))
+    eventstreamserver_channel:str = str(config.get([EVENTSTREAMSERVER_HIVE_KEY, ESS_CHANNEL_KEY]))
+    eventstreamserver_password:str = str(config.get([EVENTSTREAMSERVER_HIVE_KEY, ESS_PASSWORD_KEY]))
+    compute_resource_id = config.get(COMPUTE_RESOURCE_ID_KEY)
+    kachery_url = config.get([KACHERY_HIVE_KEY, KACHERY_URL_KEY])
+    kachery_channel = config.get([KACHERY_HIVE_KEY, KACHERY_CHANNEL_KEY])
+    kachery_password = config.get([KACHERY_HIVE_KEY, KACHERY_PASSWORD_KEY])
+    cache_db_url = config.get([JOB_CACHE_HIVE_KEY, JOB_CACHE_URL_KEY])
+    cache_db_name = config.get([JOB_CACHE_HIVE_KEY, JOB_CACHE_SCHEMA_NAME_KEY])
 
     print('')
     print(f"{bcolors.HEADER}EventStreamServer URL{bcolors.ENDC}: {eventstreamserver_url}")
@@ -252,8 +272,8 @@ def start(all):
     ess_script = None
     ka_script = None
     if all:
-        host_event_stream_server = config.get('host_event_stream_server', False)
-        host_kachery_server = config.get('host_kachery_server', False)
+        host_event_stream_server = config.get(ESS_HOST_BOOL_KEY, False)
+        host_kachery_server = config.get(KACHERY_HOST_BOOL_KEY, False)
         if host_event_stream_server:
             print(f"{bcolors.HEADER}Starting event stream server{bcolors.ENDC}")
             ess_script = hi.ShellScript("""
@@ -292,12 +312,24 @@ def start(all):
         #     'runtime_info': None,
         # })
         # jc.cache_job_result(mockjob)
+        # exit()
     else:
         job_cache_dir = os.getcwd() + '/job_cache'
         if not os.path.exists(job_cache_dir):
             os.mkdir(job_cache_dir)
         jc = hi.JobCache(path=job_cache_dir)
         # print("Using file cache.")
+        # mockjob = type('Job', (object,), {})
+        # setattr(mockjob, '_status', 'free')
+        # setattr(mockjob, '_compute_hash', lambda: 'myfakejobhash')
+        # setattr(mockjob, '_as_cached_result', lambda: {
+        #     'hash': 'myfakejobhash',
+        #     'status': 'fine',
+        #     'result': 5555,
+        #     'runtime_info': None,
+        # })
+        # jc.cache_job_result(mockjob)
+        # exit()
     assert jc is not None, "Somehow failed to initialize the Job Cache."
 
     kachery_config = dict(
@@ -369,8 +401,8 @@ def _wait_for_event_stream_server_to_start(url):
 def start_event_stream_server():
     config_fname = os.getcwd() + '/compute_resource.json'
     config = ComputeResourceConfig(config_fname)
-    host_event_stream_server = config.get('host_event_stream_server', False)
-    host_event_stream_server_port = config.get('host_event_stream_server_port', None)
+    host_event_stream_server = config.get(ESS_HOST_BOOL_KEY, False)
+    host_event_stream_server_port = config.get(ESS_HOST_PORT_KEY, None)
     if not host_event_stream_server:
         raise Exception('Not configured to host event stream server. Use: hither-compute-resource config')
     dirname = os.getcwd() + '/event-stream-server'
@@ -383,8 +415,8 @@ def start_event_stream_server():
 def start_kachery_server():
     config_fname = os.getcwd() + '/compute_resource.json'
     config = ComputeResourceConfig(config_fname)
-    host_kachery_server = config.get('host_kachery_server', False)
-    host_kachery_server_port = config.get('host_kachery_server_port', None)
+    host_kachery_server = config.get(KACHERY_HOST_BOOL_KEY, False)
+    host_kachery_server_port = config.get(KACHERY_HOST_BOOL_KEY, None)
     if not host_kachery_server:
         raise Exception('Not configured to host a kachery server. Use: hither-compute-resource config')
     dirname = os.getcwd() + '/kachery-server'
@@ -424,14 +456,14 @@ def _configure_kachery_server(config):
     print(f'{bcolors.HEADER}=============={bcolors.ENDC}')
     print(f'{bcolors.HEADER}You can either connect to an existing kachery server or host one on this computer along with your compute resource.{bcolors.ENDC}')
     host_kachery_server = inquirer.confirm(f'Do you want to host your own kachery server on this computer?', default=config.get('host_kachery_server', True))
-    config.set('host_kachery_server', host_kachery_server)
+    config.set(KACHERY_HOST_BOOL_KEY, host_kachery_server)
     if not host_kachery_server:
-        config.unset('host_kachery_server_port')
+        config.unset(KACHERY_HOST_PORT_KEY)
         return
 
-    host_kachery_server_port = int(inquirer.text('Host the kachery server on port', default=str(config.get('host_kachery_server_port', 15401))))
-    config.set('host_kachery_server_port', host_kachery_server_port)
-    config.set(['kachery', 'url'], f'http://localhost:{host_kachery_server_port}')
+    host_kachery_server_port = int(inquirer.text('Host the kachery server on port', default=str(config.get(KACHERY_HOST_PORT_KEY, 15401))))
+    config.set(KACHERY_HOST_PORT_KEY, host_kachery_server_port)
+    config.set([KACHERY_HIVE_KEY, KACHERY_URL_KEY], f'http://localhost:{host_kachery_server_port}')
     kachery_server_dir = os.getcwd() + '/kachery-server'
     if not os.path.isdir(kachery_server_dir):
         os.mkdir(kachery_server_dir)
@@ -464,13 +496,13 @@ def _configure_event_stream_server(config):
     print(f'{bcolors.HEADER}================={bcolors.ENDC}')
     print(f'{bcolors.HEADER}You can either connect to an existing event stream server or host one on this computer along with your compute resource.{bcolors.ENDC}')
     host_event_stream_server = inquirer.confirm(f'Do you want to host your own event stream server on this computer?', default=config.get('host_event_stream_server', True))
-    config.set('host_event_stream_server', host_event_stream_server)
+    config.set(ESS_HOST_BOOL_KEY, host_event_stream_server)
     if not host_event_stream_server:
-        config.unset('host_event_stream_server_port')
+        config.unset(ESS_HOST_PORT_KEY)
 
     host_event_stream_server_port = int(inquirer.text('Host the event stream server on port', default=str(config.get('host_event_stream_server_port', 15402))))
-    config.set('host_event_stream_server_port', host_event_stream_server_port)
-    config.set(['eventstreamserver', 'url'], f'http://localhost:{host_event_stream_server_port}')
+    config.set(ESS_HOST_PORT_KEY, host_event_stream_server_port)
+    config.set([EVENTSTREAMSERVER_HIVE_KEY, ESS_URL_KEY], f'http://localhost:{host_event_stream_server_port}')
     event_stream_server_dir = os.getcwd() + '/event-stream-server'
     if not os.path.isdir(event_stream_server_dir):
         os.mkdir(event_stream_server_dir)
@@ -501,31 +533,50 @@ def _configure_compute_resource_server(config):
     print('')
     print(f'{bcolors.HEADER}Hither compute resource server{bcolors.ENDC}')
     print(f'{bcolors.HEADER}=============================={bcolors.ENDC}')
-    compute_resource_id = inquirer.text('Choose a compute resource ID', default=config.get('compute_resource_id', socket.gethostname()))
-    config.set('compute_resource_id', compute_resource_id)
+    compute_resource_id = inquirer.text('Choose a compute resource ID',
+        default=config.get(COMPUTE_RESOURCE_ID_KEY, socket.gethostname()))
+    config.set(COMPUTE_RESOURCE_ID_KEY, compute_resource_id)
 
-    kachery_url = inquirer.text('Kachery server URL', default=config.get(['kachery', 'url'], 'http://localhost:15401'))
-    config.set(['kachery', 'url'], kachery_url)
-    kachery_channel = inquirer.text('Kachery server channel', default=config.get(['kachery', 'channel'], 'readwrite'))
-    config.set(['kachery', 'channel'], kachery_channel)
-    kachery_password = inquirer.password(f'Kachery server password for channel {kachery_channel}', default=config.get(['kachery', 'password'], ''))
-    config.set(['kachery', 'password'], kachery_password)
+    kachery_url = inquirer.text('Kachery server URL',
+        default=config.get([KACHERY_HIVE_KEY, KACHERY_URL_KEY], 'http://localhost:15401'))
+    kachery_channel = inquirer.text('Kachery server channel',
+        default=config.get([KACHERY_HIVE_KEY, KACHERY_CHANNEL_KEY], 'readwrite'))
+    kachery_password = inquirer.password(f'Kachery server password for channel {kachery_channel}',
+        default=config.get([KACHERY_HIVE_KEY, KACHERY_PASSWORD_KEY], ''))
+    config.set([KACHERY_HIVE_KEY, KACHERY_URL_KEY], kachery_url)
+    config.set([KACHERY_HIVE_KEY, KACHERY_CHANNEL_KEY], kachery_channel)
+    config.set([KACHERY_HIVE_KEY, KACHERY_PASSWORD_KEY], kachery_password)
 
-    event_stream_server_url = inquirer.text('Event stream server URL', default=config.get(['eventstreamserver', 'url'], 'http://localhost:15401'))
-    config.set(['eventstreamserver', 'url'], event_stream_server_url)
-    event_stream_server_channel = inquirer.text('Event stream server channel', default=config.get(['eventstreamserver', 'channel'], 'readwrite'))
-    config.set(['eventstreamserver', 'channel'], event_stream_server_channel)
-    event_stream_server_password = inquirer.password(f'Event stream server password for channel {event_stream_server_channel}', default=config.get(['eventstreamserver', 'password'], ''))
-    config.set(['eventstreamserver', 'password'], event_stream_server_password)
+    event_stream_server_url = inquirer.text('Event stream server URL',
+        default=config.get([EVENTSTREAMSERVER_HIVE_KEY, ESS_URL_KEY], 'http://localhost:15401'))
+    event_stream_server_channel = inquirer.text('Event stream server channel',
+        default=config.get([EVENTSTREAMSERVER_HIVE_KEY, ESS_CHANNEL_KEY], 'readwrite'))
+    event_stream_server_password = inquirer.password(f'Event stream server password for channel {event_stream_server_channel}',
+        default=config.get([EVENTSTREAMSERVER_HIVE_KEY, ESS_PASSWORD_KEY], ''))
+    config.set([EVENTSTREAMSERVER_HIVE_KEY, ESS_URL_KEY], event_stream_server_url)
+    config.set([EVENTSTREAMSERVER_HIVE_KEY, ESS_CHANNEL_KEY], event_stream_server_channel)
+    config.set([EVENTSTREAMSERVER_HIVE_KEY, ESS_PASSWORD_KEY], event_stream_server_password)
+
+    job_cache_url = inquirer.text("Job cache database URL (blank to use filesystem)",
+        default=config.get([JOB_CACHE_HIVE_KEY, JOB_CACHE_URL_KEY], ''))
+    if job_cache_url is None or job_cache_url == '':
+        config.unset(JOB_CACHE_HIVE_KEY)
+    else:
+        job_cache_name = inquirer.text('Name of database schema', 
+            default=config.get([JOB_CACHE_HIVE_KEY, JOB_CACHE_SCHEMA_NAME_KEY], 'labbox'))
+        config.set([JOB_CACHE_HIVE_KEY, JOB_CACHE_URL_KEY], job_cache_url)
+        config.set([JOB_CACHE_HIVE_KEY, JOB_CACHE_SCHEMA_NAME_KEY], job_cache_name)
 
     # todo: allow slurm type
-    job_handler_type = inquirer.list_input('Job handler type', choices=['parallel'], default=config.get(['job_handler', 'type'], 'parallel'))
-    if job_handler_type != config.get(['job_handler', 'type'], 'parallel'):
-        config.unset(['job_handler', 'config'])
-    config.set(['job_handler', 'type'], job_handler_type)
+    job_handler_type = inquirer.list_input('Job handler type', choices=['parallel'],
+        default=config.get([JOB_HANDLER_HIVE_KEY, JOB_HANDLER_TYPE_KEY], 'parallel'))
+    if job_handler_type != config.get([JOB_HANDLER_HIVE_KEY, JOB_HANDLER_TYPE_KEY], 'parallel'):
+        config.unset([JOB_HANDLER_HIVE_KEY, JOB_HANDLER_CONFIG_KEY])
+    config.set([JOB_HANDLER_HIVE_KEY, JOB_HANDLER_TYPE_KEY], job_handler_type)
     if job_handler_type == 'parallel':
-        num_workers = int(inquirer.text('num_workers', default=config.get(['job_handler', 'config', 'num_workers'], 4)))
-        config.set(['job_handler', 'config', 'num_workers'], num_workers)
+        num_workers = int(inquirer.text('num_workers',
+                default=config.get([JOB_HANDLER_HIVE_KEY, JOB_HANDLER_CONFIG_KEY, JOB_HANDLER_WORKERCOUNT_KEY], 4)))
+        config.set([JOB_HANDLER_HIVE_KEY, JOB_HANDLER_CONFIG_KEY, JOB_HANDLER_WORKERCOUNT_KEY], num_workers)
     else:
         raise Exception(f'Job handler type not yet supported by this config utility: {job_handler_type}')
 
@@ -559,8 +610,8 @@ def _print_info():
 
     print('')
     
-    host_kachery_server = config.get('host_kachery_server')
-    host_event_stream_server = config.get('host_event_stream_server')
+    host_kachery_server = config.get(KACHERY_HOST_BOOL_KEY)
+    host_event_stream_server = config.get(ESS_HOST_BOOL_KEY)
 
     if host_kachery_server or host_event_stream_server:
         print(f'{bcolors.HEADER}You can start the compute resource server by running the following in separate terminals from this working directory:{bcolors.ENDC}')
