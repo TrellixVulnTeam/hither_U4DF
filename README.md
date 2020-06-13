@@ -7,11 +7,34 @@
 
 # hither
 
-Hither is a flexible, platform-agnostic job manager that allows researchers to easily deploy code across local, remote, and cluster environments with minimal changes. It ensures that different scientific tools can be run through a consistent pipeline, even when they have different configurations or conflicting dependencies. This works through universal containerization. Because jobs are run through a universal interface, code becomes much more portable between labs; the same pipelines can be run locally, or even on a cluster environment. In this way, development on small datasets can take place on your laptop, with the confidence that the code will work on large datasets in the cluster with minimal modifications.
+## What is it?
 
-TODO: Need to describe other tools, how hither differs, and why it is needed.
+hither is a Python tool that makes it easier for you to focus on doing research consistently,
+reproducibly, and objectively: in a word, *scientifically*.
 
-[Frequently asked questions](doc/faq.md)
+It offers:
+
+* An easy declarative interface to [containerized](./containerization.md)
+execution of your computing tasks defined as Python functions
+* Built-in support for [task-level data parallelism](./parallel-computing.md),
+across multiple algorithms and pipelines
+* Automatic [result caching](./doc/job-cache.md), so that lengthy computations only need to run once
+* The ability to run scripts locally (*hither*) and have jobs execute on a [remote compute resource](./doc/remote-compute-resource.md) (*thither*).
+* A unified and intuitive approach to [job pipelining](./doc/pipelines.md) and batch processing
+
+Learn more:
+
+* [How does hither compare with other tools?](./doc/overview.md)
+* [Basic usage examples](#basic-usage)
+    - [Containerization](#containerization)
+    - [Job cache](#job-cache)
+    - [Parallel computing](#parallel-computing)
+    - [Pipelines](#pipelines)
+    - [Using remote compute resources](#remote-compute-resources)
+* [Installation](#installation)
+* [Other frequently asked questions](./doc/faq.md)
+
+Continue to scroll down to view some examples
 
 ## Installation
 
