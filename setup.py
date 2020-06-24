@@ -21,7 +21,7 @@ pkg_name = "hither"
 setuptools.setup(
     name=pkg_name,
     version=get_version("hither/__init__.py"),
-    author="Jeremy Magland",
+    author="Jeremy Magland, Jeff Soules",
     author_email="jmagland@flatironinstitute.org",
     description="Run batches of Python functions in containers and on remote servers",
     url="https://github.com/flatironinstitute/hither",
