@@ -250,13 +250,15 @@ class ComputeResource:
             time.sleep(0.02) # TODO: alternative to busy-wait?
 
     def set_access_rules(self, access_rules):
-        self._registry_feed.set_access_rules([
-            dict(
-                nodeId=r["node_id"],
-                write=True
-            )
-            for r in access_rules
-        ])
+        self._registry_feed.set_access_rules(dict(
+            rules = [
+                dict(
+                    nodeId=r["node_id"],
+                    write=True
+                )
+                for r in access_rules
+            ]
+        ))
 
     def _process_action(self, action):
         _type = action['type']
