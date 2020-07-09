@@ -1,7 +1,7 @@
 import time
 from typing import Optional, Dict, Any
 
-import kachery as ka
+import kachery_p2p as kp
 from ._containermanager import ContainerManager
 from ._util import _serialize_item, _random_string, _get_poll_interval
 from .database import Database
@@ -9,13 +9,14 @@ from ._enums import JobStatus, JobKeys
 from ._exceptions import DeserializationException
 from .file import File
 from .job import Job
+from .eventstreamclient import EventStreamClient
 
 class ComputeResourceActionTypes:
     # sent by compute resource at startup
     COMPUTE_RESOURCE_STARTED = 'COMPUTE_RESOURCE_STARTED'
 
     # sent from job handler to compute resource
-    ADD_JOB_HANDLER = 'ADD_JOB_HANDLER'
+    REGISTER_JOB_HANDLER = 'REGISTER_JOB_HANDLER'
     ADD_JOB = 'ADD_JOB'
     CANCEL_JOB = 'CANCEL_JOB'
     REPORT_ALIVE = 'REPORT_ALIVE'
@@ -23,48 +24,27 @@ class ComputeResourceActionTypes:
     # sent from compute resource to job handler
     JOB_FINISHED = 'JOB_FINISHED'
     JOB_ERROR = 'JOB_ERROR'
-    SET_KACHERY_CONFIG = 'SET_KACHERY_CONFIG'
 
 HITHER_REMOTE_JOB_HANDLER_TO_COMPUTE_RESOURCE = 'HITHER_REMOTE_JOB_HANDLER_TO_COMPUTE_RESOURCE'
 HITHER_COMPUTE_RESOURCE_TO_REMOTE_JOB_HANDLER = 'HITHER_COMPUTE_RESOURCE_TO_REMOTE_JOB_HANDLER'
 
 class ConnectedClient:
-    def __init__(self, compute_resource, handler_id):
+    def __init__(self, *, compute_resource, handler_uri, incoming_feed, outgoing_feed):
         # pointer to parent compute resource -- and get some useful variables
+        self._handler_uri = handler_uri
         self._compute_resource = compute_resource
+        self._incoming_feed = incoming_feed
+        self._outgoing_feed = outgoing_feed
+
         self._job_handler = compute_resource._job_handler
         self._job_cache = compute_resource._job_cache
-        self._kachery_config = compute_resource._kachery_config
 
         # for polling
         self._timestamp_event_poll = 0
         self._timestamp_last_action = time.time()
 
-        # handler id for the connected client
-        self._handler_id = handler_id
-
         # list of jobs for this particular connected client
         self._jobs: Dict[str, Job] = dict()
-
-        # stream of incoming messages/events
-        self._stream_incoming = compute_resource._event_stream_client.get_stream(dict(
-            name=HITHER_REMOTE_JOB_HANDLER_TO_COMPUTE_RESOURCE,
-            compute_resource_id=compute_resource._compute_resource_id,
-            handler_id=handler_id
-        ))
-
-        # stream of outgoing messages/events
-        self._stream_outgoing = compute_resource._event_stream_client.get_stream(dict(
-            name=HITHER_COMPUTE_RESOURCE_TO_REMOTE_JOB_HANDLER,
-            compute_resource_id=compute_resource._compute_resource_id,
-            handler_id=handler_id
-        ))
-
-        # write initial message sharing the kachery config
-        self._stream_outgoing.write_event(dict(
-            type=ComputeResourceActionTypes.SET_KACHERY_CONFIG,
-            kachery_config=compute_resource._kachery_config
-        ))
 
         # timestamp for when the client last reported being alive
         self._timestamp_client_report_alive = time.time()
@@ -74,7 +54,7 @@ class ConnectedClient:
         elapsed_event_poll = time.time() - self._timestamp_event_poll
         if elapsed_event_poll > _get_poll_interval(self._timestamp_last_action):
             self._timestamp_event_poll = time.time()
-            actions = self._stream_incoming.read_events()
+            actions = self._incoming_feed.get_next_messages(wait_msec=10)
             for action in actions:
                 self._process_action(action)
         
@@ -117,7 +97,7 @@ class ConnectedClient:
             self._timestamp_client_report_alive = time.time()
         elif _type == ComputeResourceActionTypes.ADD_JOB:
             # Add a job
-            action['handler_id'] = self._handler_id
+            action['handler_uri'] = self._handler_uri
             self._add_job(action)
             self._report_action()
         else:
@@ -125,7 +105,7 @@ class ConnectedClient:
     
     def _add_job(self, action):
         # Add a job that was sent from the client
-        job_id, handler_id, job_serialized = JobKeys._unpack_serialized_job(action)
+        job_id, handler_uri, job_serialized = JobKeys._unpack_serialized_job(action)
         label = job_serialized[JobKeys.LABEL]
         if not (self._hydrate_code_for_serialized_job(job_id, job_serialized)
                 and self._hydrate_container_for_serialized_job(job_id, job_serialized)):
@@ -147,7 +127,7 @@ class ConnectedClient:
                 self._mark_job_as_error(job_id=job_id, exception=job._exception, runtime_info=job._runtime_info)
                 return
         # No finished or errored version of the Job was found in the cache. Thus, queue it.
-        self._queue_job(job, handler_id)
+        self._queue_job(job, handler_uri)
     def _hydrate_code_for_serialized_job(self, job_id:str, serialized_job:Dict[str, Any]) -> bool:
         """Prepare contents of 'code' field for serialized Job.
 
@@ -167,7 +147,7 @@ class ConnectedClient:
         label = serialized_job[JobKeys.LABEL]
         assert code is not None, 'Code is None in serialized job.'
         try:
-            code_obj = ka.load_object(code, fr=self._kachery_config)
+            code_obj = kp.load_object(code)
             if code_obj is None:
                 raise DeserializationException("Kachery returned no serialized code for function.")
             serialized_job[JobKeys.CODE] = code_obj
@@ -202,20 +182,19 @@ class ConnectedClient:
         return True
     def _handle_finished_job(self, job):
         print(f'Job finished: {job._job_id}') # TODO: Change to formal log statement?
-        job.kache_results_if_needed(kachery=self._kachery_config)
         self._mark_job_as_finished(job=job)
         if self._job_cache is not None:
             self._job_cache.cache_job_result(job)
-    def _queue_job(self, job:Job, handler_id:str) -> None:
+    def _queue_job(self, job:Job, handler_uri:str) -> None:
         try:
-            job.download_parameter_files_if_needed(kachery=self._kachery_config)
+            job.download_parameter_files_if_needed()
         except Exception as e:
             print(f"Error downloading input files for job: {job._label}\n{e}")
             self._mark_job_as_error(job_id=job._job_id, exception=e, runtime_info=None)
             return
         self._jobs[job._job_id] = job
         self._job_handler.handle_job(job)
-        job._handler_id = handler_id
+        job._handler_uri = handler_uri
         # self._database._mark_job_as_queued(job._job_id, self._compute_resource_id)
 
     def _mark_job_as_finished(self, *, job: Job) -> None:
@@ -226,7 +205,7 @@ class ConnectedClient:
             JobKeys.RUNTIME_INFO: job.get_runtime_info(),
             JobKeys.RESULT: serialized_result
         }
-        self._stream_outgoing.write_event(action)
+        self._outgoing_feed.append_message(action)
         # self._database._mark_job_as_finished(job._job_id, self._compute_resource_id,
         #     runtime_info=job._runtime_info, result=serialized_result)
         
@@ -240,35 +219,27 @@ class ConnectedClient:
             (JobKeys.RUNTIME_INFO, runtime_info),
             (JobKeys.EXCEPTION, str(exception))
         ])
-        self._stream_outgoing.write_event(action)
+        self._outgoing_feed.append_message(action)
     
     def _report_action(self):
         self._timestamp_last_action = time.time()
 
 class ComputeResource:
-    def __init__(self, *, event_stream_client, compute_resource_id, kachery_config, job_handler, job_cache=None):
-        self._event_stream_client = event_stream_client
-        self._compute_resource_id = compute_resource_id
-        self._kachery_config = kachery_config
-        self._instance_id = _random_string(15)
+    def __init__(self, *, compute_resource_uri, job_handler, job_cache=None):
+        self._compute_resource_uri = compute_resource_uri
         self._timestamp_event_poll = 0
         self._timestamp_last_action = time.time()
         self._job_handler = job_handler
         self._job_cache = job_cache
         self._connected_clients = dict()
 
-        self._stream = self._event_stream_client.get_stream(dict(
-            name='hither_compute_resource',
-            compute_resource_id=self._compute_resource_id
-        ))
-        self._stream.goto_end()
-
-    def clear(self):
-        print('Deprecated. It is no longer needed to call clear().')
-        pass
-
     def run(self):
-        self._stream.write_event(dict(
+        self._compute_resource_feed = kp.load_feed(self._compute_resource_uri, create=True)
+        assert self._compute_resource_feed.is_writeable()
+        self._registry_feed = self._compute_resource_feed.get_subfeed('job_handler_registry')
+        self._registry_feed.set_position(self._registry_feed.get_num_messages())
+
+        self._registry_feed.append_message(dict(
             type=ComputeResourceActionTypes.COMPUTE_RESOURCE_STARTED
         ))
         while True:
@@ -277,9 +248,11 @@ class ComputeResource:
 
     def _process_action(self, action):
         _type = action['type']
-        if _type == ComputeResourceActionTypes.ADD_JOB_HANDLER:
-            handler_id = action['handler_id']
-            self._connected_clients[handler_id] = ConnectedClient(self, handler_id)
+        if _type == ComputeResourceActionTypes.REGISTER_JOB_HANDLER:
+            handler_uri = action['uri']
+            incoming_feed = kp.load_feed(handler_uri).get_subfeed('main')
+            outgoing_feed = self._compute_resource_feed.get_subfeed(handler_uri)
+            self._connected_clients[handler_uri] = ConnectedClient(compute_resource=self, handler_uri=handler_uri, incoming_feed=incoming_feed, outgoing_feed=outgoing_feed)
             self._report_action()
         elif _type == ComputeResourceActionTypes.COMPUTE_RESOURCE_STARTED:
             pass
@@ -292,7 +265,8 @@ class ComputeResource:
         elapsed_event_poll = time.time() - self._timestamp_event_poll
         if elapsed_event_poll > _get_poll_interval(self._timestamp_last_action):
             self._timestamp_event_poll = time.time()
-            actions = self._stream.read_events()
+
+            actions = self._registry_feed.get_next_messages(wait_msec=500)
             for action in actions:
                 self._process_action(action)
         
@@ -301,9 +275,9 @@ class ComputeResource:
                 client.iterate()
                 elapsed_since_client_alive = client._timestamp_client_report_alive - time.time()
                 if elapsed_since_client_alive > 20:
-                    print(f'Closing job handler: {client._handler_id}')
+                    print(f'Closing job handler: {client._handler_uri}')
                     client.cancel_all_jobs()
-                    del self._connected_clients[client._handler_id]
+                    del self._connected_clients[client._handler_uri]
         
         self._job_handler.iterate()
     

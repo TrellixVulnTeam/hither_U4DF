@@ -3,6 +3,7 @@ import time
 from typing import List, Dict, Union, Any, Optional
 
 import kachery as ka
+import kachery_p2p as kp
 from ._Config import Config
 from ._consolecapture import ConsoleCapture
 from ._containermanager import ContainerManager
@@ -49,11 +50,7 @@ class Job:
 
         # Used by computeresource manager
         self._reported_status = None
-        self._handler_id = None
-        
-        # this is used by wait() in the case where results were not downloaded
-        # and the job has already been sent to the remote compute resource
-        self._substitute_job_for_wait: Union[None, Job] = None
+        self._handler_uri = None
 
         # Not used for now
         self._efficiency_job_hash_ = None
@@ -62,9 +59,6 @@ class Job:
 
 # TODO: BREAK THIS DOWN A BIT MORE
     def wait(self, timeout: Union[float, None]=None, resolve_files=True):
-        if resolve_files and self._substitute_job_for_wait is not None:
-            return self._substitute_job_for_wait.wait(timeout=timeout, resolve_files=resolve_files)
-
         timer = time.time()
 
         if resolve_files and self._job_handler.is_remote:
@@ -74,24 +68,11 @@ class Job:
                     # it's not too late. Let's just request download now
                     self._download_results = True
                 else:
-                    # here is where we make a substitute job
                     # let's wait until finished, and then we'll see what we need to do
                     result = self.wait(timeout=timeout, resolve_files=False)
                     if result is None:
                         return None
-                    if not self._result_files_are_available_locally(result):
-                        from ._identity import identity
-                        assert self._substitute_job_for_wait is None, 'Unexpected at this point in the code: self._substitute_job_for_wait is not None'
-                        with Config(job_handler=self._job_handler, download_results=True):
-                            self._substitute_job_for_wait = identity.run(x=result)
-                        # compute the remainder timeout for this call to wait()
-                        timeout2 = timeout
-                        if timeout2 is not None:
-                            elapsed = time.time() - timer
-                            timeout2 = max(0, timeout2 - elapsed)
-                        return self._substitute_job_for_wait.wait(timeout=timeout2, resolve_files=resolve_files)
-                    else:
-                        return self.resolve_files_in_result()
+                    self._ensure_result_files_are_available_locally(result)
         while True:
             self._job_manager.process_job_queues()
             if self._status == JobStatus.FINISHED:
@@ -130,8 +111,20 @@ class Job:
     def _has_been_submitted(self) -> bool:
         return not self._status in JobStatus.prerun_statuses()
 
+    def _ensure_result_files_are_available_locally(self, results: Any = None) -> bool:
+        """Check  whether the File-type objects in `results` are stored in the local kachery. If not, retrieve them from the kachery-p2p network.
+        """
+        actual_result = self._result if results is None else results
+        result_items = _flatten_nested_collection(actual_result, _type=File)
+        for item in result_items:
+            assert isinstance(item, File), "Filter failed."
+            info = ka.get_file_info(item._kachery_uri, fr=None)
+            if info is None:
+                if kp.load_file(item._kachery_uri) is None:
+                    raise Exception(f'Unable to load result file: {item._kachery_uri}')
+
     def _result_files_are_available_locally(self, results: Any = None) -> bool:
-        """Indicates whether the File-type objects in `results` have been loaded into kachery.
+        """Indicates whether the File-type objects in `results` are stored in the local kachery.
 
         Keyword Arguments:
             results {Any} -- If specified, an arbitrary collection structure representing
@@ -139,13 +132,13 @@ class Job:
             used. (default: {None})
 
         Returns:
-            bool -- True if all File objects in the result are in Kachery, else False.
+            bool -- True if all File objects in the result are in the local kachery, else False.
         """
         actual_result = self._result if results is None else results
         result_items = _flatten_nested_collection(actual_result, _type=File)
         for item in result_items:
             assert isinstance(item, File), "Filter failed."
-            info = ka.get_file_info(item._sha1_path, fr=None)
+            info = ka.get_file_info(item._kachery_uri, fr=None)
             if info is None:
                 return False
         return True
@@ -282,26 +275,15 @@ class Job:
         self._efficiency_job_hash_ = ka.get_object_hash(efficiency_job_hash_obj)
         return self._efficiency_job_hash_
 
-    def kache_results_if_needed(self, kachery:Union[str, None] = None) -> None:
-        """Upload File-type results to a Kachery server (as indicated by the "Kache" spelling).
-
-        Keyword Arguments:
-            kachery {Union[str, None]} -- Specific Kachery instance to push file to.
-            (default: {None})
-        """
-        if not self._download_results: return
-        for f in _flatten_nested_collection(self._result, _type=File):
-            f.kache(kachery_dest=kachery)
-
-    def download_results_if_needed(self, kachery:Union[str, None] = None) -> None:
+    def download_results_if_needed(self) -> None:
         for f in _flatten_nested_collection(self._result, _type=File):
             assert isinstance(f, File), "Filter failed."
-            f.ensure_local_availability(kachery)
+            f.ensure_local_availability()
 
-    def download_parameter_files_if_needed(self, kachery:Union[str, None] = None) -> None:
+    def download_parameter_files_if_needed(self) -> None:
         for a in _flatten_nested_collection(self._wrapped_function_arguments, _type=File):
             assert isinstance(a, File), "Filter failed."
-            a.ensure_local_availability(kachery)
+            a.ensure_local_availability()
 
     # TODO: Make this part of the .result() method? Would need to access info about
     # the "don't-resolve-results" parameter.

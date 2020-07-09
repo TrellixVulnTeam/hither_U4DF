@@ -1,6 +1,7 @@
 import time
 from typing import Dict, Any
 import kachery as ka
+import kachery_p2p as kp
 from ._basejobhandler import BaseJobHandler
 from .database import Database
 from ._enums import JobStatus, JobKeys
@@ -11,60 +12,52 @@ from .computeresource import ComputeResourceActionTypes
 from .computeresource import HITHER_COMPUTE_RESOURCE_TO_REMOTE_JOB_HANDLER, HITHER_REMOTE_JOB_HANDLER_TO_COMPUTE_RESOURCE
 
 class RemoteJobHandler(BaseJobHandler):
-    def __init__(self, *, event_stream_client, compute_resource_id):
+    def __init__(self, *, compute_resource_uri):
         super().__init__()
         self.is_remote = True
         
-        self._event_stream_Client = event_stream_client
-        self._compute_resource_id = compute_resource_id
-        self._handler_id = _random_string(15)
+        self._compute_resource_uri = compute_resource_uri
+        self._is_initialized = False
+    
+    def _initialize(self):
+        self._is_initialized = True
+
+        self._job_handler_feed = kp.create_feed()
+        self._outgoing_feed = self._job_handler_feed.get_subfeed('main')
+        self._compute_resource_feed = kp.load_feed(self._compute_resource_uri, live=True)
+        self._registry_feed = self._compute_resource_feed.get_subfeed('job_handler_registry')
+        self._incoming_feed = self._compute_resource_feed.get_subfeed(self._job_handler_feed.get_uri())
+
+        # register self with compute resource
+        print('Registering job handler with remote compute resource...')
+        self._registry_feed.submit_message(dict(
+            type=ComputeResourceActionTypes.REGISTER_JOB_HANDLER,
+            uri=self._job_handler_feed.get_uri()
+        ))
+
         self._jobs: Dict = {}
-        self._kachery_config = None
         self._timestamp_last_action = time.time()
         self._timestamp_event_poll = 0
 
-        # The event streams for communication between this client and the remote compute resource
-        self._event_stream_outgoing = event_stream_client.get_stream(dict(
-            name=HITHER_REMOTE_JOB_HANDLER_TO_COMPUTE_RESOURCE,
-            compute_resource_id=self._compute_resource_id,
-            handler_id=self._handler_id
-        ))
-        self._event_stream_incoming = event_stream_client.get_stream(dict(
-            name=HITHER_COMPUTE_RESOURCE_TO_REMOTE_JOB_HANDLER,
-            compute_resource_id=self._compute_resource_id,
-            handler_id=self._handler_id
-        ))
-
-        # notify the compute resource of the existence of this handler
-        stream = event_stream_client.get_stream(dict(
-            name='hither_compute_resource',
-            compute_resource_id=self._compute_resource_id
-        ))
-        stream.write_event(dict(type=ComputeResourceActionTypes.ADD_JOB_HANDLER, handler_id=self._handler_id))
-
         # wait for the compute resource to ackowledge us
         print('Waiting for remote compute resource to respond...')
-        actions = self._event_stream_incoming.read_events(wait_sec=10)
-        if len(actions) == 0:
-            raise Exception('Unable to connect with remote compute resource.')
-        for action in actions:
-            self._process_incoming_action(action)
-        if self._kachery_config is None:
-            raise Exception('Did not get a kachery config from the remote compute resource')
+        msg = self._incoming_feed.get_next_message(wait_msec=10000)
+        assert msg is not None
+        assert msg['type'] == 'ACKNOWLEDGED'
             
         self._report_action()
 
     def handle_job(self, job):
         super(RemoteJobHandler, self).handle_job(job)
 
-        for f in _flatten_nested_collection(job._wrapped_function_arguments, _type=File):
-            self._send_file_as_needed(f)
+        if not self._is_initialized:
+            self._initialize()
 
         job_serialized = job._serialize(generate_code=True)
         # the CODE member is a big block of code text.
-        # Replace with a hash ref and send to kachery of compute resource
-        job_serialized[JobKeys.CODE] = ka.store_object(job_serialized[JobKeys.CODE], to=self._kachery_config)
-        self._event_stream_outgoing.write_event(dict(
+        # Make sure it is stored in the local kachery database so it can be retrieved through the kachery-p2p network
+        job_serialized[JobKeys.CODE] = ka.store_object(job_serialized[JobKeys.CODE])
+        self._outgoing_feed.append_message(dict(
             type=ComputeResourceActionTypes.ADD_JOB,
             job_id=job._job_id,
             job_serialized=job_serialized
@@ -77,7 +70,7 @@ class RemoteJobHandler(BaseJobHandler):
         if job_id not in self._jobs:
             print(f'Warning: RemoteJobHandler -- cannot cancel job {job_id}. Job with this id not found.')
             return
-        self._event_stream_outgoing.write_event(dict(
+        self._outgoing_feed.append_message(dict(
             type=ComputeResourceActionTypes.CANCEL_JOB,
             job_id=job_id
         ))
@@ -118,40 +111,18 @@ class RemoteJobHandler(BaseJobHandler):
             self._process_job_finished_action(action)
         elif _type == ComputeResourceActionTypes.JOB_ERROR:
             self._process_job_error_action(action)
-        elif _type == ComputeResourceActionTypes.SET_KACHERY_CONFIG:
-            self._kachery_config = action['kachery_config']
     
     def iterate(self) -> None:
         elapsed_event_poll = time.time() - self._timestamp_event_poll
         if elapsed_event_poll > _get_poll_interval(self._timestamp_last_action):
             self._timestamp_event_poll = time.time()    
             self._report_alive()
-            # TODO: avaid polling by wait_sec=10, or something
-            actions = self._event_stream_incoming.read_events(0)
+            actions = self._incoming_feed.get_next_messages(wait_msec=100)
             for action in actions:
                 self._process_incoming_action(action)
-
-    def _load_file(self, sha1_path):
-        if self._kachery_config is not None:
-            return ka.load_file(sha1_path, fr=self._kachery_config)
-        else:
-            return None
-
-    def _send_file_as_needed(self, x:File) -> None:
-        if self._kachery_config is None: return # We have no file store; nothing we can do.
-
-        remote_handler = getattr(x, '_remote_job_handler', None)
-        if remote_handler is None:
-            if self._compute_resource_id is None: return
-            ka.store_file(x.path, to=self._kachery_config)
-        else: 
-            #  If we're the remote handler, we don't need to do anything.
-            if remote_handler._compute_resource_id == self._compute_resource_id:
-                return
-            raise Exception('This case not yet supported (we need to transfer data from one compute resource to another)')
-        
+    
     def _report_alive(self):
-        self._event_stream_outgoing.write_event(dict(
+        self._outgoing_feed.append_message(dict(
             type=ComputeResourceActionTypes.REPORT_ALIVE
         ))
     

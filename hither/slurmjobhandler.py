@@ -603,7 +603,6 @@ class _SlurmProcess():
         """
         import kachery as ka
         running_fname = self._working_dir + '/running.txt'
-        kachery_config_json = json.dumps(ka.get_config())
         # This script is run by each worker (slurm task) in the batch
         srun_py_script = ShellScript(f"""
                 #!/usr/bin/env python
@@ -621,13 +620,6 @@ class _SlurmProcess():
                 working_dir = '{self._working_dir}'
                 num_workers = {self._num_workers}
                 running_fname = '{running_fname}'
-
-                kachery_config = json.loads('{kachery_config_json}')
-                try:
-                    import kachery as ka
-                    ka.set_config(**kachery_config)
-                except:
-                    pass
 
                 slurm_started_fname = working_dir + '/slurm_started.txt'
                 with FileLock(slurm_started_fname + '.lock', exclusive=True):
