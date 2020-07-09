@@ -32,7 +32,7 @@ class ParallelJobHandler(BaseJobHandler):
             cancel_filepath = f'{tempfile.gettempdir()}/pjh_cancel_job_{job._job_id}.txt'
         else:
             cancel_filepath = None
-        process = multiprocessing.Process(target=_pjh_run_job, args=(pipe_to_parent, cancel_filepath, serialized_job, ka.get_config()))
+        process = multiprocessing.Process(target=_pjh_run_job, args=(pipe_to_parent, cancel_filepath, serialized_job))
         self._processes.append(dict(
             job=job,
             process=process,

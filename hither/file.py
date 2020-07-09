@@ -5,7 +5,6 @@ from typing import Any, List, Union
 
 from ._enums import HitherFileType # TODO: Not yet used; hard-to-track errors in serialization
 import kachery as ka
-import kachery_p2p as kp
 
 class File:
     def __init__(self, path, item_type='file'):
@@ -53,15 +52,6 @@ class File:
         if x is None:
             raise Exception(f'Unable to load npy file: {self._kachery_uri}')
         return x
-
-    def ensure_local_availability(self) -> None:
-        # look for file locally or on the kachery-p2p network.
-        # If found locally, we're done; if found in the kachery source, this downloads it.
-        local_path = ka.load_file(self._kachery_uri)
-        if local_path is not None:
-            return
-        if kp.load_file(self._kachery_uri) is not None:
-            raise Exception(f'Unable to realize file locally: {self._kachery_uri}')
 
     @staticmethod
     def can_deserialize(x: Any) -> bool:

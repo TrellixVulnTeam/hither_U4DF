@@ -8,6 +8,7 @@ from ._config import MONGO_PORT, DATABASE_NAME, KACHERY_P2P_DAEMON_API_PORT
 from ._common import _random_string
 from ._util import _wait_for_compute_resource_to_start, _wait_for_kachery_p2p_daemon_to_start
 from ._kachery_p2p_daemon import run_service_kachery_p2p_daemon
+import kachery_p2p as kp
 
 @pytest.fixture()
 def compute_resource(tmp_path):
@@ -31,7 +32,6 @@ def compute_resource(tmp_path):
     
     _wait_for_kachery_p2p_daemon_to_start(api_port=api_port)
     
-    import kachery_p2p as kp
     feed = kp.create_feed()
     compute_resource_uri = feed.get_uri()
 

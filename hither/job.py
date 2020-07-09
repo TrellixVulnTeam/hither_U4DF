@@ -3,7 +3,6 @@ import time
 from typing import List, Dict, Union, Any, Optional
 
 import kachery as ka
-import kachery_p2p as kp
 from ._Config import Config
 from ._consolecapture import ConsoleCapture
 from ._containermanager import ContainerManager
@@ -13,6 +12,7 @@ from .file import File
 from ._generate_source_code_for_function import _generate_source_code_for_function
 from ._run_serialized_job_in_container import _run_serialized_job_in_container
 from ._util import _random_string, _deserialize_item, _serialize_item, _flatten_nested_collection, _copy_structure_with_changes
+import kachery_p2p as kp
 
 class Job:
     def __init__(self, *, f, wrapped_function_arguments,
@@ -276,14 +276,15 @@ class Job:
         return self._efficiency_job_hash_
 
     def download_results_if_needed(self) -> None:
-        for f in _flatten_nested_collection(self._result, _type=File):
-            assert isinstance(f, File), "Filter failed."
-            f.ensure_local_availability()
+        if self._job_handler.is_remote:
+            for f in _flatten_nested_collection(self._result, _type=File):
+                assert isinstance(f, File), "Filter failed."
+                assert kp.load_file(f._kachery_uri) is not None, f'Unable to load file: {f._kachery_uri}'
 
     def download_parameter_files_if_needed(self) -> None:
         for a in _flatten_nested_collection(self._wrapped_function_arguments, _type=File):
             assert isinstance(a, File), "Filter failed."
-            a.ensure_local_availability()
+            assert kp.load_file(a._kachery_uri) is not None, f'Unable to load file: {a._kachery_uri}'
 
     # TODO: Make this part of the .result() method? Would need to access info about
     # the "don't-resolve-results" parameter.

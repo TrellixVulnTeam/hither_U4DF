@@ -5,11 +5,10 @@ import os
 import json
 import click
 import socket
-from urllib import request
-import time
 from copy import deepcopy
 import inquirer
 import kachery as ka
+import kachery_p2p as kp
 import hither as hi
 
 @click.group(help="Configure and run a hither compute resource. Start by entering a new directory and running the 'config' command.")
@@ -86,282 +85,67 @@ class ComputeResourceConfig:
         with open(self._config_fname, 'w') as f:
             json.dump(self._config, f, indent=4)
 
-class KacheryServerConfig:
-    def __init__(self, config_fname):
-        assert os.path.isfile(config_fname), f'File {config_fname} not found.'
-        try:
-            with open(config_fname, 'r') as f:
-                self._config = json.load(f)
-        except:
-            raise Exception(f'Problem loading configuration file: {config_fname}')
-        self._config_fname = config_fname
-        if 'channels' not in self._config:
-            self._config['channels'] = []
-            self._write_config()
-    def get_channel_config(self, name):
-        for c in self._config['channels']:
-            if c['name'] == name:
-                return deepcopy(c)
-        return None
-    def add_readwrite_channel(self, *, name, password):
-        self._config['channels'].append(dict(
-            name=name,
-            password=password,
-            downloadQuotas=[
-                {
-                    "name": "small",
-                    "maxFileSize": 1e6,
-                    "maxSimultaneous": 2,
-                    "maxNumFilesPerDay": 10000,
-                    "maxNumBytesPerDay": 1e9
-                },
-                {
-                    "name": "medium",
-                    "maxSimultaneous": 2,
-                    "maxFileSize": 100e6,
-                    "maxNumFilesPerDay": 10000,
-                    "maxNumBytesPerDay": 1e9
-                },
-                {
-                    "name": "large",
-                    "maxFileSize": 100e9,
-                    "maxSimultaneous": 2,
-                    "maxNumFilesPerDay": 10000,
-                    "maxNumBytesPerDay": 100e9
-                }
-            ],
-            uploadQuotas=[
-                {
-                    "name": "small",
-                    "maxFileSize": 1e6,
-                    "maxSimultaneous": 10,
-                    "maxNumFilesPerDay": 100000,
-                    "maxNumBytesPerDay": 1000e9
-                },
-                {
-                    "name": "medium",
-                    "maxFileSize": 100e6,
-                    "maxSimultaneous": 10,
-                    "maxNumFilesPerDay": 100000,
-                    "maxNumBytesPerDay": 1000e9
-                },
-                {
-                    "name": "large",
-                    "maxFileSize": 100e9,
-                    "maxSimultaneous": 10,
-                    "maxNumFilesPerDay": 100000,
-                    "maxNumBytesPerDay": 1000e9
-                }
-            ]
-        ))
-        self._write_config()
-    def set_channel_password(self, *, name, password):
-        x = self._find_channel_config(name=name)
-        if x is None:
-            raise Exception(f'Unable to find kachery channel in configuration file: {name}')
-        x['password'] = password
-        self._write_config()
-    def _find_channel_config(self, name):
-        for c in self._config['channels']:
-            if c['name'] == name:
-                return c
-        return None
-    def _write_config(self):
-        with open(self._config_fname, 'w') as f:
-            json.dump(self._config, f, indent=4)
-
-class EventStreamServerConfig:
-    def __init__(self, config_fname):
-        assert os.path.isfile(config_fname), f'File {config_fname} not found.'
-        try:
-            with open(config_fname, 'r') as f:
-                self._config = json.load(f)
-        except:
-            raise Exception(f'Problem loading configuration file: {config_fname}')
-        self._config_fname = config_fname
-        if 'channels' not in self._config:
-            self._config['channels'] = []
-            self._write_config()
-    def get_channel_config(self, name):
-        for c in self._config['channels']:
-            if c['name'] == name:
-                return deepcopy(c)
-        return None
-    def add_readwrite_channel(self, *, name, password):
-        self._config['channels'].append(dict(
-            name=name,
-            password=password,
-            readonly=False
-        ))
-        self._write_config()
-    def set_channel_password(self, *, name, password):
-        x = self._find_channel_config(name=name)
-        if x is None:
-            raise Exception(f'Unable to find event stream channel in configuration file: {name}')
-        x['password'] = password
-        self._write_config()
-    def _find_channel_config(self, name):
-        for c in self._config['channels']:
-            if c['name'] == name:
-                return c
-        return None
-    def _write_config(self):
-        with open(self._config_fname, 'w') as f:
-            json.dump(self._config, f, indent=4)
-
 @click.command(help='Start the configured compute resource.')
 @click.option('--all', is_flag=True)
 def start(all):
-    try:
-        ka.set_config(use_hard_links=True)
-    except:
-        print('WARNING: You should update your version of kachery so that the "use_hard_links" configuration option is available.')
+    _test_kachery_version()
 
     config_fname = os.getcwd() + '/compute_resource.json'
     config = ComputeResourceConfig(config_fname)
 
-    eventstreamserver_url = config.get(['eventstreamserver', 'url'])
-    eventstreamserver_channel = config.get(['eventstreamserver', 'channel'])
-    eventstreamserver_password = config.get(['eventstreamserver', 'password'])
-    compute_resource_id = config.get('compute_resource_id')
-    kachery_url = config.get(['kachery', 'url'])
-    kachery_channel = config.get(['kachery', 'channel'])
-    kachery_password = config.get(['kachery', 'password'])
+    compute_resource_name = config.get('compute_resource_name')
+    compute_resource_uri = config.get('compute_resource_uri')
+    job_handler_config = config.get('job_handler')
+    access_rules = config.get('access_rules', [])
+    assert isinstance(access_rules, list)
+
+    assert compute_resource_name, 'Compute resource name not found. Please run: hither-compute-resource config'
+    assert compute_resource_uri, 'Compute resource URI not found. Please run: hither-compute-resource config'
+    assert job_handler_config, 'Job handler config not found. Please run: hither-compute-resource config'
+
+    compute_resource_feed = kp.load_feed(compute_resource_uri)
+    assert compute_resource_feed.is_writeable(), 'Compute resource feed is not writeable.'
+
+    job_handler_type = job_handler_config['type']
 
     print('')
-    print(f"{bcolors.HEADER}EventStreamServer URL{bcolors.ENDC}: {eventstreamserver_url}")
-    print(f"{bcolors.HEADER}EventStreamServer channel{bcolors.ENDC}: {eventstreamserver_channel}")
-    print(f"{bcolors.HEADER}EventStreamServer password{bcolors.ENDC}: {eventstreamserver_password}")
-    print(f"{bcolors.HEADER}Compute resource ID{bcolors.ENDC}: {compute_resource_id}")
+    print(f"{bcolors.HEADER}Compute resource name{bcolors.ENDC}: {compute_resource_name}")
+    print(f"{bcolors.HEADER}Compute resource URI{bcolors.ENDC}: {compute_resource_uri}?name={compute_resource_name}")
+    print(f"{bcolors.HEADER}Job handler type{bcolors.ENDC}: {job_handler_type}")
     print('')
 
-    ess_script = None
-    ka_script = None
-    if all:
-        host_event_stream_server = config.get('host_event_stream_server', False)
-        host_kachery_server = config.get('host_kachery_server', False)
-        if host_event_stream_server:
-            print(f"{bcolors.HEADER}Starting event stream server{bcolors.ENDC}")
-            ess_script = hi.ShellScript("""
-            #!/bin/bash
+    if len(access_rules) > 0:
+        print(f'{bcolors.HEADER}The following kachery-p2p nodes have access to this compute resource{bcolors.ENDC}')
+        for r in access_rules:
+            node_id = r.get('node_id', '<unknown>')
+            print(node_id)
+    else:
+        print(f'{bcolors.HEADER}No kachery-p2p nodes have access to this compute resource{bcolors.ENDC}')
+    print('')
 
-            hither-compute-resource start-event-stream-server
-            """)
-            ess_script.start()
-            _wait_for_event_stream_server_to_start(eventstreamserver_url)
-        
-        if host_kachery_server:
-            print(f"{bcolors.HEADER}Starting kachery server{bcolors.ENDC}")
-            ka_script = hi.ShellScript("""
-            #!/bin/bash
-
-            hither-compute-resource start-kachery-server
-            """)
-            ka_script.start()
-            _wait_for_kachery_server_to_start(kachery_url)
-
-    event_stream_client = hi.EventStreamClient(url=eventstreamserver_url, channel=eventstreamserver_channel, password=eventstreamserver_password)
-    jh = hi.ParallelJobHandler(num_workers=4)
+    if job_handler_type == 'parallel':
+        num_workers = job_handler_config['config']['num_workers']
+        print(f'Using parallel job handler with {num_workers} workers.')
+        jh = hi.ParallelJobHandler(num_workers=num_workers)
+    else:
+        raise Exception(f'Unsupported job handler type: {job_handler_type}')
 
     job_cache_dir = os.getcwd() + '/job_cache'
     if not os.path.exists(job_cache_dir):
         os.mkdir(job_cache_dir)
     jc = hi.JobCache(path=job_cache_dir)
 
-    kachery_config = dict(
-        url=kachery_url,
-        channel=kachery_channel,
-        password=kachery_password
-    )
-
     cr = hi.ComputeResource(
-        event_stream_client=event_stream_client,
-        compute_resource_id=compute_resource_id,
-        kachery_config=kachery_config,
+        compute_resource_uri=compute_resource_uri,
         job_handler=jh,
         job_cache=jc
     )
 
-    print(f'{bcolors.HEADER}Starting compute resource{bcolors.ENDC}: {compute_resource_id}')
-    try:
-        cr.run()
-    except:
-        # will capture Ctrl+C halt
-        if all:
-            if ess_script is not None:
-                ess_script.stop()
-            if ka_script is not None:
-                ka_script.stop()
+    cr.set_access_rules(access_rules)
 
-# TODO: this is duplicate code -- see test fixtures
-def _wait_for_kachery_server_to_start(url):
-    max_retries = 90
-    num_retries = 0
-    delay_between_retries = 0.3
-    while True:
-        print(f'Probing kachery server. Try {num_retries + 1}')
-        try:
-            req = request.urlopen(url + '/probe')
-        except: # pragma: no cover
-            req = None
-        if req is not None:
-            obj = json.load(req)
-            assert obj['success'] == True
-            return
-        if num_retries >= max_retries:
-            raise Exception('Problem waiting for kachery to start.')
-        num_retries += 1
-        time.sleep(delay_between_retries)
-
-# TODO: this is duplicate code -- see test fixtures
-def _wait_for_event_stream_server_to_start(url):
-    max_retries = 90
-    num_retries = 0
-    delay_between_retries = 0.3
-    while True:
-        print(f'Probing event-stream server. Try {num_retries + 1}')
-        try:
-            req = request.urlopen(url + '/probe')
-        except: # pragma: no cover
-            req = None
-        if req is not None:
-            obj = json.load(req)
-            assert obj['success'] == True
-            return
-        if num_retries >= max_retries:
-            raise Exception('Problem waiting for event stream server to start.')
-        num_retries += 1
-        time.sleep(delay_between_retries)
-
-@click.command(help='Start an event stream server.')
-def start_event_stream_server():
-    config_fname = os.getcwd() + '/compute_resource.json'
-    config = ComputeResourceConfig(config_fname)
-    host_event_stream_server = config.get('host_event_stream_server', False)
-    host_event_stream_server_port = config.get('host_event_stream_server_port', None)
-    if not host_event_stream_server:
-        raise Exception('Not configured to host event stream server. Use: hither-compute-resource config')
-    dirname = os.getcwd() + '/event-stream-server'
-    do_run_docker_container(
-        image='magland/eventstreamserver:0.1.1',
-        docker_run_opts=f"-p {host_event_stream_server_port}:8080 -v {dirname}:/event-stream-server"
-    )
-
-@click.command(help='Start a kachery server')
-def start_kachery_server():
-    config_fname = os.getcwd() + '/compute_resource.json'
-    config = ComputeResourceConfig(config_fname)
-    host_kachery_server = config.get('host_kachery_server', False)
-    host_kachery_server_port = config.get('host_kachery_server_port', None)
-    if not host_kachery_server:
-        raise Exception('Not configured to host a kachery server. Use: hither-compute-resource config')
-    dirname = os.getcwd() + '/kachery-server'
-    do_run_docker_container(
-        image='magland/kachery-server:0.1.1',
-        data=dirname,
-        docker_run_opts=f"-p {host_kachery_server_port}:8080"
-    )
-
+    print(f'{bcolors.HEADER}Starting compute resource{bcolors.ENDC}: {compute_resource_name}')
+    cr.run()
+    
 @click.command(help='Configure a new compute resource server or update an existing one.')
 def config():
     config_fname = os.getcwd() + '/compute_resource.json'
@@ -374,108 +158,45 @@ def config():
     print(f'{bcolors.HEADER}Loading configuration from{bcolors.ENDC}: {config_fname}')
     config = ComputeResourceConfig(config_fname)
 
-    # Kachery server
+    # Checking kachery-p2p daemon
     print('')
-    print(f'{bcolors.HEADER}Kachery server{bcolors.ENDC}')
-    print(f'{bcolors.HEADER}=============={bcolors.ENDC}')
-    print(f'{bcolors.HEADER}You can either connect to an existing kachery server or host one on this computer along with your compute resource.{bcolors.ENDC}')
-    host_kachery_server = inquirer.confirm(f'Do you want to host your own kachery server on this computer?', default=config.get('host_kachery_server', True))
-    if host_kachery_server:
-        config.set('host_kachery_server', True)
-        host_kachery_server_port = int(inquirer.text('Host the kachery server on port', default=str(config.get('host_kachery_server_port', 15401))))
-        config.set('host_kachery_server_port', host_kachery_server_port)
-        config.set(['kachery', 'url'], f'http://localhost:{host_kachery_server_port}')
-        kachery_server_dir = os.getcwd() + '/kachery-server'
-        if not os.path.isdir(kachery_server_dir):
-            os.mkdir(kachery_server_dir)
-        kachery_server_config_file = kachery_server_dir + '/kachery.json'
-        if not os.path.isfile(kachery_server_config_file):
-            with open(kachery_server_config_file, 'w') as f:
-                json.dump(dict(), f, indent=4)
-            do_config_kachery_server = True
-        else:
-            do_config_kachery_server = inquirer.confirm('Do you want to configure the kachery server?')
-        if do_config_kachery_server:
-            print('')
-            print(f'{bcolors.HEADER}Kachery server config{bcolors.ENDC}')
-            print(f'{bcolors.HEADER}====================={bcolors.ENDC}')
-            print(f'{bcolors.HEADER}Loading kachery server configuration from{bcolors.ENDC}: {kachery_server_config_file}')
-            kachery_server_config = KacheryServerConfig(kachery_server_config_file)
-            if not kachery_server_config.get_channel_config('readwrite'):
-                if inquirer.confirm('Would you like to create a readwrite channel for your kachery server?', default=True):
-                    password = inquirer.password('Enter a password for the readwrite channel on your kachery server (e.g., readwrite)')
-                    kachery_server_config.add_readwrite_channel(name='readwrite', password=password)
-            else:
-                if inquirer.confirm('Would you like to reset the password for the readwrite channel on your kachery server?', default=False):
-                    password = inquirer.password('Enter a password for the readwrite channel on your kachery server (e.g., readwrite)')
-                    kachery_server_config.set_channel_password(name='readwrite', password=password)
-            print(f'{bcolors.HEADER}To further configure your kachery server, edit this file{bcolors.ENDC}: {kachery_server_config_file}')
-            
-    else:
-        config.set('host_kachery_server', False)
-        config.unset('host_kachery_server_port')
-
-    # EventStreamServer
-    print('')
-    print(f'{bcolors.HEADER}EventStreamServer{bcolors.ENDC}')
-    print(f'{bcolors.HEADER}================={bcolors.ENDC}')
-    print(f'{bcolors.HEADER}You can either connect to an existing event stream server or host one on this computer along with your compute resource.{bcolors.ENDC}')
-    host_event_stream_server = inquirer.confirm(f'Do you want to host your own event stream server on this computer?', default=config.get('host_event_stream_server', True))
-    if host_event_stream_server:
-        config.set('host_event_stream_server', True)
-        host_event_stream_server_port = int(inquirer.text('Host the event stream server on port', default=str(config.get('host_event_stream_server_port', 15402))))
-        config.set('host_event_stream_server_port', host_event_stream_server_port)
-        config.set(['eventstreamserver', 'url'], f'http://localhost:{host_event_stream_server_port}')
-        event_stream_server_dir = os.getcwd() + '/event-stream-server'
-        if not os.path.isdir(event_stream_server_dir):
-            os.mkdir(event_stream_server_dir)
-        event_stream_server_config_file = event_stream_server_dir + '/eventstreamserver.json'
-        if not os.path.isfile(event_stream_server_config_file):
-            with open(event_stream_server_config_file, 'w') as f:
-                json.dump(dict(), f, indent=4)
-            do_config_event_stream_server = True
-        else:
-            do_config_event_stream_server = inquirer.confirm('Do you want to configure the event stream server?')
-        if do_config_event_stream_server:
-            print('')
-            print(f'{bcolors.HEADER}Event stream server config{bcolors.ENDC}')
-            print(f'{bcolors.HEADER}======={bcolors.ENDC}')
-            print(f'{bcolors.HEADER}Loading event stream server configuration from{bcolors.ENDC}: {event_stream_server_config_file}')
-            event_stream_server_config = EventStreamServerConfig(event_stream_server_config_file)
-            if not event_stream_server_config.get_channel_config('readwrite'):
-                if inquirer.confirm('Would you like to create a readwrite channel for your event stream server?', default=True):
-                    password = inquirer.password('Enter a password for the readwrite channel on your event stream server (e.g., readwrite)')
-                    event_stream_server_config.add_readwrite_channel(name='readwrite', password=password)
-            else:
-                if inquirer.confirm('Would you like to reset the password for the readwrite channel on your event stream server?', default=False):
-                    password = inquirer.password('Enter a password for the readwrite channel on your event stream server (e.g., readwrite)')
-                    event_stream_server_config.set_channel_password(name='readwrite', password=password)
-            print(f'{bcolors.HEADER}To further configure your event stream server, edit this file{bcolors.ENDC}: {event_stream_server_config_file}')
-            
-    else:
-        config.set('host_event_stream_server', False)
-        config.unset('host_event_stream_server_port')
+    print(f'{bcolors.HEADER}Checking kachery-p2p daemon{bcolors.ENDC}')
+    print(f'{bcolors.HEADER}==========================={bcolors.ENDC}')
+    try:
+        this_node_id = kp.get_node_id()
+    except:
+        print('''
+        The kachery-p2p daemon does not appear to be running
+        Please start the kachery-p2p daemon by running the following
+        command in a separate terminal:
+        > kachery-p2p-start-daemon
+        ''')
+        return
+    
+    print(f'Kachery-p2p daemom is running. Node ID: {this_node_id}')
 
     # Hither compute resource server
     print('')
     print(f'{bcolors.HEADER}Hither compute resource server{bcolors.ENDC}')
     print(f'{bcolors.HEADER}=============================={bcolors.ENDC}')
-    compute_resource_id = inquirer.text('Choose a compute resource ID', default=config.get('compute_resource_id', socket.gethostname()))
-    config.set('compute_resource_id', compute_resource_id)
-
-    kachery_url = inquirer.text('Kachery server URL', default=config.get(['kachery', 'url'], 'http://localhost:15401'))
-    config.set(['kachery', 'url'], kachery_url)
-    kachery_channel = inquirer.text('Kachery server channel', default=config.get(['kachery', 'channel'], 'readwrite'))
-    config.set(['kachery', 'channel'], kachery_channel)
-    kachery_password = inquirer.password(f'Kachery server password for channel {kachery_channel}', default=config.get(['kachery', 'password'], ''))
-    config.set(['kachery', 'password'], kachery_password)
-
-    event_stream_server_url = inquirer.text('Event stream server URL', default=config.get(['eventstreamserver', 'url'], 'http://localhost:15401'))
-    config.set(['eventstreamserver', 'url'], event_stream_server_url)
-    event_stream_server_channel = inquirer.text('Event stream server channel', default=config.get(['eventstreamserver', 'channel'], 'readwrite'))
-    config.set(['eventstreamserver', 'channel'], event_stream_server_channel)
-    event_stream_server_password = inquirer.password(f'Event stream server password for channel {event_stream_server_channel}', default=config.get(['eventstreamserver', 'password'], ''))
-    config.set(['eventstreamserver', 'password'], event_stream_server_password)
+    compute_resource_name = inquirer.text('Choose a compute resource name', default=config.get('compute_resource_name', socket.gethostname()))
+    config.set('compute_resource_name', compute_resource_name)
+    compute_resource_uri = config.get('compute_resource_uri', None)
+    if compute_resource_uri is not None:
+        print(f'Compute resource URI: {compute_resource_uri}?name={compute_resource_name}')
+        if inquirer.confirm(f'Would you like to replace this with a new feed URI for this compute resource?', default=False):
+            create_new_uri = True
+        else:
+            create_new_uri = False
+    else:
+        create_new_uri = True
+    if create_new_uri:
+        print('Creating new compute resource feed...')
+        new_feed = kp.create_feed()
+        config.set('compute_resource_uri', new_feed.get_uri())
+        compute_resource_uri = config.get('compute_resource_uri')
+        print(f'Compute resource URI: {compute_resource_uri}?name={compute_resource_name}')
+    _ = kp.load_feed(compute_resource_uri)
 
     # todo: allow slurm type
     job_handler_type = inquirer.list_input('Job handler type', choices=['parallel'], default=config.get(['job_handler', 'type'], 'parallel'))
@@ -487,6 +208,33 @@ def config():
         config.set(['job_handler', 'config', 'num_workers'], num_workers)
     else:
         raise Exception(f'Job handler type not yet supported by this config utility: {job_handler_type}')
+
+    while True:
+        access_rules = config.get('access_rules', [])
+        assert isinstance(access_rules, list), 'Problem in access_rules of config file. You should edit the file directly'
+        print('')
+        node_ids_with_access = dict()
+        if len(access_rules) == 0:
+            print(f'{bcolors.HEADER}No kachery-p2p nodes have access to this compute resource{bcolors.ENDC}')
+        else:
+            print(f'{bcolors.HEADER}The following kachery-p2p nodes have access to this compute resource{bcolors.ENDC}')
+            for r in access_rules:
+                node_id = r.get('node_id', '<unknown>')
+                node_ids_with_access[node_id] = True
+                print(node_id)
+        print('')
+        if inquirer.confirm('Would you like to grant access to a new kachery-p2p node?', default=False):
+            node_id = inquirer.text('Enter the kachery-p2p node ID')
+            if node_id:
+                if node_id in node_ids_with_access.keys():
+                    print('This node already has access.')
+                else:
+                    access_rules.append(dict(
+                        node_id=node_id
+                    ))
+                    config.set('access_rules', access_rules)
+        else:
+            break
 
     print('')
     print(f'{bcolors.HEADER}To further configure your compute resource server, rerun this utility, or directly edit this file{bcolors.ENDC}: {config_fname}')
@@ -523,118 +271,18 @@ def _print_info():
 
     print('')
     
-    host_kachery_server = config.get('host_kachery_server')
-    host_event_stream_server = config.get('host_event_stream_server')
-
-    if host_kachery_server or host_event_stream_server:
-        print(f'{bcolors.HEADER}You can start the compute resource server by running the following in separate terminals from this working directory:{bcolors.ENDC}')
-    else:
-        print(f'{bcolors.HEADER}You can start the compute resource server by running the following command:{bcolors.ENDC}')
-    if host_kachery_server:
-        print('hither-compute-resource start-kachery-server')
-    if host_event_stream_server:
-        print('hither-compute-resource start-event-stream-server')
+    print(f'{bcolors.HEADER}You can start the compute resource server by running the following command:{bcolors.ENDC}')
     print('hither-compute-resource start')
-
-    if host_kachery_server or host_event_stream_server:
-        print('')
-        print('Or, for convenience, you can run all the above in one command:')
-        print('hither-compute-resource start --all')
 
 @click.command(help="Display information about the current configuration and exit.")
 def info():
     _print_info()
 
-@click.command()
-@click.option('--docker_run_opts', help='Additional options to send to docker run')
-@click.option('--tmp', help='Optional host directory to mount as /tmp in the container', default=None)
-@click.option('--data', help='Optional host directory to mount as /data in the container', default=None)
-@click.option('--kachery', help='Optional kachery storage directory to use inside the container', default=None)
-@click.option('--command', help='Optional command to run inside the container', default=None)
-@click.argument('image')
-def run_docker_container(image, docker_run_opts, tmp, data, kachery, command):
-    do_run_docker_container(image=image, docker_run_opts=docker_run_opts, tmp=tmp, data=data, kachery=kachery, command=command)
-
-def do_run_docker_container(image, docker_run_opts=None, tmp=None, data=None, kachery=None, command=None):
-    inject_user_dir = hi._docker_inject_user_dir()
-
-    new_image = _append_docker_image_name(image, '-nonroot')
-
-    volume_mounts = []
-    environment_variables = []
-    if kachery is not None:
-        volume_mounts.append(dict(
-            host_dir=kachery,
-            container_dir=kachery
-        ))
-        environment_variables.append(dict(
-            name='KACHERY_STORAGE_DIR',
-            value=kachery
-        ))
-    if tmp is not None:
-        assert os.path.exists(tmp), f'No such directory: {tmp}'
-        volume_mounts.append(dict(
-            host_dir=tmp,
-            container_dir='/tmp'
-        ))
-    if data is not None:
-        assert os.path.exists(data), f'No such directory: {data}'
-        volume_mounts.append(dict(
-            host_dir=data,
-            container_dir='/data'
-        ))
-    volume_opts = ' '.join([
-        f'-v {x["host_dir"]}:{x["container_dir"]}'
-        for x in volume_mounts
-    ])
-    env_opts = ' '.join([
-        f'-e {x["name"]}="{x["value"]}"'
-        for x in environment_variables
-    ])
-
-    if command is not None:
-        commandstr = command
-    else:
-        commandstr = ''
-
-    ss = hi.ShellScript(f"""
-        #!/bin/bash
-
-        set -ex
-
-        USER_ID="$(id -u)"
-        GROUP_ID="$(id -g)"
-        USER_INSIDE_CONTAINER="labbox"
-        BASE_IMAGE="{image}" # docker image name
-        NEW_IMAGE="{new_image}"
-        INJECT_USER_DIR="{inject_user_dir}"
-        docker build \\
-            -f $INJECT_USER_DIR/injectUser.Dockerfile \\
-            -t $NEW_IMAGE \\
-            --build-arg BASE_IMAGE=$BASE_IMAGE \\
-            --build-arg NEW_USER=$USER_INSIDE_CONTAINER \\
-            --build-arg NEW_UID=$USER_ID \\
-            --build-arg NEW_GID=$GROUP_ID \\
-            $INJECT_USER_DIR
-        
-        exec docker run \\
-            {docker_run_opts} \\
-            {volume_opts} \\
-            {env_opts} \\
-            -it $NEW_IMAGE {commandstr}
-    """, verbose=True)
-
-    ss.start()
-    ss.wait()
-
-def _append_docker_image_name(x, y):
-    a = x.split(':')
-    if len(a) == 1:
-        return x + y
-    elif len(a) == 2:
-        return a[0] + y + ':' + a[1]
-    else:
-        raise Exception(f'Invalid docker image name: {x}')
+def _test_kachery_version():
+    try:
+        ka.set_config(use_hard_links=True)
+    except:
+        print('WARNING: You should update your version of kachery so that the "use_hard_links" configuration option is available.')
 
 # Thanks: https://stackoverflow.com/questions/287871/how-to-print-colored-text-in-terminal-in-python
 class bcolors:
@@ -651,9 +299,6 @@ class bcolors:
 cli.add_command(config)
 cli.add_command(info)
 cli.add_command(start)
-cli.add_command(start_kachery_server)
-cli.add_command(start_event_stream_server)
-cli.add_command(run_docker_container)
 cli.add_command(version)
 
 if __name__ == "__main__":

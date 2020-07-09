@@ -1,7 +1,6 @@
 import time
 from typing import Optional, Dict, Any
 
-import kachery_p2p as kp
 from ._containermanager import ContainerManager
 from ._util import _serialize_item, _random_string, _get_poll_interval
 from .database import Database
@@ -9,7 +8,7 @@ from ._enums import JobStatus, JobKeys
 from ._exceptions import DeserializationException
 from .file import File
 from .job import Job
-from .eventstreamclient import EventStreamClient
+import kachery_p2p as kp
 
 class ComputeResourceActionTypes:
     # sent by compute resource at startup
@@ -48,6 +47,10 @@ class ConnectedClient:
 
         # timestamp for when the client last reported being alive
         self._timestamp_client_report_alive = time.time()
+
+        self._outgoing_feed.append_message(dict(
+            type='JOB_HANDLER_REGISTERED'
+        ))
 
     def iterate(self):
         # read and process all incoming messages (polling)
@@ -173,7 +176,7 @@ class ConnectedClient:
 
         try:
             if container is None:
-                raise Exception("Cannot run serialized job outside of container, but none was set.")
+                raise Exception("Cannot run serialized job outside of container. Use container=True.")
             ContainerManager.prepare_container(container)
         except Exception as e:
             print(f"Error preparing container for pending job: {label}\n{e}") # TODO: log
@@ -233,18 +236,27 @@ class ComputeResource:
         self._job_cache = job_cache
         self._connected_clients = dict()
 
-    def run(self):
-        self._compute_resource_feed = kp.load_feed(self._compute_resource_uri, create=True)
+        self._compute_resource_feed = kp.load_feed(self._compute_resource_uri)
         assert self._compute_resource_feed.is_writeable()
         self._registry_feed = self._compute_resource_feed.get_subfeed('job_handler_registry')
         self._registry_feed.set_position(self._registry_feed.get_num_messages())
 
+    def run(self):
         self._registry_feed.append_message(dict(
             type=ComputeResourceActionTypes.COMPUTE_RESOURCE_STARTED
         ))
         while True:
             self._iterate()
             time.sleep(0.02) # TODO: alternative to busy-wait?
+
+    def set_access_rules(self, access_rules):
+        self._registry_feed.set_access_rules([
+            dict(
+                node_id=r["node_id"],
+                write=True
+            )
+            for r in access_rules
+        ])
 
     def _process_action(self, action):
         _type = action['type']

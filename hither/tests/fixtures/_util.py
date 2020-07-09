@@ -3,6 +3,7 @@ import time
 import json
 import hither as hi
 from ._config import KACHERY_P2P_DAEMON_API_PORT
+import kachery_p2p as kp
 
 def _wait_for_kachery_p2p_daemon_to_start(api_port):
     max_retries = 90
@@ -25,9 +26,6 @@ def _wait_for_kachery_p2p_daemon_to_start(api_port):
         time.sleep(delay_between_retries)
 
 def _wait_for_compute_resource_to_start(compute_resource_uri):
-    import kachery_p2p as kp
     f = kp.load_feed(compute_resource_uri).get_subfeed('main')
-    for msg in f.get_messages(live=True):
-        if msg['type'] == 'COMPUTE_RESOURCE_STARTED':
-            return
-    raise Exception('Unexpected problem waiting for compute resource to start')
+    msg = f.get_next_message(wait_msec=10000)
+    assert (msg is not None) and (msg['type'] == 'COMPUTE_RESOURCE_STARTED', 'Unexpected problem waiting for compute resource to start'

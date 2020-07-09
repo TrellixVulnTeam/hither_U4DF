@@ -7,7 +7,6 @@ from .database import Database
 from ._enums import JobStatus, JobKeys
 from .file import File
 from ._util import _random_string, _deserialize_item, _flatten_nested_collection, _get_poll_interval
-from .eventstreamclient import EventStreamClient
 from .computeresource import ComputeResourceActionTypes
 from .computeresource import HITHER_COMPUTE_RESOURCE_TO_REMOTE_JOB_HANDLER, HITHER_REMOTE_JOB_HANDLER_TO_COMPUTE_RESOURCE
 
@@ -24,16 +23,19 @@ class RemoteJobHandler(BaseJobHandler):
 
         self._job_handler_feed = kp.create_feed()
         self._outgoing_feed = self._job_handler_feed.get_subfeed('main')
-        self._compute_resource_feed = kp.load_feed(self._compute_resource_uri, live=True)
+        self._compute_resource_feed = kp.load_feed(self._compute_resource_uri)
         self._registry_feed = self._compute_resource_feed.get_subfeed('job_handler_registry')
         self._incoming_feed = self._compute_resource_feed.get_subfeed(self._job_handler_feed.get_uri())
 
         # register self with compute resource
         print('Registering job handler with remote compute resource...')
-        self._registry_feed.submit_message(dict(
-            type=ComputeResourceActionTypes.REGISTER_JOB_HANDLER,
-            uri=self._job_handler_feed.get_uri()
-        ))
+        try:
+            self._registry_feed.submit_message(dict(
+                type=ComputeResourceActionTypes.REGISTER_JOB_HANDLER,
+                uri=self._job_handler_feed.get_uri()
+            ))
+        except:
+            raise Exception('Unable to register job handler with remote compute resource. Perhaps you do not have permission to access this resource.')
 
         self._jobs: Dict = {}
         self._timestamp_last_action = time.time()
@@ -42,8 +44,9 @@ class RemoteJobHandler(BaseJobHandler):
         # wait for the compute resource to ackowledge us
         print('Waiting for remote compute resource to respond...')
         msg = self._incoming_feed.get_next_message(wait_msec=10000)
-        assert msg is not None
-        assert msg['type'] == 'ACKNOWLEDGED'
+        assert msg is not None, 'Timeout while waiting for compute resource to respond.'
+        assert msg['type'] == 'JOB_HANDLER_REGISTERED', 'Unexpected message from compute resource'
+        print('Got response from compute resource.')
             
         self._report_action()
 
