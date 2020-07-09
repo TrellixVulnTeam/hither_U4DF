@@ -252,7 +252,7 @@ class ComputeResource:
     def set_access_rules(self, access_rules):
         self._registry_feed.set_access_rules([
             dict(
-                node_id=r["node_id"],
+                nodeId=r["node_id"],
                 write=True
             )
             for r in access_rules
