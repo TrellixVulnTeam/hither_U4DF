@@ -8,6 +8,7 @@ sys.path.append(thisdir)
 pytest_plugins = [
     "fixtures._general",
     "fixtures._compute_resource",
+    "fixtures._kachery_p2p_daemon",
     "fixtures._mongodb"
 ]
 

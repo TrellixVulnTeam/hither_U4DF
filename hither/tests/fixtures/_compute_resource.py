@@ -14,13 +14,13 @@ import kachery_p2p as kp
 def compute_resource(tmp_path):
     print('Starting compute resource')
     # db = hi.Database(mongo_url=f'mongodb://localhost:{MONGO_PORT}', database=DATABASE_NAME)
-    kachery_storage_dir_compute_resource = str(tmp_path / f'kachery-storage-compute-resource-{_random_string(10)}')
-    kachery_p2p_config_dir_compute_resource = str(tmp_path / f'kachery-p2p-config-compute-resource-{_random_string(10)}')
+    kachery_storage_dir_compute_resource = str(tmp_path) + f'/kachery-storage-compute-resource-{_random_string(10)}'
+    kachery_p2p_config_dir_compute_resource = str(tmp_path) + f'/kachery-p2p-config-compute-resource-{_random_string(10)}'
     os.mkdir(kachery_storage_dir_compute_resource)
     os.mkdir(kachery_p2p_config_dir_compute_resource)
     api_port = 29013
-    os.environ['KACHERY_STORAGE_DIR'] = kachery_storage_dir_compute_resource,
-    os.environ['KACHERY_P2P_CONFIG_DIR'] = kachery_p2p_config_dir_compute_resource,
+    os.environ['KACHERY_STORAGE_DIR'] = kachery_storage_dir_compute_resource
+    os.environ['KACHERY_P2P_CONFIG_DIR'] = kachery_p2p_config_dir_compute_resource
     os.environ['KACHERY_P2P_API_PORT'] = str(api_port)
     
     kp2p_process = multiprocessing.Process(target=run_service_kachery_p2p_daemon, kwargs=dict(
@@ -48,6 +48,10 @@ def compute_resource(tmp_path):
 
     yield process
     print('Terminating compute resource')
+
+    os.environ['KACHERY_P2P_API_PORT'] = str(api_port)
+    kp.stop_daemon()
+
     kp2p_process.terminate()
     process.terminate()
     shutil.rmtree(kachery_storage_dir_compute_resource)
@@ -68,8 +72,8 @@ def run_service_compute_resource(*, api_port, kachery_p2p_config_dir, kachery_st
 
     os.environ['RUNNING_PYTEST'] = 'TRUE'
 
-    os.environ['KACHERY_STORAGE_DIR'] = kachery_storage_dir,
-    os.environ['KACHERY_P2P_CONFIG_DIR'] = kachery_p2p_config_dir,
+    os.environ['KACHERY_STORAGE_DIR'] = kachery_storage_dir
+    os.environ['KACHERY_P2P_CONFIG_DIR'] = kachery_p2p_config_dir
     os.environ['KACHERY_P2P_API_PORT'] = str(api_port)
 
     with hi.ConsoleCapture(label='[compute-resource]'):

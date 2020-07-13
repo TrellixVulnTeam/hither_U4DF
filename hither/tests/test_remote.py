@@ -5,6 +5,7 @@ from .functions import functions as fun
 from .fixtures import MONGO_PORT, DATABASE_NAME, KACHERY_P2P_DAEMON_API_PORT
 
 @pytest.mark.remote
+@pytest.mark.current
 def test_remote_1(general, mongodb, kachery_p2p_daemon, compute_resource):
     jh = hi.RemoteJobHandler(compute_resource_uri=compute_resource.compute_resource_uri)
     for passnum in [1, 2]: # do it twice so we can cover the job cache code on the compute resource
@@ -16,17 +17,7 @@ def test_remote_1(general, mongodb, kachery_p2p_daemon, compute_resource):
             job.print_console_out()
 
 @pytest.mark.remote
-def test_remote_1b(general, mongodb, kachery_p2p_daemon, compute_resource):
-    jh = hi.RemoteJobHandler(compute_resource_uri=compute_resource.compute_resource_uri)
-    with hi.Config(job_handler=jh, container=True):
-        a = fun.ones.run(shape=(4, 3))
-        hi.wait()
-        # we should get an implicit 'identity' job here
-        a = a.wait()
-        assert np.array_equal(a, np.ones((4, 3)))
-        assert jh._internal_counts.num_jobs == 2, f'Unexpected number of jobs: {jh._internal_counts.num_jobs}'
-
-@pytest.mark.remote
+@pytest.mark.current
 def test_remote_2(general, mongodb, kachery_p2p_daemon, compute_resource):
     jh = hi.RemoteJobHandler(compute_resource_uri=compute_resource.compute_resource_uri)
     with hi.Config(job_handler=jh, container=True):
@@ -37,6 +28,7 @@ def test_remote_2(general, mongodb, kachery_p2p_daemon, compute_resource):
         assert jh._internal_counts.num_jobs == 2, f'Unexpected number of jobs: {jh._internal_counts.num_jobs}'
 
 @pytest.mark.remote
+@pytest.mark.current
 def test_remote_3(general, mongodb, kachery_p2p_daemon, compute_resource):
     jh = hi.RemoteJobHandler(compute_resource_uri=compute_resource.compute_resource_uri)
     with hi.Config(job_handler=jh, container=True):

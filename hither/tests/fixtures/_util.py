@@ -26,6 +26,6 @@ def _wait_for_kachery_p2p_daemon_to_start(api_port):
         time.sleep(delay_between_retries)
 
 def _wait_for_compute_resource_to_start(compute_resource_uri):
-    f = kp.load_feed(compute_resource_uri).get_subfeed('main')
+    f = kp.load_feed(compute_resource_uri).get_subfeed('job_handler_registry')
     msg = f.get_next_message(wait_msec=10000)
-    assert (msg is not None) and (msg['type'] == 'COMPUTE_RESOURCE_STARTED', 'Unexpected problem waiting for compute resource to start'
+    assert (msg is not None) and (msg['type'] == 'COMPUTE_RESOURCE_STARTED'), 'Unexpected problem waiting for compute resource to start'

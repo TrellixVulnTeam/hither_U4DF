@@ -7,6 +7,7 @@ from urllib import request
 from ._config import KACHERY_P2P_DAEMON_API_PORT
 from ._common import _random_string
 from ._util import _wait_for_kachery_p2p_daemon_to_start
+import kachery_p2p as kp
 
 def run_service_kachery_p2p_daemon(*, kachery_storage_dir, kachery_p2p_config_dir, api_port):
     # The following cleanup is needed because we terminate this compute resource process
@@ -25,7 +26,7 @@ def run_service_kachery_p2p_daemon(*, kachery_storage_dir, kachery_p2p_config_di
         export KACHERY_P2P_CONFIG_DIR={kachery_p2p_config_dir}
         mkdir -p $KACHERY_STORAGE_DIR
 
-        kachery-p2p-start-daemon --channel test1 --method dev "$@"
+        exec kachery-p2p-start-daemon --channel test1 --method dev --verbose {api_port}
         """, redirect_output_to_stdout=True)
         ss.start()
         ss.wait()
@@ -54,6 +55,9 @@ def kachery_p2p_daemon(tmp_path):
 
     yield process
     print('Terminating kachery p2p daemon')
+
+    os.environ['KACHERY_P2P_API_PORT'] = str(api_port)
+    kp.stop_daemon()
 
     process.terminate()
     shutil.rmtree(daemon_dir)

@@ -34,7 +34,7 @@ setuptools.setup(
         "pymongo",
         "click",
         "inquirer",
-        "kachery>=0.6.1"
+        "kachery_p2p>=0.1.9"
         # non-explicit dependencies: numpy
     ],
     classifiers=[
