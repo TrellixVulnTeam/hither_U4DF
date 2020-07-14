@@ -32,6 +32,7 @@ class RemoteJobHandler(BaseJobHandler):
         try:
             self._registry_feed.submit_message(dict(
                 type=ComputeResourceActionTypes.REGISTER_JOB_HANDLER,
+                timestamp=time.time() - 0,
                 uri=self._job_handler_feed.get_uri()
             ))
         except:

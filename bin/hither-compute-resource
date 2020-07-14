@@ -287,42 +287,50 @@ def monitor(uri, job_handler):
         job_handler_registry = feed.get_subfeed('job_handler_registry')
         for msg in job_handler_registry.message_stream():
             _type = msg.get('type', None)
+            _ts = _fmt_time(msg.get('timestamp', None))
             if _type == ComputeResourceActionTypes.COMPUTE_RESOURCE_STARTED:
-                print(f"{bcolors.HEADER}COMPUTE RESOURCE STARTED{bcolors.ENDC}")
+                print(f"{bcolors.HEADER}{_ts} COMPUTE RESOURCE STARTED{bcolors.ENDC}")
             elif _type == ComputeResourceActionTypes.REGISTER_JOB_HANDLER:
                 job_handler_uri = msg.get("uri", None)
-                print(f"Registered job handler: {job_handler_uri}")
+                print(f"{_ts} REGISTER JOB HANDLER: {job_handler_uri}")
             else:
                 print(msg)
     else:
         job_handler_feed = feed.get_subfeed(job_handler)
         for msg in job_handler_feed.message_stream():
             _type = msg.get('type', None)
+            _ts = _fmt_time(msg.get('timestamp', None))
             if _type == ComputeResourceActionTypes.JOB_HANDLER_REGISTERED:
-                print(f"{bcolors.HEADER}JOB HANDLER REGISTERED{bcolors.ENDC}")
+                print(f"{bcolors.HEADER}{_ts} JOB HANDLER REGISTERED{bcolors.ENDC}")
             elif _type == ComputeResourceActionTypes.JOB_FINISHED:
                 job_id = msg.get('job_id', None)
                 label = msg.get('label', None)
-                print(f"{bcolors.OKGREEN}JOB FINISHED: {job_id} {label}{bcolors.ENDC}")
+                print(f"{bcolors.OKGREEN}{_ts} JOB FINISHED: {job_id} {label}{bcolors.ENDC}")
             elif _type == ComputeResourceActionTypes.JOB_ERROR:
                 job_id = msg.get('job_id', None)
                 label = msg.get('label', None)
-                print(f"{bcolors.WARNING}JOB ERROR: {job_id} {label}{bcolors.ENDC}")
+                print(f"{bcolors.WARNING}{_ts} JOB ERROR: {job_id} {label}{bcolors.ENDC}")
             elif _type == ComputeResourceActionTypes.LOG:
                 action0 = msg.get('action', {})
                 type0 = action0.get('type')
+                # latency0 = action0.get('timestamp', 0) - msg.get('timestamp', 0)
                 if type0 == ComputeResourceActionTypes.ADD_JOB:
                     job_id = action0.get('job_id', None)
                     label = action0.get('label', None)
-                    print(f"{bcolors.OKBLUE}JOB ADDED: {job_id} {label}{bcolors.ENDC}")
+                    print(f"{bcolors.OKBLUE}{_ts} JOB ADDED: {job_id} {label}{bcolors.ENDC}")
                 elif type0 == ComputeResourceActionTypes.JOB_HANDLER_FINISHED:
-                    print(f"{bcolors.HEADER}JOB HANDLER FINISHED{bcolors.ENDC}")
+                    print(f"{bcolors.HEADER}{_ts} JOB HANDLER FINISHED{bcolors.ENDC}")
                     break
                 else:
                     print(f"LOG: {type0}", msg)
             else:
                 print(f'{_type}', msg)
 
+def _fmt_time(t):
+    import datetime
+    if t is None:
+        return ''
+    return datetime.datetime.fromtimestamp(t).isoformat()
 
 def _test_kachery_version():
     try:
