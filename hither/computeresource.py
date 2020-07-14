@@ -69,8 +69,9 @@ class ConnectedClient:
         if elapsed_event_poll > _get_poll_interval(self._timestamp_last_action):
             self._timestamp_event_poll = time.time()
             actions = self._incoming_feed.get_next_messages(wait_msec=10)
-            for action in actions:
-                self._process_action(action)
+            if actions is not None:
+                for action in actions:
+                    self._process_action(action)
         
         # Handle jobs
         job_ids = list(self._jobs.keys())
