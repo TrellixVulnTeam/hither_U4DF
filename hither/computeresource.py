@@ -22,8 +22,12 @@ class ComputeResourceActionTypes:
     JOB_HANDLER_FINISHED = 'JOB_HANDLER_FINISHED'
 
     # sent from compute resource to job handler
+    JOB_HANDLER_REGISTERED = 'JOB_HANDLER_REGISTERED'
     JOB_FINISHED = 'JOB_FINISHED'
     JOB_ERROR = 'JOB_ERROR'
+
+    # sent either direction (information only)
+    LOG = 'LOG'
 
 HITHER_REMOTE_JOB_HANDLER_TO_COMPUTE_RESOURCE = 'HITHER_REMOTE_JOB_HANDLER_TO_COMPUTE_RESOURCE'
 HITHER_COMPUTE_RESOURCE_TO_REMOTE_JOB_HANDLER = 'HITHER_COMPUTE_RESOURCE_TO_REMOTE_JOB_HANDLER'
@@ -52,7 +56,7 @@ class ConnectedClient:
         self._timestamp_client_report_alive = time.time()
 
         self._outgoing_feed.append_message(dict(
-            type='JOB_HANDLER_REGISTERED'
+            type=ComputeResourceActionTypes.JOB_HANDLER_REGISTERED
         ))
 
     def iterate(self):
@@ -78,7 +82,7 @@ class ConnectedClient:
                 del self._jobs[job._job_id]
                 self._report_action
             elif job._status == JobStatus.ERROR:
-                self._mark_job_as_error(job_id=job_id, runtime_info=job._runtime_info, exception=job._exception)
+                self._mark_job_as_error(job_id=job_id, label=job._label, runtime_info=job._runtime_info, exception=job._exception)
                 del self._jobs[job._job_id]
                 self._report_action
             elif job._status == JobStatus.PENDING:
@@ -98,6 +102,10 @@ class ConnectedClient:
         _type = action['type']
         if _type == ComputeResourceActionTypes.CANCEL_JOB:
             # cancel a job... get the job id and forward the request to the job handler on this end
+            self._outgoing_feed.append_message(dict(
+                type=ComputeResourceActionTypes.LOG,
+                action=action
+            ))
             job_id = action['job_id']
             self._job_handler.cancel_job(job_id)
             self._report_action()
@@ -106,11 +114,22 @@ class ConnectedClient:
             self._timestamp_client_report_alive = time.time()
         elif _type == ComputeResourceActionTypes.ADD_JOB:
             # Add a job
+            self._outgoing_feed.append_message(dict(
+                type=ComputeResourceActionTypes.LOG,
+                action=action
+            ))
             action['handler_uri'] = self._handler_uri
             self._add_job(action)
             self._report_action()
         elif _type == ComputeResourceActionTypes.JOB_HANDLER_FINISHED:
+            self._outgoing_feed.append_message(dict(
+                type=ComputeResourceActionTypes.LOG,
+                action=action
+            ))
             self._finished = True
+            
+        elif type == ComputeResourceActionTypes.LOG:
+            pass
         else:
             raise Exception(f'Unexpected action type: {_type}') # pragma: no cover
     
@@ -135,7 +154,7 @@ class ConnectedClient:
                 return
             elif job._status == JobStatus.ERROR:
                 print(f'Found error job in cache: {label}') # TODO: Convert to log statement
-                self._mark_job_as_error(job_id=job_id, exception=job._exception, runtime_info=job._runtime_info)
+                self._mark_job_as_error(job_id=job_id, label=label, exception=job._exception, runtime_info=job._runtime_info)
                 return
         # No finished or errored version of the Job was found in the cache. Thus, queue it.
         self._queue_job(job, handler_uri)
@@ -165,7 +184,7 @@ class ConnectedClient:
         except Exception as e:
             exc = f'Error loading code for function {label}: {code} ({str(e)})'
             print(exc)
-            self._mark_job_as_error(job_id=job_id, exception=Exception(exc), runtime_info=None)
+            self._mark_job_as_error(job_id=job_id, label=label, exception=Exception(exc), runtime_info=None)
             return False
         return True
 
@@ -188,7 +207,7 @@ class ConnectedClient:
             ContainerManager.prepare_container(container)
         except Exception as e:
             print(f"Error preparing container for pending job: {label}\n{e}") # TODO: log
-            self._mark_job_as_error(job_id=job_id, exception=e, runtime_info=None)
+            self._mark_job_as_error(job_id=job_id, label=label, exception=e, runtime_info=None)
             return False
         return True
     def _handle_finished_job(self, job):
@@ -201,7 +220,7 @@ class ConnectedClient:
             job.download_parameter_files_if_needed()
         except Exception as e:
             print(f"Error downloading input files for job: {job._label}\n{e}")
-            self._mark_job_as_error(job_id=job._job_id, exception=e, runtime_info=None)
+            self._mark_job_as_error(job_id=job._job_id, label=job._label, exception=e, runtime_info=None)
             return
         self._jobs[job._job_id] = job
         self._job_handler.handle_job(job)
@@ -213,6 +232,7 @@ class ConnectedClient:
         action = {
             "type": ComputeResourceActionTypes.JOB_FINISHED,
             "job_id": job._job_id, # change this to JobJeys.JOB_ID if safe
+            "label": job._label,
             JobKeys.RUNTIME_INFO: job.get_runtime_info(),
             JobKeys.RESULT: serialized_result
         }
@@ -221,12 +241,13 @@ class ConnectedClient:
         #     runtime_info=job._runtime_info, result=serialized_result)
         
     def _mark_job_as_error(self, *,
-            job_id: str, runtime_info: Optional[dict], exception: Optional[Exception]) -> None:
-        print(f"Job error: {job_id}\n{exception}") # TODO: Change to formal log statement?
+            job_id: str, label: str, runtime_info: Optional[dict], exception: Optional[Exception]) -> None:
+        print(f"Job error: {job_id} {label}\n{exception}") # TODO: Change to formal log statement?
         # fix the following to conform to above method:
         action = dict([
             ("type", ComputeResourceActionTypes.JOB_ERROR),
             ("job_id", job_id),
+            ("label", label),
             (JobKeys.RUNTIME_INFO, runtime_info),
             (JobKeys.EXCEPTION, str(exception))
         ])

@@ -45,7 +45,7 @@ class RemoteJobHandler(BaseJobHandler):
         print('Waiting for remote compute resource to respond...')
         msg = self._incoming_feed.get_next_message(wait_msec=10000)
         assert msg is not None, 'Timeout while waiting for compute resource to respond.'
-        assert msg['type'] == 'JOB_HANDLER_REGISTERED', 'Unexpected message from compute resource'
+        assert msg['type'] == ComputeResourceActionTypes.JOB_HANDLER_REGISTERED, 'Unexpected message from compute resource'
         print('Got response from compute resource.')
             
         self._report_action()
@@ -63,6 +63,7 @@ class RemoteJobHandler(BaseJobHandler):
         self._outgoing_feed.append_message(dict(
             type=ComputeResourceActionTypes.ADD_JOB,
             job_id=job._job_id,
+            label=job._label,
             job_serialized=job_serialized
         ))
         self._jobs[job._job_id] = job
@@ -75,7 +76,8 @@ class RemoteJobHandler(BaseJobHandler):
             return
         self._outgoing_feed.append_message(dict(
             type=ComputeResourceActionTypes.CANCEL_JOB,
-            job_id=job_id
+            job_id=job_id,
+            label=self._jobs[job_id]._label
         ))
 
         self._report_action()
@@ -114,6 +116,10 @@ class RemoteJobHandler(BaseJobHandler):
             self._process_job_finished_action(action)
         elif _type == ComputeResourceActionTypes.JOB_ERROR:
             self._process_job_error_action(action)
+        elif _type == ComputeResourceActionTypes.LOG:
+            pass
+        else:
+            raise Exception(f'Unexpected action type from compute resource: {_type}')
     
     def iterate(self) -> None:
         elapsed_event_poll = time.time() - self._timestamp_event_poll

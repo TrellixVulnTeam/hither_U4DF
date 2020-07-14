@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from hither.computeresource import ComputeResourceActionTypes
 from hither import computeresource, __version__
 import os
 import json
@@ -17,7 +18,7 @@ def cli():
 
 @click.command(help="Display hither version and exit.")
 def version():
-    click.echo(f"This is hither version {__version__}.")
+    click.echo(f"Using hither version {__version__}.")
     exit()
 
 
@@ -86,8 +87,7 @@ class ComputeResourceConfig:
             json.dump(self._config, f, indent=4)
 
 @click.command(help='Start the configured compute resource.')
-@click.option('--all', is_flag=True)
-def start(all):
+def start():
     _test_kachery_version()
 
     config_fname = os.getcwd() + '/compute_resource.json'
@@ -278,6 +278,49 @@ def _print_info():
 def info():
     _print_info()
 
+@click.command(help='Monitor a remote (or local) compute resource')
+@click.option('--uri', help='The URI of the compute resource')
+@click.option('--job-handler', help='The URI of the job handler', default=None)
+def monitor(uri, job_handler):
+    feed = kp.load_feed(uri)
+    if job_handler is None:
+        job_handler_registry = feed.get_subfeed('job_handler_registry')
+        for msg in job_handler_registry.message_stream():
+            _type = msg.get('type', None)
+            if _type == ComputeResourceActionTypes.COMPUTE_RESOURCE_STARTED:
+                print(f"{bcolors.HEADER}COMPUTE RESOURCE STARTED{bcolors.ENDC}")
+            elif _type == ComputeResourceActionTypes.REGISTER_JOB_HANDLER:
+                job_handler_uri = msg.get("uri", None)
+                print(f"Registered job handler: {job_handler_uri}")
+            else:
+                print(msg)
+    else:
+        job_handler_feed = feed.get_subfeed(job_handler)
+        for msg in job_handler_feed.message_stream():
+            _type = msg.get('type', None)
+            if _type == ComputeResourceActionTypes.JOB_HANDLER_REGISTERED:
+                print(f"{bcolors.HEADER}JOB HANDLER REGISTERED: {job_handler}{bcolors.ENDC}")
+            elif _type == ComputeResourceActionTypes.JOB_FINISHED:
+                job_id = msg.get('job_id', None)
+                label = msg.get('label', None)
+                print(f"{bcolors.OKGREEN}JOB FINISHED: {job_id} {label}{bcolors.ENDC}")
+            elif _type == ComputeResourceActionTypes.JOB_ERROR:
+                job_id = msg.get('job_id', None)
+                label = msg.get('label', None)
+                print(f"{bcolors.WARNING}JOB ERROR: {job_id} {label}{bcolors.ENDC}")
+            elif _type == ComputeResourceActionTypes.LOG:
+                action0 = msg.get('action', {})
+                type0 = action0.get('type0')
+                if type0 == ComputeResourceActionTypes.ADD_JOB:
+                    job_id = action0.get('job_id', None)
+                    label = action0.get('label', None)
+                    print(f"{bcolors.OKBLUE}JOB ADDED: {job_id} {label}{bcolors.ENDC}")
+                else:
+                    print(f"LOG: {type0}")
+            else:
+                print(f'{_type}', msg)
+
+
 def _test_kachery_version():
     try:
         ka.set_config(use_hard_links=True)
@@ -297,8 +340,9 @@ class bcolors:
 
 
 cli.add_command(config)
-cli.add_command(info)
 cli.add_command(start)
+cli.add_command(info)
+cli.add_command(monitor)
 cli.add_command(version)
 
 if __name__ == "__main__":
