@@ -19,6 +19,7 @@ class ComputeResourceActionTypes:
     ADD_JOB = 'ADD_JOB'
     CANCEL_JOB = 'CANCEL_JOB'
     REPORT_ALIVE = 'REPORT_ALIVE'
+    JOB_HANDLER_FINISHED = 'JOB_HANDLER_FINISHED'
 
     # sent from compute resource to job handler
     JOB_FINISHED = 'JOB_FINISHED'
@@ -38,6 +39,8 @@ class ConnectedClient:
         self._job_handler = compute_resource._job_handler
         self._job_cache = compute_resource._job_cache
 
+        self._finished = False
+
         # for polling
         self._timestamp_event_poll = 0
         self._timestamp_last_action = time.time()
@@ -53,6 +56,9 @@ class ConnectedClient:
         ))
 
     def iterate(self):
+        if self._finished:
+            return
+        
         # read and process all incoming messages (polling)
         elapsed_event_poll = time.time() - self._timestamp_event_poll
         if elapsed_event_poll > _get_poll_interval(self._timestamp_last_action):
@@ -103,6 +109,8 @@ class ConnectedClient:
             action['handler_uri'] = self._handler_uri
             self._add_job(action)
             self._report_action()
+        elif _type == ComputeResourceActionTypes.JOB_HANDLER_FINISHED:
+            self._finished = True
         else:
             raise Exception(f'Unexpected action type: {_type}') # pragma: no cover
     
@@ -286,11 +294,14 @@ class ComputeResource:
         
             clients = self._connected_clients.values()
             for client in clients:
-                client.iterate()
-                elapsed_since_client_alive = client._timestamp_client_report_alive - time.time()
-                if elapsed_since_client_alive > 20:
-                    print(f'Closing job handler: {client._handler_uri}')
-                    client.cancel_all_jobs()
+                if not client._finished:
+                    client.iterate()
+                    elapsed_since_client_alive = client._timestamp_client_report_alive - time.time()
+                    if elapsed_since_client_alive > 20:
+                        print(f'Closing job handler: {client._handler_uri}')
+                        client.cancel_all_jobs()
+                        del self._connected_clients[client._handler_uri]
+                else:
                     del self._connected_clients[client._handler_uri]
         
         self._job_handler.iterate()

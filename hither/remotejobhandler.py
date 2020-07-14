@@ -133,4 +133,6 @@ class RemoteJobHandler(BaseJobHandler):
         self._timestamp_last_action = time.time()
 
     def cleanup(self):
-        pass
+        self._outgoing_feed.append_message(dict(
+            type=ComputeResourceActionTypes.JOB_HANDLER_FINISHED
+        ))
