@@ -62,6 +62,7 @@ class RemoteJobHandler(BaseJobHandler):
         job_serialized[JobKeys.CODE] = ka.store_object(job_serialized[JobKeys.CODE])
         self._outgoing_feed.append_message(dict(
             type=ComputeResourceActionTypes.ADD_JOB,
+            timestamp=time.time() - 0,
             job_id=job._job_id,
             label=job._label,
             job_serialized=job_serialized
@@ -76,6 +77,7 @@ class RemoteJobHandler(BaseJobHandler):
             return
         self._outgoing_feed.append_message(dict(
             type=ComputeResourceActionTypes.CANCEL_JOB,
+            timestamp=time.time() - 0,
             job_id=job_id,
             label=self._jobs[job_id]._label
         ))
@@ -132,7 +134,8 @@ class RemoteJobHandler(BaseJobHandler):
     
     def _report_alive(self):
         self._outgoing_feed.append_message(dict(
-            type=ComputeResourceActionTypes.REPORT_ALIVE
+            type=ComputeResourceActionTypes.REPORT_ALIVE,
+            timestamp=time.time() - 0
         ))
     
     def _report_action(self):
@@ -140,5 +143,6 @@ class RemoteJobHandler(BaseJobHandler):
 
     def cleanup(self):
         self._outgoing_feed.append_message(dict(
-            type=ComputeResourceActionTypes.JOB_HANDLER_FINISHED
+            type=ComputeResourceActionTypes.JOB_HANDLER_FINISHED,
+            timestamp=time.time() - 0
         ))

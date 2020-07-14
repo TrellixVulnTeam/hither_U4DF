@@ -299,7 +299,7 @@ def monitor(uri, job_handler):
         for msg in job_handler_feed.message_stream():
             _type = msg.get('type', None)
             if _type == ComputeResourceActionTypes.JOB_HANDLER_REGISTERED:
-                print(f"{bcolors.HEADER}JOB HANDLER REGISTERED: {job_handler}{bcolors.ENDC}")
+                print(f"{bcolors.HEADER}JOB HANDLER REGISTERED{bcolors.ENDC}")
             elif _type == ComputeResourceActionTypes.JOB_FINISHED:
                 job_id = msg.get('job_id', None)
                 label = msg.get('label', None)
@@ -310,13 +310,16 @@ def monitor(uri, job_handler):
                 print(f"{bcolors.WARNING}JOB ERROR: {job_id} {label}{bcolors.ENDC}")
             elif _type == ComputeResourceActionTypes.LOG:
                 action0 = msg.get('action', {})
-                type0 = action0.get('type0')
+                type0 = action0.get('type')
                 if type0 == ComputeResourceActionTypes.ADD_JOB:
                     job_id = action0.get('job_id', None)
                     label = action0.get('label', None)
                     print(f"{bcolors.OKBLUE}JOB ADDED: {job_id} {label}{bcolors.ENDC}")
+                elif type0 == ComputeResourceActionTypes.JOB_HANDLER_FINISHED:
+                    print(f"{bcolors.HEADER}JOB HANDLER FINISHED{bcolors.ENDC}")
+                    break
                 else:
-                    print(f"LOG: {type0}")
+                    print(f"LOG: {type0}", msg)
             else:
                 print(f'{_type}', msg)
 

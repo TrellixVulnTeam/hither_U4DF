@@ -56,7 +56,8 @@ class ConnectedClient:
         self._timestamp_client_report_alive = time.time()
 
         self._outgoing_feed.append_message(dict(
-            type=ComputeResourceActionTypes.JOB_HANDLER_REGISTERED
+            type=ComputeResourceActionTypes.JOB_HANDLER_REGISTERED,
+            timestamp=time.time() - 0
         ))
 
     def iterate(self):
@@ -104,6 +105,7 @@ class ConnectedClient:
             # cancel a job... get the job id and forward the request to the job handler on this end
             self._outgoing_feed.append_message(dict(
                 type=ComputeResourceActionTypes.LOG,
+                timestamp=time.time() - 0,
                 action=action
             ))
             job_id = action['job_id']
@@ -116,6 +118,7 @@ class ConnectedClient:
             # Add a job
             self._outgoing_feed.append_message(dict(
                 type=ComputeResourceActionTypes.LOG,
+                timestamp=time.time() - 0,
                 action=action
             ))
             action['handler_uri'] = self._handler_uri
@@ -124,6 +127,7 @@ class ConnectedClient:
         elif _type == ComputeResourceActionTypes.JOB_HANDLER_FINISHED:
             self._outgoing_feed.append_message(dict(
                 type=ComputeResourceActionTypes.LOG,
+                timestamp=time.time() - 0,
                 action=action
             ))
             self._finished = True
@@ -231,6 +235,7 @@ class ConnectedClient:
         serialized_result = _serialize_item(job._result)
         action = {
             "type": ComputeResourceActionTypes.JOB_FINISHED,
+            "timestamp": time.time() - 0,
             "job_id": job._job_id, # change this to JobJeys.JOB_ID if safe
             "label": job._label,
             JobKeys.RUNTIME_INFO: job.get_runtime_info(),
@@ -246,6 +251,7 @@ class ConnectedClient:
         # fix the following to conform to above method:
         action = dict([
             ("type", ComputeResourceActionTypes.JOB_ERROR),
+            ("timestamp", time.time() - 0),
             ("job_id", job_id),
             ("label", label),
             (JobKeys.RUNTIME_INFO, runtime_info),
@@ -272,7 +278,8 @@ class ComputeResource:
 
     def run(self):
         self._registry_feed.append_message(dict(
-            type=ComputeResourceActionTypes.COMPUTE_RESOURCE_STARTED
+            type=ComputeResourceActionTypes.COMPUTE_RESOURCE_STARTED,
+            timestamp=time.time() - 0
         ))
         while True:
             self._iterate()
