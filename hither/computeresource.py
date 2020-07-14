@@ -292,7 +292,8 @@ class ComputeResource:
             for action in actions:
                 self._process_action(action)
         
-            clients = self._connected_clients.values()
+            # need to create a copy of the list of clients, because they might get deleted from the dict
+            clients = [c for c in self._connected_clients.values()]
             for client in clients:
                 if not client._finished:
                     client.iterate()
