@@ -300,6 +300,7 @@ class ComputeResource:
         _type = action['type']
         if _type == ComputeResourceActionTypes.REGISTER_JOB_HANDLER:
             handler_uri = action['uri']
+            print(f'Registering job handler: {handler_uri}')
             incoming_feed = kp.load_feed(handler_uri).get_subfeed('main')
             outgoing_feed = self._compute_resource_feed.get_subfeed(handler_uri)
             self._connected_clients[handler_uri] = ConnectedClient(compute_resource=self, handler_uri=handler_uri, incoming_feed=incoming_feed, outgoing_feed=outgoing_feed)
