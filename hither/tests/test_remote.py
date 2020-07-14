@@ -17,7 +17,6 @@ def test_remote_1(general, mongodb, kachery_p2p_daemon, compute_resource):
             job.print_console_out()
 
 @pytest.mark.remote
-@pytest.mark.current
 def test_remote_2(general, mongodb, kachery_p2p_daemon, compute_resource):
     jh = hi.RemoteJobHandler(compute_resource_uri=compute_resource.compute_resource_uri)
     with hi.Config(job_handler=jh, container=True):
