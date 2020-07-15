@@ -325,15 +325,16 @@ class ComputeResource:
             # need to create a copy of the list of clients, because they might get deleted from the dict
             clients = [c for c in self._connected_clients.values()]
             for client in clients:
-                if not client._finished:
+                if client._finished:
+                    client.cancel_all_jobs()
+                    del self._connected_clients[client._handler_uri]
+                else:
                     client.iterate()
                     elapsed_since_client_alive = client._timestamp_client_report_alive - time.time()
                     if elapsed_since_client_alive > 20:
                         print(f'Closing job handler: {client._handler_uri}')
                         client.cancel_all_jobs()
                         del self._connected_clients[client._handler_uri]
-                else:
-                    del self._connected_clients[client._handler_uri]
         
         self._job_handler.iterate()
     

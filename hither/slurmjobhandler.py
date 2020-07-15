@@ -45,21 +45,38 @@ class SlurmJobHandler(BaseJobHandler):
             A list of additional string options to send to srun (only applies of use_slurm is True), by default []
         """
         super().__init__()
+
         if not os.path.exists(working_dir):
             os.mkdir(working_dir)
-        handler_dir = os.path.join(working_dir, 'tmp_slurm_job_handler_' + _random_string(8))
-        os.mkdir(handler_dir)
+        
+        self._working_dir = working_dir
         self._num_workers_per_batch = int(num_workers_per_batch)
         self._num_cores_per_job = int(num_cores_per_job)
         self._use_slurm = use_slurm
         self._time_limit_per_batch = time_limit_per_batch
         self._max_simultaneous_batches = max_simultaneous_batches
         self._additional_srun_opts = additional_srun_opts
+    
+    def initialize(self):
+        working_dir = self._working_dir
+        handler_dir = os.path.join(working_dir, 'tmp_slurm_job_handler_' + _random_string(8))
+        os.mkdir(handler_dir)
+
         self._batches: dict = dict()
         self._halted: bool = False
         self._last_batch_id: int = 0
         self._handler_dir: str = handler_dir
         self._unassigned_jobs: List[Job] = []
+
+    def finalize(self):
+        """Remove the working directory
+
+        Returns
+        -------
+        None
+        """
+        self.halt()
+        _rmdir_with_retries(self._handler_dir, num_retries=10)
 
     def handle_job(self, job: Job):
         """Queue a job to run in a batch. This is called from the framework (e.g., the job manager)
@@ -134,16 +151,6 @@ class SlurmJobHandler(BaseJobHandler):
             if not b.isFinished():
                 b.halt()
         self._halted = True
-
-    def cleanup(self) -> None:
-        """Remove the working directory
-
-        Returns
-        -------
-        None
-        """
-        self.halt()
-        _rmdir_with_retries(self._handler_dir, num_retries=10)
     
     def cancel_job(self, job_id):
         print('Warning: not yet able to cancel job of slurmjobhandler')

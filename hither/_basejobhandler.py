@@ -12,6 +12,14 @@ class BaseJobHandler(ABC):
             num_errored_jobs = 0,
             num_skipped_jobs = 0
         )
+    
+    @abstractmethod
+    def initialize(self):
+        pass
+
+    @abstractmethod
+    def finalize(self):
+        pass
 
     @abstractmethod
     def handle_job(self, job):

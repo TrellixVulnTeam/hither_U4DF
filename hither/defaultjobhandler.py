@@ -5,6 +5,12 @@ class DefaultJobHandler(BaseJobHandler):
     def __init__(self):
         super().__init__()
         self.is_remote = False
+    
+    def initialize(self):
+        pass
+
+    def finalize(self):
+        pass
 
     def handle_job(self, job):
         # superclass implementation does standard logging and universal job status update
