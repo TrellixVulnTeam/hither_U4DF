@@ -75,8 +75,6 @@ class Config:
             # NOTE: per our typing, none of the objects are actually supposed to be dicts
             # but we had this in ETConf, so I'm keeping it around to be careful
             self.new_config[k] = deepcopy(v) if isinstance(v, dict) else v
-        
-        self.new_job_handler = job_handler
 
         # TODO: find a neater way to do this (kwargs?)
         self.coalesce(ConfigKeys.CONTAINER, container)
@@ -107,11 +105,7 @@ class Config:
 
     def __enter__(self):
         Config.config_stack.append(self.new_config)
-        if isinstance(self.new_job_handler, BaseJobHandler):
-            self.new_job_handler.initialize()
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if isinstance(self.new_job_handler, BaseJobHandler):
-            self.new_job_handler.finalize()
         Config.config_stack.pop()
 
     def coalesce(self, name: str, val: Any) -> None:

@@ -17,13 +17,10 @@ class ParallelJobHandler(BaseJobHandler):
     def __init__(self, num_workers):
         super().__init__()
         self._num_workers = num_workers
-    
-    def initialize(self):
-        self.is_remote = False
         self._processes: List[dict] = []
         self._halted = False
 
-    def finalize(self):
+    def cleanup(self):
         self._halted = True
 
     def handle_job(self, job):

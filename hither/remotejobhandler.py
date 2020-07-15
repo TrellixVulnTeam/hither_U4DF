@@ -18,7 +18,7 @@ class RemoteJobHandler(BaseJobHandler):
         self._compute_resource_uri = compute_resource_uri
         self._is_initialized = False
     
-    def initialize(self):
+    def _initialize(self):
         self._is_initialized = True
 
         self._job_handler_feed = kp.create_feed()
@@ -51,22 +51,24 @@ class RemoteJobHandler(BaseJobHandler):
             
         self._report_action()
     
-    def finalize(self):
-        self._outgoing_feed.append_message(dict(
-            type=ComputeResourceActionTypes.JOB_HANDLER_FINISHED,
-            timestamp=time.time() - 0
-        ))
-        self._job_handler_feed = None
-        self._outgoing_feed = None
-        self._compute_resource_feed = None
-        self._registry_feed = None
-        self._incoming_feed = None
-        self._is_initialized = False
+    def cleanup(self):
+        if self._is_initialized:
+            self._outgoing_feed.append_message(dict(
+                type=ComputeResourceActionTypes.JOB_HANDLER_FINISHED,
+                timestamp=time.time() - 0
+            ))
+            self._job_handler_feed = None
+            self._outgoing_feed = None
+            self._compute_resource_feed = None
+            self._registry_feed = None
+            self._incoming_feed = None
+            self._is_initialized = False
 
     def handle_job(self, job):
         super(RemoteJobHandler, self).handle_job(job)
 
-        assert self._is_initialized, 'Unexpected: job handler is not initialized'
+        if not self._is_initialized:
+            self._initialize()
 
         job_serialized = job._serialize(generate_code=True)
         # the CODE member is a big block of code text.
@@ -84,7 +86,8 @@ class RemoteJobHandler(BaseJobHandler):
         self._report_action()
     
     def cancel_job(self, job_id):
-        assert self._is_initialized, 'Unexpected: job handler is not initialized'
+        if not self._is_initialized:
+            self._initialize()
 
         if job_id not in self._jobs:
             print(f'Warning: RemoteJobHandler -- cannot cancel job {job_id}. Job with this id not found.')

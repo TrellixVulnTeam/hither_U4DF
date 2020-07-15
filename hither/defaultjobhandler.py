@@ -4,12 +4,8 @@ from ._enums import JobStatus
 class DefaultJobHandler(BaseJobHandler):
     def __init__(self):
         super().__init__()
-        self.is_remote = False
-    
-    def initialize(self):
-        pass
 
-    def finalize(self):
+    def cleanup(self):
         pass
 
     def handle_job(self, job):

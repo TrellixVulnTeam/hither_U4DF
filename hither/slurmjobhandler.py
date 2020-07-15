@@ -17,7 +17,6 @@ from ._util import _random_string, _deserialize_item
 DEFAULT_JOB_TIMEOUT = 1200
 
 class SlurmJobHandler(BaseJobHandler):
-    is_remote = False
     def __init__(self, *,
         working_dir: str,
         num_workers_per_batch: int=14,
@@ -56,8 +55,10 @@ class SlurmJobHandler(BaseJobHandler):
         self._time_limit_per_batch = time_limit_per_batch
         self._max_simultaneous_batches = max_simultaneous_batches
         self._additional_srun_opts = additional_srun_opts
+        
+        self._initialize()
     
-    def initialize(self):
+    def _initialize(self):
         working_dir = self._working_dir
         handler_dir = os.path.join(working_dir, 'tmp_slurm_job_handler_' + _random_string(8))
         os.mkdir(handler_dir)
@@ -68,7 +69,7 @@ class SlurmJobHandler(BaseJobHandler):
         self._handler_dir: str = handler_dir
         self._unassigned_jobs: List[Job] = []
 
-    def finalize(self):
+    def cleanup(self):
         """Remove the working directory
 
         Returns

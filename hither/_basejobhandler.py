@@ -5,6 +5,7 @@ from ._enums import JobStatus
 
 class BaseJobHandler(ABC):
     def __init__(self):
+        self.is_remote = False
         self._internal_counts = SimpleNamespace(
             num_jobs = 0,
             num_run_jobs = 0,
@@ -13,12 +14,14 @@ class BaseJobHandler(ABC):
             num_skipped_jobs = 0
         )
     
-    @abstractmethod
-    def initialize(self):
-        pass
+    def __enter__(self):
+        return self
+    
+    def __exit__(self, type, value, traceback):
+        self.cleanup()
 
     @abstractmethod
-    def finalize(self):
+    def cleanup(self):
         pass
 
     @abstractmethod
