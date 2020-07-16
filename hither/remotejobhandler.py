@@ -11,7 +11,7 @@ from .computeresource import ComputeResourceActionTypes
 from .computeresource import HITHER_COMPUTE_RESOURCE_TO_REMOTE_JOB_HANDLER, HITHER_REMOTE_JOB_HANDLER_TO_COMPUTE_RESOURCE
 
 class RemoteJobHandler(BaseJobHandler):
-    def __init__(self, *, compute_resource_uri):
+    def __init__(self, *, uri):
         super().__init__()
         self.is_remote = True
         
@@ -48,6 +48,8 @@ class RemoteJobHandler(BaseJobHandler):
         assert msg is not None, 'Timeout while waiting for compute resource to respond.'
         assert msg['type'] == ComputeResourceActionTypes.JOB_HANDLER_REGISTERED, 'Unexpected message from compute resource'
         print('Got response from compute resource.')
+        print(f'To monitor this job handler:')
+        print(f'hither-compute-resource monitor --uri {self._compute_resource_uri} --job-handler {self._job_handler_feed.get_uri()}')
             
         self._report_action()
     
