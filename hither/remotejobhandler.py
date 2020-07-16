@@ -148,8 +148,9 @@ class RemoteJobHandler(BaseJobHandler):
             self._timestamp_event_poll = time.time()    
             self._report_alive()
             actions = self._incoming_feed.get_next_messages(wait_msec=100)
-            for action in actions:
-                self._process_incoming_action(action)
+            if actions is not None:
+                for action in actions:
+                    self._process_incoming_action(action)
     
     def _report_alive(self):
         self._outgoing_feed.append_message(dict(
