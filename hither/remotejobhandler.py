@@ -15,7 +15,7 @@ class RemoteJobHandler(BaseJobHandler):
         super().__init__()
         self.is_remote = True
         
-        self._compute_resource_uri = compute_resource_uri
+        self._compute_resource_uri = uri
         self._is_initialized = False
     
     def _initialize(self):
@@ -48,8 +48,8 @@ class RemoteJobHandler(BaseJobHandler):
         assert msg is not None, 'Timeout while waiting for compute resource to respond.'
         assert msg['type'] == ComputeResourceActionTypes.JOB_HANDLER_REGISTERED, 'Unexpected message from compute resource'
         print('Got response from compute resource.')
-        print(f'To monitor this job handler:')
-        print(f'hither-compute-resource monitor --uri {self._compute_resource_uri} --job-handler {self._job_handler_feed.get_uri()}')
+        print(f'{bcolors.HEADER}To monitor this job handler:{bcolors.ENDC}')
+        print(f'{bcolors.OKBLUE}hither-compute-resource monitor --uri {self._compute_resource_uri} --job-handler {self._job_handler_feed.get_uri()}{bcolors.ENDC}')
             
         self._report_action()
     
@@ -159,4 +159,14 @@ class RemoteJobHandler(BaseJobHandler):
     
     def _report_action(self):
         self._timestamp_last_action = time.time()
-        
+
+# Thanks: https://stackoverflow.com/questions/287871/how-to-print-colored-text-in-terminal-in-python
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
