@@ -8,6 +8,7 @@ exec docker run \
   -v /etc/passwd:/etc/passwd:ro \
   -v /etc/group:/etc/group:ro \
   -v /run/docker.sock:/run/docker.sock \
+  -v $HOME:$HOME \
   -e DOCKER_HOST=unix:///run/docker.sock \
   --group-add docker \
   -u $(id -u):$(id -g) \

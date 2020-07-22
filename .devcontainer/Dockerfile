@@ -64,6 +64,7 @@ RUN apt-get update \
 # Switch back to dialog for any ad-hoc use of apt-get
 ENV DEBIAN_FRONTEND=dialog
 
+# docker
 RUN apt-get update && \
     apt-get -y install apt-transport-https \
         ca-certificates \
@@ -79,6 +80,15 @@ RUN apt-get update && \
     apt-get -y install docker-ce
 
 RUN apt-get update && apt-get install -y mongodb
+
+#########################################
+### Node 12 and yarn
+RUN apt-get update && apt-get install -y curl
+RUN curl -sL https://deb.nodesource.com/setup_12.x | bash - && apt-get update && apt-get install -y nodejs
+RUN npm install -g yarn
+
+# We need python3
+RUN rm /usr/bin/python && ln -s python3 /usr/bin/python && rm /usr/bin/pip && ln -s pip3 /usr/bin/pip
 
 RUN pip install kachery_p2p==0.3.1
 RUN pip install numpy pymongo

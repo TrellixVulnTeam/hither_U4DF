@@ -26,7 +26,7 @@ def run_service_kachery_p2p_daemon(*, kachery_storage_dir, kachery_p2p_config_di
         export KACHERY_P2P_CONFIG_DIR={kachery_p2p_config_dir}
         mkdir -p $KACHERY_STORAGE_DIR
 
-        exec kachery-p2p-start-daemon --channel test1 --method dev --verbose {api_port}
+        exec kachery-p2p-start-daemon --channel test1 --method npx --verbose {api_port}
         """, redirect_output_to_stdout=True)
         ss.start()
         ss.wait()
