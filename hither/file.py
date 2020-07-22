@@ -9,16 +9,16 @@ import kachery as ka
 class File:
     def __init__(self, path, item_type='file'):
         if path.startswith('sha1://') or path.startswith('sha1dir://'):
-            self._sha1_path = path
+            self._kachery_uri = path
         else:
-            self._sha1_path = ka.store_file(path, basename=_get_basename_from_path(path))
-        self.path = self._sha1_path
+            self._kachery_uri = ka.store_file(path, basename=_get_basename_from_path(path))
+        self.path = self._kachery_uri
         self._item_type = item_type
 
     def serialize(self):
         ret = dict(
             _type='hither_file',
-            sha1_path=self._sha1_path,
+            kachery_uri=self._kachery_uri,
             item_type=self._item_type
         )
         return ret
@@ -37,8 +37,8 @@ class File:
             numpy array that was boxed into a kachery file for inter-resource portability.
         """
         if self._item_type == 'file':
-            path = ka.load_file(self._sha1_path)
-            assert path is not None, f'Unable to load file: {self._sha1_path} from kachery.'
+            path = ka.load_file(self._kachery_uri)
+            assert path is not None, f'Unable to load file: {self._kachery_uri} from kachery.'
             return path
         elif self._item_type == 'ndarray':
             return self.array()
@@ -48,46 +48,20 @@ class File:
     def array(self):
         if self._item_type != 'ndarray':
             raise Exception('This file is not of type ndarray')
-        x = ka.load_npy(self._sha1_path)
+        x = ka.load_npy(self._kachery_uri)
         if x is None:
-            raise Exception(f'Unable to load npy file: {self._sha1_path}')
+            raise Exception(f'Unable to load npy file: {self._kachery_uri}')
         return x
-
-    def ensure_local_availability(self, kachery_src:Union[str, None] = None) -> None:
-        # look for file locally or in the specified remote, if any.
-        # If found locally, we're done; if found in the kachery source, this downloads it.
-        local_path = ka.load_file(self._sha1_path, fr=kachery_src)
-        if local_path is not None:
-            return
-        # couldn't find it locally, try remote handler if it exists.
-        # TODO: fix type-hint grumbles; we can't just import the class b/c of a circular dependency
-        remote_handler = getattr(self, '_remote_job_handler', None)
-        if remote_handler is None:
-            raise Exception(f"Unable to download file: {self._sha1_path} locally or from " +
-                f"kachery source '{kachery_src}', and no remote_job_handler is attached to the file.")
-        # Remote handler does exist. See if it can find the file.
-        remote_path = remote_handler._load_file(self._sha1_path)
-        assert remote_path is not None, f"Unable to load file {self._sha1_path} " + \
-            f"from remote compute resource: {remote_handler._compute_resource_id}."
-
-    def kache(self, kachery_dest:Union[str, None] = None) -> None:
-        """Push this File to the configured Kachery store, or the one specified in the
-        input parameter.
-
-        Keyword Arguments:
-            kachery_dest {Union[str, None]} -- Kachery store to store the file. (default: {None})
-        """
-        ka.store_file(self._sha1_path, to=kachery_dest)
 
     @staticmethod
     def can_deserialize(x: Any) -> bool:
         if type(x) != dict:
             return False
-        return (x.get('_type', None) == 'hither_file') and ('sha1_path' in x)
+        return (x.get('_type', None) == 'hither_file') and ('kachery_uri' in x)
 
     @staticmethod
     def deserialize(x) -> 'File':
-        return File(x['sha1_path'], item_type=x.get('item_type', 'file'))
+        return File(x['kachery_uri'], item_type=x.get('item_type', 'file'))
 
     @staticmethod
     def kache_numpy_array(x: Any) -> Any:

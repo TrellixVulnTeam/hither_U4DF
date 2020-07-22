@@ -45,11 +45,10 @@ class _JobManager:
             self._running_jobs[_id] = job
             job.resolve_wrapped_job_values()
             if job._job_cache is not None:
-                if not job._job_handler.is_remote:
-                    job._job_cache.fetch_cached_job_results(job)
-                    if job._status in JobStatus.complete_statuses():
-                        job._job_handler._internal_counts.num_skipped_jobs += 1
-                        return
+                job._job_cache.fetch_cached_job_results(job)
+                if job._status in JobStatus.complete_statuses():
+                    job._job_handler._internal_counts.num_skipped_jobs += 1
+                    return
 
             job._job_handler._internal_counts.num_run_jobs += 1
             job._job_handler.handle_job(job)

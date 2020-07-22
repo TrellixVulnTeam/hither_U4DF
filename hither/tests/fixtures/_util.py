@@ -2,15 +2,16 @@ from urllib import request
 import time
 import json
 import hither as hi
-from ._config import KACHERY_PORT, EVENT_STREAM_SERVER_PORT, COMPUTE_RESOURCE_ID, EVENT_STREAM_SERVER_CONFIG
+from ._config import KACHERY_P2P_DAEMON_API_PORT
+import kachery_p2p as kp
 
-def _wait_for_kachery_server_to_start():
+def _wait_for_kachery_p2p_daemon_to_start(api_port):
     max_retries = 90
     num_retries = 0
     delay_between_retries = 0.3
     while True:
-        print(f'Probing kachery server. Try {num_retries + 1}')
-        url = f'http://localhost:{KACHERY_PORT}/probe'
+        print(f'Probing kachery-p2p daemon. Try {num_retries + 1}')
+        url = f'http://localhost:{api_port}/probe'
         try:
             req = request.urlopen(url)
         except: # pragma: no cover
@@ -20,38 +21,11 @@ def _wait_for_kachery_server_to_start():
             assert obj['success'] == True
             return
         if num_retries >= max_retries:
-            raise Exception('Problem waiting for kachery to start.')
+            raise Exception('Problem waiting for kachery-p2p daemon to start.')
         num_retries += 1
         time.sleep(delay_between_retries)
 
-def _wait_for_event_stream_server_to_start():
-    max_retries = 90
-    num_retries = 0
-    delay_between_retries = 0.3
-    while True:
-        print(f'Probing event-stream server. Try {num_retries + 1}')
-        url = f'http://localhost:{EVENT_STREAM_SERVER_PORT}/probe'
-        try:
-            req = request.urlopen(url)
-        except: # pragma: no cover
-            req = None
-        if req is not None:
-            obj = json.load(req)
-            assert obj['success'] == True
-            return
-        if num_retries >= max_retries:
-            raise Exception('Problem waiting for event stream server to start.')
-        num_retries += 1
-        time.sleep(delay_between_retries)
-
-def _wait_for_compute_resource_to_start():
-    event_stream_client = hi.EventStreamClient(**EVENT_STREAM_SERVER_CONFIG)
-    s = event_stream_client.get_stream(dict(
-        name='hither_compute_resource',
-        compute_resource_id=COMPUTE_RESOURCE_ID
-    ))
-    events = s.read_events(15)
-    for e in events:
-        if e['type'] == 'COMPUTE_RESOURCE_STARTED':
-            return
-    raise Exception('Problem waiting for compute resource to start')
+def _wait_for_compute_resource_to_start(compute_resource_uri):
+    f = kp.load_feed(compute_resource_uri).get_subfeed('job_handler_registry')
+    msg = f.get_next_message(wait_msec=10000)
+    assert (msg is not None) and (msg['type'] == 'COMPUTE_RESOURCE_STARTED'), 'Unexpected problem waiting for compute resource to start'

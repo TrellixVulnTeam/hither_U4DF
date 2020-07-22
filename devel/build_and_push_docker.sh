@@ -3,5 +3,5 @@
 set -ex
 
 cd .devcontainer
-docker build -t magland/hither-dev .
-docker push magland/hither-dev
+docker build -t magland/hither-dev:p2p .
+docker push magland/hither-dev:p2p

@@ -473,12 +473,10 @@ provides several key features:
 * Any file can be retrieved by a universal identifier based on its
 `sha1` or `md5` hash, which operates like a [DOI](https://www.doi.org/)
 for your data files--easy to store and uniquely associated with your input
-* The kachery server can be run locally, on a container,
-on a remote server, or in the cloud
 * Consumers of the file data do not need
 to make any assumptions about directory structure in order to locate the
 files needed to rerun a pipeline
-* The centralized server allows tools
+* The distributed kachery p2p network allows tools
 to request file inputs from any environment
 
 ### What files are stored in the KACHERY_STORAGE_DIR directory?
@@ -509,8 +507,10 @@ you do not have access!
 
 Next, [configure a named compute
 resource](#how-can-i-host-my-own-hither-compute-resource-server).
-Make sure to record the id associated with the remote compute
-resource you would like to use.
+Make sure to record the kachery URI associated with the remote compute
+resource you would like to use. Then, on the client, you need to
+run a `kachery-p2p-daemon` that is joined to at least one channel
+that the compute resource is also part of.
 
 Now, consider this example:
 ```python
@@ -524,39 +524,30 @@ def sumsqr(x):
     return np.sum(x**2)
 
 def main():
-    mongo_url = os.getenv('MONGO_URL', 'mongodb://localhost:27017')
-    db = hi.Database(mongo_url=mongo_url, database='hither')
-    # Remote compute resource triggered by the compute_resource_id parameter
-    renmote_job_handler = hi.RemoteJobHandler(database=db, compute_resource_id='resource1')
-    with hi.Config(job_handler=remote_job_handler, container=True):
-        delay = 15
-        val1 = sumsqr.run(x=np.array([1]))
-        val2 = sumsqr.run(x=np.array([1,2]))
-        val3 = sumsqr.run(x=np.array([1,2,3]))
-        print(val1.wait(), val2.wait(), val3.wait())
-        assert val1.wait() == 1
-        assert val2.wait() == 5
-        assert val3.wait() == 14
+    compute_resource_uri = os.environ['COMPUTE_RESOURCE_URI'] # Set this variable
+    with hi.RemoteJobHandler(uri=compute_resource_uri) as remote_job_handler:
+        with hi.Config(job_handler=remote_job_handler, container=True):
+            delay = 15
+            val1 = sumsqr.run(x=np.array([1]))
+            val2 = sumsqr.run(x=np.array([1,2]))
+            val3 = sumsqr.run(x=np.array([1,2,3]))
+            print(val1.wait(), val2.wait(), val3.wait())
+            assert val1.wait() == 1
+            assert val2.wait() == 5
+            assert val3.wait() == 14
 ```
 
-By setting the `compute_resource_id` parameter in the call to `hi.Config`, this code
+This code
 specifies that the `RemoteJobHandler` should talk to a remote compute resource
-named `resource1`. This communication is mediated by a job dispatch bus (the
-EventStreamServer). The `RemoteJobHandler` serializes any Job to
+at the given URI. This communication is mediated by they peer-to-peer kachery network. The `RemoteJobHandler` serializes any Job to
 be run (the hither function, its arguments, etc) and passes this to the job resource
 bus, along with the ID of the remote compute resource which is intended to handle
 that Job. The remote compute resource manager running on the remote server
 listens for its name and initiates execution of any Job assigned to it.
 
-While it would be possible for a hither instance to run jobs against multiple
-remote compute resources simultaneously, we do not presently support
-load-balancing among multiple remote compute resources from within a single
-configuration context. If you configure multiple remote compute resources,
-you will need to manually assign jobs to each by manipulating the
-configuration context through the remote job handler you choose to
-pass to `hi.Config`.
-
-__IT WOULD BE NONTRIVIAL BUT MAYBE WE SHOULD LOOK INTO THIS__
+It is also possible to run jobs against multiple
+remote compute resources, even in the same pipeline. They just all need
+to belong to a common channel on the kachery-p2p network.
 
 ### How can I host my own hither compute resource server?
 
@@ -572,28 +563,20 @@ see [the remote compute resource documentation](./remote-compute-resource.md).
 
 ### Which job handlers can be used by a compute resource server?
 
-A (remote) compute resource server can use the RemoteJobHandler or the
-SlurmJobHandler (if it is a cluster which makes use of Slurm). The
-ParallelJobHandler runs jobs in parallel on the local compute resource.
+A (remote) compute resource server can use the ParallelJobHandler or the
+SlurmJobHandler (if it is a cluster which makes use of Slurm).
 
 ### When using a remote job handler, do results get cached locally or remotely?
 
-Results of Job runs will be cached to the configured job cache. As with the other
-components of the hither ecosystem, this is loosely coupled and can be run anywhere.
+Output files are stored on the computer where the computation was performed. However, the peer-to-peer kachery network allows all files
+to be accessed on demand from any computer that has a running daemon
+that belongs to a common kachery-p2p channel.
 
 ### How does hither decide when to upload/download files when using a remote compute resource?
 
-When possible, hither tries to avoid sending large files over the network unnecessarily.
-hither will push files to kachery under the following circumstances:
-
-* If the function is part of a pipeline (the Job appears as a parameter for another
-hither Job), and the two Jobs do not have access to the same file system
-* If the configuration `hi.Config(download_results=True)` is set
-
-In other cases, hither will avoid transmitting files.
-
-__TRIED TO VERIFY THIS IN THE CODE BUT I GOT LOST AND WAS CHASING MY TAIL FOR
-A WHILE. IS THIS CORRECT?__
+Hither only downloads/uploads files as needed. For example, if the output
+of a process that runs remotely is not explicitly requested on the local
+pipeline, then it will not be downloaded. Also, files are never transferred if they already exist at the desired location.
 
 <!--- General --->
 

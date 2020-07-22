@@ -2,9 +2,7 @@ language: minimal
 services:
 - docker
 install:
-- docker pull magland/hither-dev:latest
-- docker pull magland/kachery-server:0.1.1
-- docker pull magland/eventstreamserver:0.1.1
+- docker pull magland/hither-dev:p2p
 script:
 - devel/test_in_docker.sh
 after_success:

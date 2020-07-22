@@ -1,4 +1,4 @@
-__version__ = "0.2.0-alpha.3"
+__version__ = "0.3.0"
 
 from .core import function, container, additional_files, local_modules, opts
 from .core import Config
@@ -21,7 +21,6 @@ from .database import Database
 from .jobcache import JobCache
 from ._enums import JobStatus, HitherFileType
 from .file import File
-from .eventstreamclient import EventStreamClient
 from ._exceptions import JobCancelledException, DeserializationException, DuplicateFunctionException
 
 # Run a function by name

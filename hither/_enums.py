@@ -102,25 +102,20 @@ class JobKeys:
             missing required keys.
 
         Returns:
-            Tuple[str, str, Dict[str, Any]] -- Tuple of (Job_Id, handler_id, serialized_job)
+            Tuple[str, str, Dict[str, Any]] -- Tuple of (Job_Id, handler_uri, serialized_job)
         """
-        required_keys = [JobKeys.SERIALIZATION, JobKeys.JOB_ID, JobHandlerKeys.HANDLER_ID]
+        required_keys = [JobKeys.SERIALIZATION, JobKeys.JOB_ID, JobHandlerKeys.HANDLER_URI]
         for x in required_keys:
             if x in doc: continue
             raise Exception(f"Input document {doc} is missing required key {x}; is it really a serialized Job?")
         job_id = doc[JobKeys.JOB_ID]
-        handler = doc[JobHandlerKeys.HANDLER_ID]
+        handler = doc[JobHandlerKeys.HANDLER_URI]
         serialized_job = doc[JobKeys.SERIALIZATION]
         return (job_id, handler, serialized_job)
 
 class JobHandlerKeys:
     UTCTIME = 'utctime'
-    HANDLER_ID = 'handler_id'
-
-class ComputeResourceKeys:
-    COMPUTE_RESOURCE = JobKeys.COMPUTE_RESOURCE # alias, since these should have same value
-    KACHERY = 'kachery'
-    UTCTIME = 'utctime'
+    HANDLER_URI = 'handler_uri'
 
 class ConfigKeys:
     ## Environment variables

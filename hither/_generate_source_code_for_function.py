@@ -3,6 +3,7 @@ import os
 import inspect
 import fnmatch
 import kachery as ka
+import kachery_p2p as kp
 import simplejson
 
 def _generate_source_code_for_function(function, *, name: str, additional_files: list, local_modules: list) -> dict:
@@ -26,6 +27,7 @@ def _generate_source_code_for_function(function, *, name: str, additional_files:
     ))
     hither_dir = os.path.dirname(os.path.realpath(__file__))
     kachery_dir = os.path.dirname(os.path.realpath(ka.__file__))
+    kachery_p2p_dir = os.path.dirname(os.path.realpath(kp.__file__))
     simplejson_dir = os.path.dirname(os.path.realpath(simplejson.__file__))
     local_module_paths: List[str] = []
     for lm in local_modules:
@@ -42,7 +44,7 @@ def _generate_source_code_for_function(function, *, name: str, additional_files:
                     name=os.path.basename(local_module_path),
                     content=_read_python_code_of_directory(os.path.join(function_source_dirname, local_module_path), exclude_init=False)
                 )
-                for local_module_path in local_module_paths + [hither_dir, kachery_dir, simplejson_dir]
+                for local_module_path in local_module_paths + [hither_dir, kachery_dir, kachery_p2p_dir, simplejson_dir]
             ]
         )
     ))

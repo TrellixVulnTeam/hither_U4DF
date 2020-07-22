@@ -16,10 +16,12 @@ from ._exceptions import JobCancelledException
 class ParallelJobHandler(BaseJobHandler):
     def __init__(self, num_workers):
         super().__init__()
-        self.is_remote = False
         self._num_workers = num_workers
         self._processes: List[dict] = []
         self._halted = False
+
+    def cleanup(self):
+        self._halted = True
 
     def handle_job(self, job):
         super(ParallelJobHandler, self).handle_job(job)
@@ -32,7 +34,7 @@ class ParallelJobHandler(BaseJobHandler):
             cancel_filepath = f'{tempfile.gettempdir()}/pjh_cancel_job_{job._job_id}.txt'
         else:
             cancel_filepath = None
-        process = multiprocessing.Process(target=_pjh_run_job, args=(pipe_to_parent, cancel_filepath, serialized_job, ka.get_config()))
+        process = multiprocessing.Process(target=_pjh_run_job, args=(pipe_to_parent, cancel_filepath, serialized_job))
         self._processes.append(dict(
             job=job,
             process=process,
@@ -102,9 +104,8 @@ class ParallelJobHandler(BaseJobHandler):
         
         time.sleep(0.02)
 
-def _pjh_run_job(pipe_to_parent: Connection, cancel_filepath: str, serialized_job: Any, kachery_config: dict) -> None:
+def _pjh_run_job(pipe_to_parent: Connection, cancel_filepath: str, serialized_job: Any) -> None:
     import kachery as ka
-    ka.set_config(**kachery_config)
     job = hi._deserialize_job(serialized_job)
     # Note that cancel_filepath will only have an effect if we are running this in a container
     job._execute(cancel_filepath=cancel_filepath)
