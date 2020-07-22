@@ -1,4 +1,4 @@
-__version__ = "0.2.0-alpha.3"
+__version__ = "0.3.0"
 
 from .core import function, container, additional_files, local_modules, opts
 from .core import Config
