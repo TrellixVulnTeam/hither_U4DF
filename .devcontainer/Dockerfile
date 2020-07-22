@@ -80,7 +80,7 @@ RUN apt-get update && \
 
 RUN apt-get update && apt-get install -y mongodb
 
-RUN pip install kachery_p2p==0.1.9
+RUN pip install kachery_p2p==0.3.1
 RUN pip install numpy pymongo
 RUN pip install click inquirer
 RUN pip install pylint ipython pytest pytest-cov
