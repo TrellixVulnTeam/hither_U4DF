@@ -90,7 +90,7 @@ RUN npm install -g yarn
 # We need python3
 RUN rm /usr/bin/python && ln -s python3 /usr/bin/python && rm /usr/bin/pip && ln -s pip3 /usr/bin/pip
 
-RUN pip install kachery_p2p==0.3.1
+RUN pip install kachery_p2p==0.3.2
 RUN pip install numpy pymongo
 RUN pip install click inquirer
 RUN pip install pylint ipython pytest pytest-cov

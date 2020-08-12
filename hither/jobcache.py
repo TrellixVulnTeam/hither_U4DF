@@ -104,7 +104,11 @@ class DiskJobCache:
         p = self._get_cache_file_path(job_hash=job_hash, create_dir_if_needed=True)
         with FileLock(p + '.lock', exclusive=True):
             with open(p, 'w') as f:
-                json.dump(obj, f)
+                try:
+                    json.dump(obj, f)
+                except:
+                    print(obj)
+                    print('WARNING: problem dumping json when caching result.')
 
     def _fetch_cached_job_result(self, job_hash:str):
         p = self._get_cache_file_path(job_hash=job_hash, create_dir_if_needed=False)
@@ -112,7 +116,11 @@ class DiskJobCache:
             return None
         with FileLock(p + '.lock', exclusive=False):
             with open(p, 'r') as f:
-                return json.load(f)
+                try:
+                    return json.load(f)
+                except:
+                    print('Warning: problem parsing json when retrieving cached result')
+                    return None
 
     def _get_cache_file_path(self, job_hash:str, create_dir_if_needed:bool):
         dirpath = f'{self._path}/{job_hash[0]}{job_hash[1]}/{job_hash[2]}{job_hash[3]}/{job_hash[4]}{job_hash[5]}'
