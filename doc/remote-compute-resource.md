@@ -31,8 +31,6 @@ handle occasional processing jobs.
 
 ![Remote Compute Resource Architecture Diagram](remote-compute-components.png)
 
-TODO: question -- why are there multiple compute resources in the diagram? Certainly this can be true for a given pipeline, but there will also be multiple remote job handlers. For each remote job handler there would be exactly one remote compute resource.
-
 As the above diagram shows, a distributed hither setup suggests four or five main components. In the simplest
 setup (such as for testing) these could all be running on the same machine, though in real
 deployments, the remote job handler (at a minimum) should be separate from the others--otherwise
