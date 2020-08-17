@@ -412,6 +412,7 @@ class ComputeResource:
 def _cr_worker(pipe_to_parent: Connection, compute_resource_uri: str, compute_resource_dir: str) -> None:
     feed = kp.load_feed(compute_resource_uri)
     subfeed = feed.get_subfeed('job_handler_registry')
+    subfeed.set_position(subfeed.get_num_messages())
     while True:
         if not os.path.exists(compute_resource_dir):
             print(f'Stopping compute resource working because directory does not exist: {compute_resource_dir}')
