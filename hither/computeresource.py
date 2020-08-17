@@ -341,7 +341,7 @@ class ComputeResource:
                 traceback.print_exc()
                 print('Error reading messages from registry feed. Perhaps daemon in down. Pausing.')
                 time.sleep(10)
-                actions = None
+                actions = []
             for action in actions:
                 self._process_action(action)
         
