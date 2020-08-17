@@ -77,6 +77,9 @@ class ConnectedClient:
     def iterate(self):
         if self._finished:
             return
+        if not self._worker_process.is_alive():
+            self._finished = True
+            return
         
         # # read and process all incoming messages (polling)
         # elapsed_event_poll = time.time() - self._timestamp_event_poll
@@ -440,7 +443,11 @@ def _cc_worker(pipe_to_parent: Connection, job_handler_feed_uri: str) -> None:
         if pipe_to_parent.poll():
             pipe_to_parent.recv()    
             return
-        actions = subfeed.get_next_messages(wait_msec=6000)
+        try:
+            actions = subfeed.get_next_messages(wait_msec=6000)
+        except:
+            print('Warning: unable to get messages from job handler. Perhaps daemon is down.')
+            return
         if actions is not None:
             for action in actions:
                 pipe_to_parent.send(action)
