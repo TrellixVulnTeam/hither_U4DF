@@ -39,7 +39,8 @@ def compute_resource(tmp_path):
         api_port=api_port,
         kachery_p2p_config_dir=kachery_p2p_config_dir_compute_resource,
         kachery_storage_dir=kachery_storage_dir_compute_resource,
-        compute_resource_uri=compute_resource_uri
+        compute_resource_uri=compute_resource_uri,
+        compute_resource_dir=kachery_storage_dir_compute_resource
     ))
     process.start()
     _wait_for_compute_resource_to_start(compute_resource_uri)
@@ -59,7 +60,7 @@ def compute_resource(tmp_path):
     print('Terminated compute resource')
 
 
-def run_service_compute_resource(*, api_port, kachery_p2p_config_dir, kachery_storage_dir, compute_resource_uri):
+def run_service_compute_resource(*, api_port, kachery_p2p_config_dir, kachery_storage_dir, compute_resource_uri, compute_resource_dir):
     # The following cleanup is needed because we terminate this compute resource process
     # See: https://pytest-cov.readthedocs.io/en/latest/subprocess-support.html
     from pytest_cov.embed import cleanup_on_sigterm
@@ -79,5 +80,5 @@ def run_service_compute_resource(*, api_port, kachery_p2p_config_dir, kachery_st
     with hi.ConsoleCapture(label='[compute-resource]'):
         pjh = hi.ParallelJobHandler(num_workers=4)
         jc = hi.JobCache(use_tempdir=True)
-        CR = hi.ComputeResource(compute_resource_uri=compute_resource_uri, job_handler=pjh, job_cache=jc)
+        CR = hi.ComputeResource(compute_resource_uri=compute_resource_uri, job_handler=pjh, job_cache=jc, compute_resource_dir=compute_resource_dir)
         CR.run()

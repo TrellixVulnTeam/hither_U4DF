@@ -27,7 +27,6 @@ def test_remote_2(general, mongodb, kachery_p2p_daemon, compute_resource):
             assert jh._internal_counts.num_jobs == 2, f'Unexpected number of jobs: {jh._internal_counts.num_jobs}'
 
 @pytest.mark.remote
-@pytest.mark.current
 def test_remote_3(general, mongodb, kachery_p2p_daemon, compute_resource):
     with hi.RemoteJobHandler(uri=compute_resource.compute_resource_uri) as jh:
         with hi.Config(job_handler=jh, container=True):

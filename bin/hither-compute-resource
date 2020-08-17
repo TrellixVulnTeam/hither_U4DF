@@ -138,7 +138,8 @@ def start():
     cr = hi.ComputeResource(
         compute_resource_uri=compute_resource_uri,
         job_handler=jh,
-        job_cache=jc
+        job_cache=jc,
+        compute_resource_dir=os.getcwd()
     )
 
     cr.set_access_rules(access_rules)

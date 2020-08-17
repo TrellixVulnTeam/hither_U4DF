@@ -9,6 +9,8 @@ from .file import File
 from ._util import _random_string, _deserialize_item, _flatten_nested_collection, _get_poll_interval
 from .computeresource import ComputeResourceActionTypes
 from .computeresource import HITHER_COMPUTE_RESOURCE_TO_REMOTE_JOB_HANDLER, HITHER_REMOTE_JOB_HANDLER_TO_COMPUTE_RESOURCE
+import multiprocessing
+from multiprocessing.connection import Connection
 
 class RemoteJobHandler(BaseJobHandler):
     def __init__(self, *, uri):
@@ -16,7 +18,9 @@ class RemoteJobHandler(BaseJobHandler):
         self.is_remote = True
         
         self._compute_resource_uri = uri
+        self._timestamp_initialized = None
         self._is_initialized = False
+        self._job_handler_registered = False
 
         self._job_handler_feed = None
         self._outgoing_feed = None
@@ -47,17 +51,21 @@ class RemoteJobHandler(BaseJobHandler):
             ))
         except:
             raise Exception('Unable to register job handler with remote compute resource. Perhaps you do not have permission to access this resource.')
+            
+        self._report_action()
+
+        pipe_to_parent, pipe_to_child = multiprocessing.Pipe()
+        self._pipe_to_worker_process = pipe_to_child
+        self._worker_process = multiprocessing.Process(
+            target=_rjh_worker,
+            args=(pipe_to_parent, self._compute_resource_uri, self._job_handler_feed.get_uri())
+        )
+        self._worker_process.start()
+
+        self._timestamp_initialized = time.time()
 
         # wait for the compute resource to ackowledge us
         print('Waiting for remote compute resource to respond...')
-        msg = self._incoming_feed.get_next_message(wait_msec=10000)
-        assert msg is not None, 'Timeout while waiting for compute resource to respond.'
-        assert msg['type'] == ComputeResourceActionTypes.JOB_HANDLER_REGISTERED, 'Unexpected message from compute resource'
-        print('Got response from compute resource.')
-        print(f'{bcolors.HEADER}To monitor this job handler:{bcolors.ENDC}')
-        print(f'{bcolors.OKBLUE}hither-compute-resource monitor --uri {self._compute_resource_uri} --job-handler {self._job_handler_feed.get_uri()}{bcolors.ENDC}')
-            
-        self._report_action()
     
     def cleanup(self):
         if self._is_initialized:
@@ -71,6 +79,7 @@ class RemoteJobHandler(BaseJobHandler):
             self._registry_feed = None
             self._incoming_feed = None
             self._is_initialized = False
+            self._pipe_to_worker_process.send('exit')
 
     def handle_job(self, job):
         super(RemoteJobHandler, self).handle_job(job)
@@ -104,7 +113,7 @@ class RemoteJobHandler(BaseJobHandler):
             self._initialize()
 
         if job_id not in self._jobs:
-            print(f'Warning: RemoteJobHandler -- cannot cancel job {job_id}. Job with this id not found.')
+            print(f'Warning: RemoteJobHandler -- cannot cancel job {job_id}. Job with this ID not found.')
             return
         if self._outgoing_feed is None:
             return
@@ -147,6 +156,17 @@ class RemoteJobHandler(BaseJobHandler):
     
     def _process_incoming_action(self, action):
         _type = action['type']
+
+        if not self._job_handler_registered:
+            if _type == ComputeResourceActionTypes.JOB_HANDLER_REGISTERED:
+                print('Got response from compute resource.')
+                print(f'{bcolors.HEADER}To monitor this job handler:{bcolors.ENDC}')
+                print(f'{bcolors.OKBLUE}hither-compute-resource monitor --uri {self._compute_resource_uri} --job-handler {self._job_handler_feed.get_uri()}{bcolors.ENDC}')
+                self._job_handler_registered = True
+            else:
+                raise Exception(f'Got unexpected message ({_type}) from compute resource prior to JOB_HANDLER_REGISTERED message.')
+            return
+
         if _type == ComputeResourceActionTypes.JOB_FINISHED:
             self._process_job_finished_action(action)
         elif _type == ComputeResourceActionTypes.JOB_ERROR:
@@ -159,15 +179,18 @@ class RemoteJobHandler(BaseJobHandler):
     def iterate(self) -> None:
         if not self._is_initialized:
             return
+        if not self._job_handler_registered:
+            elapsed_since_initialized = time.time() - self._timestamp_initialized
+            if elapsed_since_initialized > 10:
+                self.cleanup()
+                raise Exception('Timeout while waiting for compute resource to respond.')
         elapsed_event_poll = time.time() - self._timestamp_event_poll
         if elapsed_event_poll > _get_poll_interval(self._timestamp_last_action):
             self._timestamp_event_poll = time.time()    
             self._report_alive()
-            if self._incoming_feed is not None:
-                actions = self._incoming_feed.get_next_messages(wait_msec=100)
-                if actions is not None:
-                    for action in actions:
-                        self._process_incoming_action(action)
+        while self._pipe_to_worker_process.poll():
+            action = self._pipe_to_worker_process.recv()
+            self._process_incoming_action(action)
     
     def _report_alive(self):
         if self._outgoing_feed is None:
@@ -179,6 +202,20 @@ class RemoteJobHandler(BaseJobHandler):
     
     def _report_action(self):
         self._timestamp_last_action = time.time()
+
+def _rjh_worker(pipe_to_parent: Connection, compute_resource_uri: str, job_handler_feed_uri) -> None:
+    compute_resource_feed = kp.load_feed(compute_resource_uri)
+    incoming_subfeed = compute_resource_feed.get_subfeed(job_handler_feed_uri)
+    while True:
+        if pipe_to_parent.poll():
+            x = pipe_to_parent.recv()
+            return
+        
+        actions = incoming_subfeed.get_next_messages(wait_msec=6000)
+        if actions is not None:
+            for action in actions:
+                pipe_to_parent.send(action)
+        time.sleep(0.3)
 
 # Thanks: https://stackoverflow.com/questions/287871/how-to-print-colored-text-in-terminal-in-python
 class bcolors:

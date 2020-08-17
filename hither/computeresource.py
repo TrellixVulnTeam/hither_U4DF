@@ -1,13 +1,14 @@
 import time
 import traceback
+import os
 from typing import Optional, Dict, Any
+import multiprocessing
+from multiprocessing.connection import Connection
 
 from ._containermanager import ContainerManager
-from ._util import _serialize_item, _random_string, _get_poll_interval
-from .database import Database
+from ._util import _serialize_item, _get_poll_interval
 from ._enums import JobStatus, JobKeys
 from ._exceptions import DeserializationException
-from .file import File
 from .job import Job
 import kachery_p2p as kp
 
@@ -61,30 +62,51 @@ class ConnectedClient:
             timestamp=time.time() - 0
         ))
 
+        pipe_to_parent, pipe_to_child = multiprocessing.Pipe()
+        self._pipe_to_worker_process = pipe_to_child
+        self._worker_process = multiprocessing.Process(
+            target=_cc_worker,
+            args=(pipe_to_parent, self._handler_uri)
+        )
+        self._worker_process.start()
+    
+    def halt(self):
+        self._pipe_to_worker_process.send('exit')
+        self._finished = True
+
     def iterate(self):
         if self._finished:
             return
         
-        # read and process all incoming messages (polling)
-        elapsed_event_poll = time.time() - self._timestamp_event_poll
-        if elapsed_event_poll > _get_poll_interval(self._timestamp_last_action):
-            self._timestamp_event_poll = time.time()
+        # # read and process all incoming messages (polling)
+        # elapsed_event_poll = time.time() - self._timestamp_event_poll
+        # if elapsed_event_poll > _get_poll_interval(self._timestamp_last_action):
+        #     self._timestamp_event_poll = time.time()
+        #     try:
+        #         actions = self._incoming_feed.get_next_messages(wait_msec=10)
+        #     except:
+        #         traceback.print_exc()
+        #         print('Error reading from incoming feed. Stopping job handler.')
+        #         self._finished = True
+        #         return
+        #     if actions is not None:
+        #         for action in actions:
+        #             try:
+        #                 self._process_action(action)
+        #             except:
+        #                 traceback.print_exc()
+        #                 print('Error processing action from incoming feed. Stopping job handler')
+        #                 self._finished = True
+        #                 return
+        while self._pipe_to_worker_process.poll():
+            action = self._pipe_to_worker_process.recv()
             try:
-                actions = self._incoming_feed.get_next_messages(wait_msec=10)
+                self._process_action(action)
             except:
                 traceback.print_exc()
-                print('Error reading from incoming feed. Stopping job handler.')
-                self._finished = True
+                print('Error processing action from incoming feed. Stopping job handler')
+                self.halt()
                 return
-            if actions is not None:
-                for action in actions:
-                    try:
-                        self._process_action(action)
-                    except:
-                        traceback.print_exc()
-                        print('Error processing action from incoming feed. Stopping job handler')
-                        self._finished = True
-                        return
         
         # Handle jobs
         job_ids = list(self._jobs.keys())
@@ -144,7 +166,7 @@ class ConnectedClient:
                 timestamp=time.time() - 0,
                 action=action
             ))
-            self._finished = True
+            self.halt()
             
         elif type == ComputeResourceActionTypes.LOG:
             pass
@@ -277,8 +299,9 @@ class ConnectedClient:
         self._timestamp_last_action = time.time()
 
 class ComputeResource:
-    def __init__(self, *, compute_resource_uri, job_handler, job_cache=None):
+    def __init__(self, *, compute_resource_uri, job_handler, job_cache=None, compute_resource_dir):
         self._compute_resource_uri = compute_resource_uri
+        self._compute_resource_dir = compute_resource_dir
         self._timestamp_event_poll = 0
         self._timestamp_last_action = time.time()
         self._job_handler = job_handler
@@ -290,14 +313,30 @@ class ComputeResource:
         self._registry_feed = self._compute_resource_feed.get_subfeed('job_handler_registry')
         self._registry_feed.set_position(self._registry_feed.get_num_messages())
 
+    def cleanup(self):
+        self._pipe_to_worker_process.send('exit')
+
     def run(self):
         self._registry_feed.append_message(dict(
             type=ComputeResourceActionTypes.COMPUTE_RESOURCE_STARTED,
             timestamp=time.time() - 0
         ))
-        while True:
-            self._iterate()
-            time.sleep(0.02) # TODO: alternative to busy-wait?
+
+        pipe_to_parent, pipe_to_child = multiprocessing.Pipe()
+        self._pipe_to_worker_process = pipe_to_child
+        self._worker_process = multiprocessing.Process(
+            target=_cr_worker,
+            args=(pipe_to_parent, self._compute_resource_uri, self._compute_resource_dir),
+        )
+        self._worker_process.start()
+
+        try:
+            while True:
+                self._iterate()
+                time.sleep(0.02) # TODO: alternative to busy-wait?
+        except:
+            self.cleanup()
+            raise
 
     def set_access_rules(self, access_rules):
         self._registry_feed.set_access_rules(dict(
@@ -335,31 +374,73 @@ class ComputeResource:
         if elapsed_event_poll > _get_poll_interval(self._timestamp_last_action):
             self._timestamp_event_poll = time.time()
 
-            try:
-                actions = self._registry_feed.get_next_messages(wait_msec=500)
-            except:
-                traceback.print_exc()
-                print('Error reading messages from registry feed. Perhaps daemon in down. Pausing.')
-                time.sleep(10)
-                actions = []
-            for action in actions:
+            while self._pipe_to_worker_process.poll():
+                action = self._pipe_to_worker_process.recv()
                 self._process_action(action)
+
+            # try:
+            #     actions = self._registry_feed.get_next_messages(wait_msec=500)
+            # except:
+            #     traceback.print_exc()
+            #     print('Error reading messages from registry feed. Perhaps daemon in down. Pausing.')
+            #     time.sleep(10)
+            #     actions = []
+            # for action in actions:
+            #     self._process_action(action)
         
             # need to create a copy of the list of clients, because they might get deleted from the dict
             clients = [c for c in self._connected_clients.values()]
             for client in clients:
                 if client._finished:
                     client.cancel_all_jobs()
+                    client.halt()
                     del self._connected_clients[client._handler_uri]
                 else:
                     client.iterate()
                     elapsed_since_client_alive = client._timestamp_client_report_alive - time.time()
-                    if elapsed_since_client_alive > 20:
+                    if elapsed_since_client_alive > 30:
                         print(f'Closing job handler: {client._handler_uri}')
                         client.cancel_all_jobs()
+                        client.halt()
                         del self._connected_clients[client._handler_uri]
         
         self._job_handler.iterate()
     
     def _report_action(self):
         self._timestamp_last_action = time.time()
+
+def _cr_worker(pipe_to_parent: Connection, compute_resource_uri: str, compute_resource_dir: str) -> None:
+    feed = kp.load_feed(compute_resource_uri)
+    subfeed = feed.get_subfeed('job_handler_registry')
+    while True:
+        if not os.path.exists(compute_resource_dir):
+            print(f'Stopping compute resource working because directory does not exist: {compute_resource_dir}')
+            return
+        
+        if pipe_to_parent.poll():
+            pipe_to_parent.recv()
+            return
+        
+        try:
+            actions = subfeed.get_next_messages(wait_msec=6000)
+        except:
+            print('Warning: unable to get messages from job handler registry. Perhaps daemon is down...')
+            time.sleep(10)
+            actions = []
+        if actions is not None:
+            for action in actions:
+                pipe_to_parent.send(action)
+        time.sleep(0.3)
+
+def _cc_worker(pipe_to_parent: Connection, job_handler_feed_uri: str) -> None:
+    feed = kp.load_feed(job_handler_feed_uri)
+    subfeed = feed.get_subfeed('main')
+    while True:
+        if pipe_to_parent.poll():
+            pipe_to_parent.recv()    
+            return
+        actions = subfeed.get_next_messages(wait_msec=6000)
+        if actions is not None:
+            for action in actions:
+                pipe_to_parent.send(action)
+        time.sleep(0.3)
