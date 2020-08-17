@@ -1,4 +1,5 @@
 import time
+import traceback
 from typing import Optional, Dict, Any
 
 from ._containermanager import ContainerManager
@@ -68,10 +69,22 @@ class ConnectedClient:
         elapsed_event_poll = time.time() - self._timestamp_event_poll
         if elapsed_event_poll > _get_poll_interval(self._timestamp_last_action):
             self._timestamp_event_poll = time.time()
-            actions = self._incoming_feed.get_next_messages(wait_msec=10)
+            try:
+                actions = self._incoming_feed.get_next_messages(wait_msec=10)
+            except:
+                traceback.print_exc()
+                print('Error reading from incoming feed. Stopping job handler.')
+                self._finished = True
+                return
             if actions is not None:
                 for action in actions:
-                    self._process_action(action)
+                    try:
+                        self._process_action(action)
+                    except:
+                        traceback.print_exc()
+                        print('Error processing action from incoming feed. Stopping job handler')
+                        self._finished = True
+                        return
         
         # Handle jobs
         job_ids = list(self._jobs.keys())
@@ -304,7 +317,11 @@ class ComputeResource:
             print(f'Registering job handler: {handler_uri}')
             incoming_feed = kp.load_feed(handler_uri).get_subfeed('main')
             outgoing_feed = self._compute_resource_feed.get_subfeed(handler_uri)
-            self._connected_clients[handler_uri] = ConnectedClient(compute_resource=self, handler_uri=handler_uri, incoming_feed=incoming_feed, outgoing_feed=outgoing_feed)
+            try:
+                self._connected_clients[handler_uri] = ConnectedClient(compute_resource=self, handler_uri=handler_uri, incoming_feed=incoming_feed, outgoing_feed=outgoing_feed)
+            except:
+                traceback.print_exc()
+                print('Warning: exception while creating connected client')
             self._report_action()
         elif _type == ComputeResourceActionTypes.COMPUTE_RESOURCE_STARTED:
             pass
@@ -318,7 +335,13 @@ class ComputeResource:
         if elapsed_event_poll > _get_poll_interval(self._timestamp_last_action):
             self._timestamp_event_poll = time.time()
 
-            actions = self._registry_feed.get_next_messages(wait_msec=500)
+            try:
+                actions = self._registry_feed.get_next_messages(wait_msec=500)
+            except:
+                traceback.print_exc()
+                print('Error reading messages from registry feed. Perhaps daemon in down. Pausing.')
+                time.sleep(10)
+                actions = None
             for action in actions:
                 self._process_action(action)
         

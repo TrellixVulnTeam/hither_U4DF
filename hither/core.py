@@ -50,6 +50,7 @@ def additional_files(additional_files):
     return wrap
 
 def local_modules(local_modules):
+    assert isinstance(local_modules, list), 'local_modules is not a list'
     def wrap(f):
         setattr(f, '_hither_local_modules', local_modules)
         return f

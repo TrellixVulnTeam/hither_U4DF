@@ -17,9 +17,19 @@ class RemoteJobHandler(BaseJobHandler):
         
         self._compute_resource_uri = uri
         self._is_initialized = False
+
+        self._job_handler_feed = None
+        self._outgoing_feed = None
+        self._compute_resource_feed = None
+        self._registry_feed = None
+        self._incoming_feed = None
     
     def _initialize(self):
         self._is_initialized = True
+
+        self._jobs: Dict = {}
+        self._timestamp_last_action = time.time()
+        self._timestamp_event_poll = 0
 
         self._job_handler_feed = kp.create_feed()
         self._outgoing_feed = self._job_handler_feed.get_subfeed('main')
@@ -37,10 +47,6 @@ class RemoteJobHandler(BaseJobHandler):
             ))
         except:
             raise Exception('Unable to register job handler with remote compute resource. Perhaps you do not have permission to access this resource.')
-
-        self._jobs: Dict = {}
-        self._timestamp_last_action = time.time()
-        self._timestamp_event_poll = 0
 
         # wait for the compute resource to ackowledge us
         print('Waiting for remote compute resource to respond...')
@@ -70,7 +76,13 @@ class RemoteJobHandler(BaseJobHandler):
         super(RemoteJobHandler, self).handle_job(job)
 
         if not self._is_initialized:
-            self._initialize()
+            try:
+                self._initialize()
+            except Exception as err:
+                job._runtime_info = None
+                job._status = JobStatus.ERROR
+                job._exception = Exception(f'Error initializing remote job handler: {str(err)}')
+                return
 
         job_serialized = job._serialize(generate_code=True)
         # the CODE member is a big block of code text.
@@ -93,6 +105,8 @@ class RemoteJobHandler(BaseJobHandler):
 
         if job_id not in self._jobs:
             print(f'Warning: RemoteJobHandler -- cannot cancel job {job_id}. Job with this id not found.')
+            return
+        if self._outgoing_feed is None:
             return
         self._outgoing_feed.append_message(dict(
             type=ComputeResourceActionTypes.CANCEL_JOB,
@@ -143,16 +157,21 @@ class RemoteJobHandler(BaseJobHandler):
             raise Exception(f'Unexpected action type from compute resource: {_type}')
     
     def iterate(self) -> None:
+        if not self._is_initialized:
+            return
         elapsed_event_poll = time.time() - self._timestamp_event_poll
         if elapsed_event_poll > _get_poll_interval(self._timestamp_last_action):
             self._timestamp_event_poll = time.time()    
             self._report_alive()
-            actions = self._incoming_feed.get_next_messages(wait_msec=100)
-            if actions is not None:
-                for action in actions:
-                    self._process_incoming_action(action)
+            if self._incoming_feed is not None:
+                actions = self._incoming_feed.get_next_messages(wait_msec=100)
+                if actions is not None:
+                    for action in actions:
+                        self._process_incoming_action(action)
     
     def _report_alive(self):
+        if self._outgoing_feed is None:
+            return
         self._outgoing_feed.append_message(dict(
             type=ComputeResourceActionTypes.REPORT_ALIVE,
             timestamp=time.time() - 0
