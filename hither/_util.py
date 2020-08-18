@@ -33,7 +33,7 @@ def _serialize_item(x:Any, require_jsonable:bool=True) -> Any:
     elif isinstance(x, np.ndarray):
         return dict(
             _type='npy',
-            data_b64=_serialize_npy_to_b64(x)
+            data_b64=_npy_to_b64(x)
         )
     else:
         if _is_jsonable(x):
@@ -53,16 +53,6 @@ def _is_jsonable(x:Any) -> bool:
     except:
         return False
 
-def _deserialize_npy_from_b64(data_b64):
-    buf = base64.decodebytes(data_b64)
-    f = io.BytesIO(buf)
-    return np.load(f)
-
-def _serialize_npy_to_b64(x):
-    f = io.BytesIO()
-    np.save(f, x)
-    return base64.encodebytes(f.getvalue())
-
 def _deserialize_item(x:Any) -> Any:
     if isinstance(x, np.integer):
         return int(x)
@@ -72,7 +62,7 @@ def _deserialize_item(x:Any) -> Any:
         if '_type' in x and x['_type'] == 'tuple':
             return _deserialize_item(tuple(x['data']))
         elif '_type' in x and x['_type'] == 'npy':
-            return _deserialize_npy_from_b64(x['data_b64'])
+            return _npy_to_b64(x['data_b64'])
         if File.can_deserialize(x):
             return File.deserialize(x)
         ret = dict()
@@ -89,16 +79,15 @@ def _deserialize_item(x:Any) -> Any:
             return x
     raise Exception(f'Unable to deserialize item of type: {type(x)}')
 
-# Might be useful to keep these around even though we don't use them any more
-# def _npy_to_b64(x):
-#     f = io.BytesIO()
-#     np.save(f, x)
-#     return base64.b64encode(f.getvalue()).decode('utf-8')
+def _npy_to_b64(x):
+    f = io.BytesIO()
+    np.save(f, x)
+    return base64.b64encode(f.getvalue()).decode('utf-8')
 
-# def _b64_to_npy(x):
-#     bytes0 = base64.b64decode(x.encode())
-#     f = io.BytesIO(bytes0)
-#     return np.load(f)
+def _b64_to_npy(x):
+    bytes0 = base64.b64decode(x.encode())
+    f = io.BytesIO(bytes0)
+    return np.load(f)
 
 def _utctime() -> float:
     from datetime import datetime, timezone

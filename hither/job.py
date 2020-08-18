@@ -372,13 +372,18 @@ class Job:
         return ka.get_object_hash(hash_object)
 
     def _as_cached_result(self) -> Dict[str, Any]:
+        from .computeresource import _result_small_enough_to_store_directly
         cached_result = {
             JobKeys.JOB_HASH: self._compute_hash(),
             JobKeys.STATUS: self._status.value,
-            JobKeys.RESULT_URI: kp.store_object(dict(result=self._serialized_result())),
             JobKeys.RUNTIME_INFO: self._runtime_info,
             JobKeys.EXCEPTION: '{}'.format(self._exception)
         }
+        serialized_result = self._serialized_result()
+        if _result_small_enough_to_store_directly(serialized_result):
+            cached_result[JobKeys.RESULT] = serialized_result
+        else:
+            cached_result[JobKeys.RESULT_URI] = kp.store_object(dict(result=serialized_result))
         return cached_result
     
     def _serialized_result(self) -> Any:
