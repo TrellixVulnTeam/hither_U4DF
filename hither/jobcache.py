@@ -2,6 +2,7 @@ from typing import Dict, List, Union, Any, Optional
 import tempfile
 import os
 import json
+import kachery_p2p as kp
 
 from .database import Database
 from ._util import _deserialize_item
@@ -67,7 +68,21 @@ class JobCache:
 
         job_description = f"{job._label} ({job._function_name} {job._function_version})"
         if status == JobStatus.FINISHED:
-            result = _deserialize_item(job_dict[JobKeys.RESULT])
+            if JobKeys.RESULT in job_dict:
+                serialized_result = job_dict[JobKeys.RESULT]
+            elif JobKeys.RESULT_URI in job_dict:
+                x = kp.load_object(job_dict[JobKeys.RESULT_URI], p2p=False)
+                if x is None:
+                    print(f'Found result in cache, but result does not exist locally: {job_description}')  # TODO: Make log
+                    return False
+                if 'result' not in x:
+                    print(f'Unexpected, result not in object obtained from result_uri: {job_description}')  # TODO: Make log
+                    return False
+                serialized_result = x['result']
+            else:
+                print('Neither result nor result_uri found in cached job')
+                return False
+            result = _deserialize_item(serialized_result)
             if not job._result_files_are_available_locally(results=result):
                 print(f'Found result in cache, but files do not exist locally: {job_description}')  # TODO: Make log
                 return False

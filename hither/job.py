@@ -375,7 +375,7 @@ class Job:
         cached_result = {
             JobKeys.JOB_HASH: self._compute_hash(),
             JobKeys.STATUS: self._status.value,
-            JobKeys.RESULT: self._serialized_result(),
+            JobKeys.RESULT_URI: kp.store_object(dict(result=self._serialized_result())),
             JobKeys.RUNTIME_INFO: self._runtime_info,
             JobKeys.EXCEPTION: '{}'.format(self._exception)
         }

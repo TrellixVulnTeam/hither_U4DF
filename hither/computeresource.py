@@ -4,6 +4,7 @@ import os
 from typing import Optional, Dict, Any
 import multiprocessing
 from multiprocessing.connection import Connection
+import numbers
 
 from ._containermanager import ContainerManager
 from ._util import _serialize_item, _get_poll_interval
@@ -275,11 +276,16 @@ class ConnectedClient:
         action = {
             "type": ComputeResourceActionTypes.JOB_FINISHED,
             "timestamp": time.time() - 0,
-            "job_id": job._job_id, # change this to JobJeys.JOB_ID if safe
+            "job_id": job._job_id, # change this to JobKeys.JOB_ID if safe
             "label": job._label,
-            JobKeys.RUNTIME_INFO: job.get_runtime_info(),
-            JobKeys.RESULT: serialized_result
+            JobKeys.RUNTIME_INFO: job.get_runtime_info()
         }
+        # decide whether to store the result or a result_uri
+        if _result_small_enough_to_store_directly(serialized_result):
+            action[JobKeys.RESULT] = serialized_result
+        else:
+            action[JobKeys.RESULT_URI] = kp.store_object(dict(result=serialized_result))
+            
         self._outgoing_feed.append_message(action)
         # self._database._mark_job_as_finished(job._job_id, self._compute_resource_id,
         #     runtime_info=job._runtime_info, result=serialized_result)
@@ -300,6 +306,28 @@ class ConnectedClient:
     
     def _report_action(self):
         self._timestamp_last_action = time.time()
+
+def _result_small_enough_to_store_directly(x, allow_small_dicts=True, allow_small_lists=True):
+    if isinstance(x, numbers.Number):
+        return True
+    if isinstance(x, str):
+        if len(x) <= 1000:
+            return True
+    if allow_small_dicts and isinstance(x, dict):
+        if len(x.keys()) <= 3:
+            for k, v in x.items():
+                if not _result_small_enough_to_store_directly(k, allow_small_dicts=False, allow_small_lists=False):
+                    return False
+                if not _result_small_enough_to_store_directly(v, allow_small_dicts=False, allow_small_lists=False):
+                    return False
+            return True
+    if allow_small_lists and (isinstance(x, tuple) or isinstance(x, list)):
+        if len(x) <= 3:
+            for v in x:
+                if not _result_small_enough_to_store_directly(v, allow_small_dicts=False, allow_small_lists=False):
+                    return False
+            return True
+    return False
 
 class ComputeResource:
     def __init__(self, *, compute_resource_uri, job_handler, job_cache=None, compute_resource_dir):

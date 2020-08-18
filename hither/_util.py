@@ -1,5 +1,7 @@
 import time
 import os
+import io
+import base64
 import numpy as np
 from typing import Union, List, Any, Callable
 import random
@@ -28,6 +30,11 @@ def _serialize_item(x:Any, require_jsonable:bool=True) -> Any:
             _type='tuple',
             data=_serialize_item(list(x), require_jsonable=require_jsonable)
         )
+    elif isinstance(x, np.ndarray):
+        return dict(
+            _type='npy',
+            data_b64=_serialize_npy_to_b64(x)
+        )
     else:
         if _is_jsonable(x):
             # this will capture int, float, str, bool
@@ -46,6 +53,16 @@ def _is_jsonable(x:Any) -> bool:
     except:
         return False
 
+def _deserialize_npy_from_b64(data_b64):
+    buf = base64.decodebytes(data_b64)
+    f = io.BytesIO(buf)
+    return np.load(f)
+
+def _serialize_npy_to_b64(x):
+    f = io.BytesIO()
+    np.save(f, x)
+    return base64.encodebytes(f.getvalue())
+
 def _deserialize_item(x:Any) -> Any:
     if isinstance(x, np.integer):
         return int(x)
@@ -54,6 +71,8 @@ def _deserialize_item(x:Any) -> Any:
     elif type(x) == dict:
         if '_type' in x and x['_type'] == 'tuple':
             return _deserialize_item(tuple(x['data']))
+        elif '_type' in x and x['_type'] == 'npy':
+            return _deserialize_npy_from_b64(x['data_b64'])
         if File.can_deserialize(x):
             return File.deserialize(x)
         ret = dict()

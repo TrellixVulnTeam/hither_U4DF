@@ -18,6 +18,7 @@ class RemoteJobHandler(BaseJobHandler):
         self.is_remote = True
         
         self._compute_resource_uri = uri
+        self._compute_resource_node_id = None # not known yet
         self._timestamp_initialized = None
         self._is_initialized = False
         self._job_handler_registered = False
@@ -123,7 +124,6 @@ class RemoteJobHandler(BaseJobHandler):
             job_id=job_id,
             label=self._jobs[job_id]._label
         ))
-
         self._report_action()
     
     def _process_job_finished_action(self, action):
@@ -133,13 +133,34 @@ class RemoteJobHandler(BaseJobHandler):
             return
         job = self._jobs[job_id]
         job._runtime_info = action[JobKeys.RUNTIME_INFO]
+        if JobKeys.RESULT in action:
+            serialized_result = action[JobKeys.RESULT]
+        elif JobKeys.RESULT_URI in action:
+            # in the future we will use something like: node_id=self._compute_resource_node_id
+            x = kp.load_object(action[JobKeys.RESULT_URI])
+            if x is None:
+                job._status = JobStatus.ERROR
+                job._exception = Exception(f'Unable to load result for uri: {action[JobKeys.RESULT_URI]}')
+                return
+            if 'result' not in x:
+                job._status = JobStatus.ERROR
+                job._exception = Exception(f'result field not in object obtained from uri: {action[JobKeys.RESULT_URI]}')
+                return
+            serialized_result = x['result']
+        else:
+            job._status = JobStatus.ERROR
+            job._exception = Exception(f'Neither result nor result_uri in job finished action')
+            return
+        try:
+            job._result = _deserialize_item(serialized_result)
+        except:
+            job._status = JobStatus.ERROR
+            job._exception = Exception(f'Problem deserializing result')
+            return
         job._status = JobStatus.FINISHED
-        job._result = _deserialize_item(action[JobKeys.RESULT])
         for f in _flatten_nested_collection(job._result, _type=File):
             setattr(f, '_remote_job_handler', self)
         del self._jobs[job_id]
-
-        self._report_action()
     
     def _process_job_error_action(self, action):
         job_id = action[JobKeys.JOB_ID]
@@ -151,8 +172,6 @@ class RemoteJobHandler(BaseJobHandler):
         job._status = JobStatus.ERROR
         job._exception = Exception(action[JobKeys.EXCEPTION])
         del self._jobs[job_id]
-
-        self._report_action()
     
     def _process_incoming_action(self, action):
         _type = action['type']
@@ -163,13 +182,16 @@ class RemoteJobHandler(BaseJobHandler):
                 print(f'{bcolors.HEADER}To monitor this job handler:{bcolors.ENDC}')
                 print(f'{bcolors.OKBLUE}hither-compute-resource monitor --uri {self._compute_resource_uri} --job-handler {self._job_handler_feed.get_uri()}{bcolors.ENDC}')
                 self._job_handler_registered = True
+                self._compute_resource_node_id = action.get('compute_resource_node_id', None)
             else:
                 raise Exception(f'Got unexpected message ({_type}) from compute resource prior to JOB_HANDLER_REGISTERED message.')
             return
 
         if _type == ComputeResourceActionTypes.JOB_FINISHED:
+            self._report_action()
             self._process_job_finished_action(action)
         elif _type == ComputeResourceActionTypes.JOB_ERROR:
+            self._report_action()
             self._process_job_error_action(action)
         elif _type == ComputeResourceActionTypes.LOG:
             pass

@@ -63,6 +63,7 @@ class JobKeys:
     LAST_MODIFIED_BY_COMPUTE_RESOURCE = 'last_modified_by_compute_resource'
     NO_RESOLVE_INPUT_FILES = 'no_resolve_input_files'
     RESULT = 'result'
+    RESULT_URI = 'result_uri'
     RUNTIME_INFO = 'runtime_info'
     SERIALIZATION = 'job_serialized'
     STATUS = 'status'
