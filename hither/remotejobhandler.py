@@ -126,6 +126,9 @@ class RemoteJobHandler(BaseJobHandler):
         ))
         self._report_action()
     
+    def compute_resource_node_id(self):
+        return self._compute_resource_node_id
+    
     def _process_job_finished_action(self, action):
         job_id = action[JobKeys.JOB_ID]
         if job_id not in self._jobs:
@@ -136,8 +139,7 @@ class RemoteJobHandler(BaseJobHandler):
         if JobKeys.RESULT in action:
             serialized_result = action[JobKeys.RESULT]
         elif JobKeys.RESULT_URI in action:
-            # in the future we will use something like: node_id=self._compute_resource_node_id
-            x = kp.load_object(action[JobKeys.RESULT_URI])
+            x = kp.load_object(action[JobKeys.RESULT_URI], from_node=self._compute_resource_node_id)
             if x is None:
                 job._status = JobStatus.ERROR
                 job._exception = Exception(f'Unable to load result for uri: {action[JobKeys.RESULT_URI]}')
@@ -183,6 +185,8 @@ class RemoteJobHandler(BaseJobHandler):
                 print(f'{bcolors.OKBLUE}hither-compute-resource monitor --uri {self._compute_resource_uri} --job-handler {self._job_handler_feed.get_uri()}{bcolors.ENDC}')
                 self._job_handler_registered = True
                 self._compute_resource_node_id = action.get('compute_resource_node_id', None)
+                if self._compute_resource_node_id is None:
+                    print('WARNING: did not get compute_resource_node_id info in JOB_HANDLER_REGISTERED message')
             else:
                 raise Exception(f'Got unexpected message ({_type}) from compute resource prior to JOB_HANDLER_REGISTERED message.')
             return

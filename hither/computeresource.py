@@ -60,6 +60,7 @@ class ConnectedClient:
 
         self._outgoing_feed.append_message(dict(
             type=ComputeResourceActionTypes.JOB_HANDLER_REGISTERED,
+            compute_resource_node_id=kp.get_node_id(),
             timestamp=time.time() - 0
         ))
 

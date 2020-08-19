@@ -111,7 +111,7 @@ class Job:
     def _has_been_submitted(self) -> bool:
         return not self._status in JobStatus.prerun_statuses()
 
-    def _ensure_result_files_are_available_locally(self, results: Any = None) -> bool:
+    def _ensure_result_files_are_available_locally(self, results: Any = None):
         """Check  whether the File-type objects in `results` are stored in the local kachery. If not, retrieve them from the kachery-p2p network.
         """
         actual_result = self._result if results is None else results
@@ -397,9 +397,11 @@ class Job:
                 code = self._code
             else:
                 assert self._f is not None, 'Cannot serialize function with generate_code=True when function and code are both not available'
-                additional_files = getattr(self._f, JobKeys.HITHER_ADDITIONAL_FILES, [])
-                local_modules = getattr(self._f, JobKeys.HITHER_LOCAL_MODULES, [])
-                code = _generate_source_code_for_function(self._f, name=function_name, additional_files=additional_files, local_modules=local_modules)
+                # only generate code once per function
+                if not hasattr(self._f, '_hither_generated_code'):
+                    code0 = _generate_source_code_for_function(self._f)
+                    setattr(self._f, '_hither_generated_code', code0)
+                code = getattr(self._f, '_hither_generated_code')
             function = None
         else:
             assert self._f is not None, 'Cannot serialize function with generate_code=False when function is not available'
