@@ -430,7 +430,7 @@ class ComputeResource:
                 else:
                     client.iterate()
                     elapsed_since_client_alive = client._timestamp_client_report_alive - time.time()
-                    if elapsed_since_client_alive > 30:
+                    if elapsed_since_client_alive > 60:
                         print(f'Closing job handler: {client._handler_uri}')
                         client.cancel_all_jobs()
                         client.halt()

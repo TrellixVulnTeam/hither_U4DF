@@ -34,7 +34,7 @@ class RemoteJobHandler(BaseJobHandler):
 
         self._jobs: Dict = {}
         self._timestamp_last_action = time.time()
-        self._timestamp_event_poll = 0
+        self._timestamp_report_alive = 0
 
         self._job_handler_feed = kp.create_feed()
         self._outgoing_feed = self._job_handler_feed.get_subfeed('main')
@@ -207,12 +207,12 @@ class RemoteJobHandler(BaseJobHandler):
             return
         if not self._job_handler_registered:
             elapsed_since_initialized = time.time() - self._timestamp_initialized
-            if elapsed_since_initialized > 10:
+            if elapsed_since_initialized > 30:
                 self.cleanup()
                 raise Exception('Timeout while waiting for compute resource to respond.')
-        elapsed_event_poll = time.time() - self._timestamp_event_poll
-        if elapsed_event_poll > _get_poll_interval(self._timestamp_last_action):
-            self._timestamp_event_poll = time.time()    
+        elapsed_report_alive = time.time() - self._timestamp_report_alive
+        if elapsed_report_alive >= 15:
+            self._timestamp_report_alive = time.time()    
             self._report_alive()
         while self._pipe_to_worker_process.poll():
             action = self._pipe_to_worker_process.recv()
