@@ -41,17 +41,6 @@ class RemoteJobHandler(BaseJobHandler):
         self._compute_resource_feed = kp.load_feed(self._compute_resource_uri)
         self._registry_feed = self._compute_resource_feed.get_subfeed('job_handler_registry')
         self._incoming_feed = self._compute_resource_feed.get_subfeed(self._job_handler_feed.get_uri())
-
-        # register self with compute resource
-        print('Registering job handler with remote compute resource...')
-        try:
-            self._registry_feed.submit_message(dict(
-                type=ComputeResourceActionTypes.REGISTER_JOB_HANDLER,
-                timestamp=time.time() - 0,
-                uri=self._job_handler_feed.get_uri()
-            ))
-        except:
-            raise Exception('Unable to register job handler with remote compute resource. Perhaps you do not have permission to access this resource.')
             
         self._report_action()
 
@@ -64,6 +53,17 @@ class RemoteJobHandler(BaseJobHandler):
         self._worker_process.start()
 
         self._timestamp_initialized = time.time()
+
+        # register self with compute resource
+        print('Registering job handler with remote compute resource...')
+        try:
+            self._registry_feed.submit_message(dict(
+                type=ComputeResourceActionTypes.REGISTER_JOB_HANDLER,
+                timestamp=time.time() - 0,
+                uri=self._job_handler_feed.get_uri()
+            ))
+        except:
+            raise Exception('Unable to register job handler with remote compute resource. Perhaps you do not have permission to access this resource.')
 
         # wait for the compute resource to ackowledge us
         print('Waiting for remote compute resource to respond...')
