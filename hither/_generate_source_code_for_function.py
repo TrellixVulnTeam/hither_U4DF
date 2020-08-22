@@ -5,7 +5,7 @@ import fnmatch
 import kachery as ka
 import kachery_p2p as kp
 import simplejson
-from ._enums import JobKeys
+from ._enums import InternalFunctionAttributeKeys
 
 def _generate_source_code_for_function(function: Callable) -> dict:
     name = function.__name__
@@ -13,8 +13,8 @@ def _generate_source_code_for_function(function: Callable) -> dict:
         function_source_fname = os.path.abspath(inspect.getsourcefile(function))
     except:
         raise Exception('Unable to get source file for function {}. Cannot run in a container or remotely.'.format(name))
-    additional_files = getattr(function, JobKeys.HITHER_ADDITIONAL_FILES, [])
-    local_modules = getattr(function, JobKeys.HITHER_LOCAL_MODULES, [])
+    additional_files = getattr(function, InternalFunctionAttributeKeys.HITHER_ADDITIONAL_FILES, [])
+    local_modules = getattr(function, InternalFunctionAttributeKeys.HITHER_LOCAL_MODULES, [])
     function_source_dirname = os.path.dirname(function_source_fname)
     function_source_basename = os.path.basename(function_source_fname)
     function_source_basename_noext = os.path.splitext(function_source_basename)[0]

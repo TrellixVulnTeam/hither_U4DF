@@ -4,7 +4,7 @@ import multiprocessing
 import shutil
 import hither as hi
 import kachery as ka
-from ._config import MONGO_PORT, DATABASE_NAME, KACHERY_P2P_DAEMON_API_PORT
+from ._config import KACHERY_P2P_DAEMON_API_PORT
 from ._common import _random_string
 from ._util import _wait_for_compute_resource_to_start, _wait_for_kachery_p2p_daemon_to_start
 from ._kachery_p2p_daemon import run_service_kachery_p2p_daemon
@@ -13,7 +13,6 @@ import kachery_p2p as kp
 @pytest.fixture()
 def compute_resource(tmp_path):
     print('Starting compute resource')
-    # db = hi.Database(mongo_url=f'mongodb://localhost:{MONGO_PORT}', database=DATABASE_NAME)
     kachery_storage_dir_compute_resource = str(tmp_path) + f'/kachery-storage-compute-resource-{_random_string(10)}'
     kachery_p2p_config_dir_compute_resource = str(tmp_path) + f'/kachery-p2p-config-compute-resource-{_random_string(10)}'
     os.mkdir(kachery_storage_dir_compute_resource)

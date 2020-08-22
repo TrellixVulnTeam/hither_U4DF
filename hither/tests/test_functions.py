@@ -44,9 +44,6 @@ def test_call_functions_directly(general):
             for test_call in function.test_calls():
                 if not test_call.get('container_only'):
                     args = test_call.get('args')
-                    # the following is needed for the case where we send in a hi.File object
-                    args = hi._copy_structure_with_changes(args, lambda r: r.resolve(), _type = hi.File,
-                        _as_side_effect  = False)
                     print(f'Calling {function.__name__} {args}')
                     try:
                         result = function(**args)

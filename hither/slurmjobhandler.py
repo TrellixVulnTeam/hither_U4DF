@@ -10,6 +10,7 @@ from typing import Optional, List, Union
 from ._basejobhandler import BaseJobHandler
 from ._enums import JobStatus
 from ._filelock import FileLock
+from ._serialize_job import _serialize_job
 from .job import Job
 from ._shellscript import ShellScript
 from ._util import _random_string, _deserialize_item
@@ -498,7 +499,7 @@ class _Worker():
         None
         """
         self._job = job
-        job_serialized = self._job._serialize(generate_code=True)
+        job_serialized = _serialize_job(job=self._job, generate_code=True)
         job_fname = self._base_path + '_job.json'
         num_tries = 3
         for try_count in range(1, num_tries + 1):
@@ -567,7 +568,7 @@ class _Worker():
 
         if result_serialized:
             # Here's the result that we read above
-            self._job._status = JobStatus(result_serialized['status'])
+            self._job._set_status(JobStatus(result_serialized['status']))
             self._job._result = _deserialize_item(result_serialized['result'])
             if result_serialized['exception'] is not None:
                 self._job._exception = Exception(result_serialized['exception'])

@@ -26,11 +26,11 @@ class BaseJobHandler(ABC):
 
     @abstractmethod
     def handle_job(self, job):
-        if job._status != JobStatus.QUEUED:
+        if job.get_status() != JobStatus.QUEUED:
             return # job is already handled
         # TODO: SHOULD LOG THIS
         print(f"\nHandling job: {job._label}")
-        job._status = JobStatus.RUNNING
+        job._set_status(JobStatus.RUNNING)
 
     @abstractmethod
     def cancel_job(self, job_id):

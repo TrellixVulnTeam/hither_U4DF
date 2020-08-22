@@ -12,7 +12,7 @@ def test_calls():
     return [
         dict(
             args=dict(
-                file=hi.File(thisdir + '/test_text.txt')
+                file=thisdir + '/test_text.txt'
             ),
             result='some-text'
         )

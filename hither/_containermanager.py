@@ -1,7 +1,7 @@
 import os
 import sys
 
-from ._enums import ConfigKeys
+from ._enums import EnvironmentKeys
 from ._shellscript import ShellScript
 
 class ContainerManager:
@@ -26,12 +26,12 @@ class ContainerManager:
             string value that can be passed to 'docker pull' and 'docker run' (or
             'singularity run ...')
         """
-        if os.getenv(ConfigKeys.HITHER_USE_SINGULARITY_ENV, None) == 'TRUE':
+        if os.getenv(EnvironmentKeys.HITHER_USE_SINGULARITY_ENV, None) == 'TRUE':
             if container not in ContainerManager._prepared_singularity_containers:
                 ContainerManager._do_prepare_singularity_container(container)
                 ContainerManager._prepared_singularity_containers[container] = True
         else:
-            if os.getenv(ConfigKeys.HITHER_NO_DOCKER_PULL_ENV, None) != 'TRUE':
+            if os.getenv(EnvironmentKeys.HITHER_NO_DOCKER_PULL_ENV, None) != 'TRUE':
                 if container not in ContainerManager._prepared_docker_images:
                     ContainerManager._do_pull_docker_image(container)
                     ContainerManager._prepared_docker_images[container] = True

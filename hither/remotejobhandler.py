@@ -3,10 +3,8 @@ from typing import Dict, Any
 import kachery as ka
 import kachery_p2p as kp
 from ._basejobhandler import BaseJobHandler
-from .database import Database
 from ._enums import JobStatus, JobKeys
-from .file import File
-from ._util import _random_string, _deserialize_item, _flatten_nested_collection, _get_poll_interval
+from ._util import _deserialize_item
 from .computeresource import ComputeResourceActionTypes
 from .computeresource import HITHER_COMPUTE_RESOURCE_TO_REMOTE_JOB_HANDLER, HITHER_REMOTE_JOB_HANDLER_TO_COMPUTE_RESOURCE
 import multiprocessing
@@ -90,13 +88,13 @@ class RemoteJobHandler(BaseJobHandler):
                 self._initialize()
             except Exception as err:
                 job._runtime_info = None
-                job._status = JobStatus.ERROR
+                job._set_status(JobStatus.ERROR)
                 job._exception = Exception(f'Error initializing remote job handler: {str(err)}')
                 return
 
         job_serialized = job._serialize(generate_code=True)
         # the CODE member is a big block of code text.
-        # Make sure it is stored in the local kachery database so it can be retrieved through the kachery-p2p network
+        # Make sure it is stored in the local kachery so it can be retrieved through the kachery-p2p network
         job_serialized[JobKeys.CODE] = ka.store_object(job_serialized[JobKeys.CODE])
         self._outgoing_feed.append_message(dict(
             type=ComputeResourceActionTypes.ADD_JOB,
@@ -141,27 +139,25 @@ class RemoteJobHandler(BaseJobHandler):
         elif JobKeys.RESULT_URI in action:
             x = kp.load_object(action[JobKeys.RESULT_URI], from_node=self._compute_resource_node_id)
             if x is None:
-                job._status = JobStatus.ERROR
+                job._set_status(JobStatus.ERROR)
                 job._exception = Exception(f'Unable to load result for uri: {action[JobKeys.RESULT_URI]}')
                 return
             if 'result' not in x:
-                job._status = JobStatus.ERROR
+                job._set_status(JobStatus.ERROR)
                 job._exception = Exception(f'result field not in object obtained from uri: {action[JobKeys.RESULT_URI]}')
                 return
             serialized_result = x['result']
         else:
-            job._status = JobStatus.ERROR
+            job._set_status(JobStatus.ERROR)
             job._exception = Exception(f'Neither result nor result_uri in job finished action')
             return
         try:
             job._result = _deserialize_item(serialized_result)
         except:
-            job._status = JobStatus.ERROR
+            job._set_status(JobStatus.ERROR)
             job._exception = Exception(f'Problem deserializing result')
             return
-        job._status = JobStatus.FINISHED
-        for f in _flatten_nested_collection(job._result, _type=File):
-            setattr(f, '_remote_job_handler', self)
+        job._set_status(JobStatus.FINISHED)
         del self._jobs[job_id]
     
     def _process_job_error_action(self, action):
@@ -171,7 +167,7 @@ class RemoteJobHandler(BaseJobHandler):
             return
         job = self._jobs[job_id]
         job._runtime_info = action[JobKeys.RUNTIME_INFO]
-        job._status = JobStatus.ERROR
+        job._set_status(JobStatus.ERROR)
         job._exception = Exception(action[JobKeys.EXCEPTION])
         del self._jobs[job_id]
     

@@ -11,7 +11,7 @@ class _JobManager:
         self._running_jobs = dict()
 
     def queue_job(self, job):
-        job._status = JobStatus.QUEUED
+        job._set_status(JobStatus.QUEUED)
         self._queued_jobs[job._job_id] = job
 
     def process_job_queues(self):
@@ -43,7 +43,7 @@ class _JobManager:
             job._job_handler._internal_counts.num_jobs += 1
 
             self._running_jobs[_id] = job
-            job.resolve_wrapped_job_values()
+            job.resolve_dependent_job_values()
             if job._job_cache is not None:
                 job._job_cache.fetch_cached_job_results(job)
                 if job._status in JobStatus.complete_statuses():
@@ -72,8 +72,6 @@ class _JobManager:
 
     def finish_completed_job(self, job:Job) -> None:
         del self._running_jobs[job._job_id]
-        if job._download_results:
-            job.download_results_if_needed()
         if job._job_cache is not None:
             job._job_cache.cache_job_result(job)
 

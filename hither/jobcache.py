@@ -4,45 +4,39 @@ import os
 import json
 import kachery_p2p as kp
 
-from .database import Database
-from ._util import _deserialize_item
-from ._enums import JobStatus, JobKeys
+from ._util import _serialize_item, _deserialize_item
+from ._enums import JobStatus, CachedJobResultKeys
 from .job import Job
 from ._filelock import FileLock
 
 class JobCache:
     def __init__(self,
-        database: Union[Database, None]=None,
         use_tempdir: Union[bool, None]=None,
         path: Union[str, None]=None
     ):
         """Cache for storing a retrieving results of hither jobs.
 
         Provide one of the following arguments:
-            database, use_tempdir, path
+            use_tempdir, path
 
         Keyword Arguments:
-            database {Union[Database, None]} -- A Mongo database object (default: {None})
             use_tempdir {Union[bool, None]} -- Whether to use a directory inside /tmp (or wherever tempdir is configured) (default: {None})
             path {Union[str, None]} -- Path to directory on local disk (default: {None})
         """
         set_parameters = 0
-        errmsg = "You must provide exactly one of: database, use_tempdir, path"
-        for param in [database, path, use_tempdir]:
+        errmsg = "You must provide exactly one of: use_tempdir, path"
+        for param in [path, use_tempdir]:
             if param is None: continue
             set_parameters += 1
         assert set_parameters == 1, errmsg
 
-        if database is not None:
-            self._cache_provider = DatabaseJobCache(database)
-        else:
-            if path is None:
-                path = f'{tempfile.gettempdir()}/hither_job_cache'
-            if not os.path.exists(path):
-                # Query: do we want to create a specified path, too, if it doesn't exist?
-                # probably, right?
-                os.makedirs(path)
-            self._cache_provider = DiskJobCache(path)
+        if path is None:
+            path = f'{tempfile.gettempdir()}/hither_job_cache'
+        if not os.path.exists(path):
+            # Query: do we want to create a specified path, too, if it doesn't exist?
+            # probably, right?
+            os.makedirs(path)
+        self._cache_provider = DiskJobCache(path)
         assert self._cache_provider is not None, errmsg
 
     def fetch_cached_job_results(self, job: Job) -> bool:
@@ -58,20 +52,24 @@ class JobCache:
         """
         if job._force_run:
             return False
-        job_dict = self._fetch_cached_job_result(job._compute_hash())
+        job_dict = self._fetch_cached_job_result(job.compute_hash())
         if job_dict is None:
             return False
 
-        status:JobStatus = JobStatus(job_dict[JobKeys.STATUS])
-        if status not in JobStatus.complete_statuses():
+        status_str = JobStatus(job_dict[CachedJobResultKeys.STATUS])
+        if status_str == 'finished':
+            status = JobStatus.FINISHED
+        elif status_str == 'error':
+            status = JobStatus.ERROR
+        else:
             raise Exception('Unexpected: cached job status not in complete statuses.') # pragma: no cover
 
         job_description = f"{job._label} ({job._function_name} {job._function_version})"
         if status == JobStatus.FINISHED:
-            if JobKeys.RESULT in job_dict:
-                serialized_result = job_dict[JobKeys.RESULT]
-            elif JobKeys.RESULT_URI in job_dict:
-                x = kp.load_object(job_dict[JobKeys.RESULT_URI], p2p=False)
+            if CachedJobResultKeys.RESULT in job_dict:
+                serialized_result = job_dict[CachedJobResultKeys.RESULT]
+            elif CachedJobResultKeys.RESULT_URI in job_dict:
+                x = kp.load_object(job_dict[CachedJobResultKeys.RESULT_URI], p2p=False)
                 if x is None:
                     print(f'Found result in cache, but result does not exist locally: {job_description}')  # TODO: Make log
                     return False
@@ -83,28 +81,27 @@ class JobCache:
                 print('Neither result nor result_uri found in cached job')
                 return False
             result = _deserialize_item(serialized_result)
-            if not job._result_files_are_available_locally(results=result):
-                print(f'Found result in cache, but files do not exist locally: {job_description}')  # TODO: Make log
-                return False
+            # todo: we need to be able to check whether the files actually exist in the kachery storage
+            #       not 100% sure how to do that
             job._result = result
             job._exception = None
             print(f'Using cached result for job: {job_description}') # TODO: Make log
         elif status == JobStatus.ERROR:
-            exception = job_dict[JobKeys.EXCEPTION]
+            exception = job_dict[CachedJobResultKeys.EXCEPTION]
             if job._cache_failing and (not job._rerun_failing):
                 job._result = None
                 job._exception = Exception(exception)
                 print(f'Using cached error for job: {job_description}') # TODO: Make log
             else:
                 return False
-        job._status = status
-        job._runtime_info = job_dict[JobKeys.RUNTIME_INFO]
+        job._set_status(status)
+        job._runtime_info = job_dict[CachedJobResultKeys.RUNTIME_INFO]
         return True
 
     def cache_job_result(self, job:Job):
         if job._status == JobStatus.ERROR and not job._cache_failing:
             return 
-        job_hash = job._compute_hash()
+        job_hash = job.compute_hash()
         self._cache_provider._cache_job_result(job_hash, job)
     
     def _fetch_cached_job_result(self, job_hash) -> Union[Dict[str, Any], None]:
@@ -115,7 +112,23 @@ class DiskJobCache:
         self._path = path
     
     def _cache_job_result(self, job_hash: str, job:Job):
-        obj = job._as_cached_result()
+        from .computeresource.computeresource_new import _result_small_enough_to_store_directly
+        cached_result = {
+            CachedJobResultKeys.JOB_HASH: job_hash,
+            CachedJobResultKeys.RUNTIME_INFO: job.get_runtime_info()
+        }
+        if job.get_status() == JobStatus.FINISHED:
+            serialized_result = _serialize_item(job.get_result())
+            if _result_small_enough_to_store_directly(serialized_result):
+                cached_result[CachedJobResultKeys.RESULT] = serialized_result
+            else:
+                cached_result[CachedJobResultKeys.RESULT_URI] = kp.store_object(dict(result=serialized_result))
+            cached_result[CachedJobResultKeys.STATUS] = 'finished'
+        elif job.get_status() == JobStatus.ERROR:
+            cached_result[CachedJobResultKeys.EXCEPTION] = '{}'.format(job.get_exception())
+            cached_result[CachedJobResultKeys.STATUS] = 'error'
+
+        obj = cached_result
         p = self._get_cache_file_path(job_hash=job_hash, create_dir_if_needed=True)
         with FileLock(p + '.lock', exclusive=True):
             with open(p, 'w') as f:
@@ -143,17 +156,3 @@ class DiskJobCache:
             if not os.path.exists(dirpath):
                 os.makedirs(dirpath)
         return f'{dirpath}/{job_hash}.json'
-
-class DatabaseJobCache:
-    def __init__(self, db):
-        self._database = db
-
-    def _cache_job_result(self, job_hash:str, job:Job):
-        self._database._cache_job_result(job_hash, job)
-
-    def _fetch_cached_job_result(self, job_hash:str):
-        return self._database._fetch_cached_job_result(job_hash)
-
-
-
-        

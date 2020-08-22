@@ -59,7 +59,7 @@ class ParallelJobHandler(BaseJobHandler):
                         pp.terminate()
                         pp.join()
                         p['job']._result = None
-                        p['job']._status = JobStatus.ERROR
+                        p['job']._set_status(JobStatus.ERROR)
                         p['job']._exception = JobCancelledException('Job cancelled')
                         p['job']._runtime_info = None
                         p['pjh_status'] = JobStatus.ERROR
@@ -69,7 +69,7 @@ class ParallelJobHandler(BaseJobHandler):
                 else:
                     # TODO: Consider if existing ERROR or FINISHED status should change this behavior 
                     p['job']._result = None
-                    p['job']._status = JobStatus.ERROR
+                    p['job']._set_status(JobStatus.ERROR)
                     p['job']._exception = JobCancelledException('Job cancelled')
                     p['job']._runtime_info = None
                     p['pjh_status'] = JobStatus.ERROR
@@ -84,7 +84,7 @@ class ParallelJobHandler(BaseJobHandler):
                     ret = p['pipe_to_child'].recv()
                     p['pipe_to_child'].send('okay!')
                     p['job']._result = ret['result']
-                    p['job']._status = ret['status']
+                    p['job']._set_status(ret['status'])
                     p['job']._exception = ret['exception']
                     p['job']._runtime_info = ret['runtime_info']
                     p['pjh_status'] = JobStatus.FINISHED
@@ -98,7 +98,7 @@ class ParallelJobHandler(BaseJobHandler):
             if p['pjh_status'] == JobStatus.PENDING:
                 if num_running < self._num_workers:
                     p['pjh_status'] = JobStatus.RUNNING
-                    p['job']._status = JobStatus.RUNNING
+                    p['job']._set_status(JobStatus.RUNNING)
                     p['process'].start()
                     num_running = num_running + 1
         
@@ -106,7 +106,12 @@ class ParallelJobHandler(BaseJobHandler):
 
 def _pjh_run_job(pipe_to_parent: Connection, cancel_filepath: str, serialized_job: Any) -> None:
     import kachery as ka
-    job = hi._deserialize_job(serialized_job)
+    job = hi._deserialize_job(
+        serialized_job=serialized_job,
+        job_handler=None,
+        job_cache=None,
+        job_manager=None
+    )
     # Note that cancel_filepath will only have an effect if we are running this in a container
     job._execute(cancel_filepath=cancel_filepath)
     ret = dict(

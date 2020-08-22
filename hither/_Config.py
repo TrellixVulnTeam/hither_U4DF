@@ -16,12 +16,10 @@ class Inherit(Enum):
 class Config:
     config_stack: Deque[Dict[str, Any]] = deque()
 
-
     def __init__(self,
         container: Union[str, bool, Inherit, None]=Inherit.INHERIT,
         job_handler: Union[BaseJobHandler, Inherit]=Inherit.INHERIT,
         job_cache: Union['JobCache', Inherit, None]=Inherit.INHERIT,
-        download_results: Union[bool, Inherit, None]=Inherit.INHERIT,
         job_timeout: Union[float, Inherit, None]=Inherit.INHERIT,
         force_run: Union[bool, Inherit]=Inherit.INHERIT,
         rerun_failing: Union[bool, Inherit]=Inherit.INHERIT,
@@ -58,8 +56,6 @@ class Config:
             The job handler to use for each function job, by default None
         job_cache : Union[JobCache, None], optional
             The job cache to use for each function job, by default None
-        download_results : Union[bool, None], optional
-            Whether to download results after the function job runs (applied to remote job handler), by default None
         job_timeout : Union[float, None], optional
             A timeout time (in seconds) for each function job, by default None
         force_run : Union[bool], optional
@@ -80,7 +76,6 @@ class Config:
         self.coalesce(ConfigKeys.CONTAINER, container)
         self.coalesce(ConfigKeys.JOB_HANDLER, job_handler)
         self.coalesce(ConfigKeys.JOB_CACHE, job_cache)
-        self.coalesce(ConfigKeys.DOWNLOAD_RESULTS, download_results)
         self.coalesce(ConfigKeys.TIMEOUT, job_timeout)
         self.coalesce(ConfigKeys.FORCE_RUN, force_run)
         self.coalesce(ConfigKeys.RERUN_FAILING, rerun_failing)
@@ -108,9 +103,9 @@ class Config:
     def __exit__(self, exc_type, exc_val, exc_tb):
         Config.config_stack.pop()
 
-    def coalesce(self, name: str, val: Any) -> None:
+    def coalesce(self, k: str, val: Any) -> None:
         if val == Inherit.INHERIT:
             # On INHERIT, we return without making changes, keeping the value from
             # the parent config. Then "None" can be used as an actual value.
             return
-        self.new_config[name] = val
+        self.new_config[k] = val

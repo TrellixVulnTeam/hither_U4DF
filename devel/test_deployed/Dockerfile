@@ -33,9 +33,6 @@ RUN apt-get update && \
     apt-get update && \
     apt-get -y install docker-ce
 
-# MongoDB
-RUN apt-get update && apt-get install -y mongodb
-
 # For convenience
 RUN apt-get install -y nano
 
