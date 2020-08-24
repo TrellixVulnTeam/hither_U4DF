@@ -5,6 +5,7 @@ import json
 import shutil
 import time
 
+import kachery as ka
 from ._containermanager import ContainerManager
 from ._enums import SerializedJobKeys, EnvironmentKeys
 from ._temporarydirectory import TemporaryDirectory
@@ -23,7 +24,10 @@ def _run_serialized_job_in_container(job_serialized, cancel_filepath: Union[str,
     # This variable is reserved for future use
     # timeout: Union[None, float] = None
     
-    code = job_serialized[SerializedJobKeys.CODE]
+    code_uri = job_serialized[SerializedJobKeys.CODE_URI]
+    assert code_uri is not None, '_run_serialized_job_in_container: code_uri is None'
+    code = ka.load_object(code_uri)
+    assert code is not None, f'_run_serialized_job_in_container: unable to load code from kachery storage: {code_uri}'
     container = job_serialized[SerializedJobKeys.CONTAINER]
 
     kwargs = job_serialized[SerializedJobKeys.WRAPPED_ARGS]

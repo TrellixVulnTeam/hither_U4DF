@@ -56,7 +56,7 @@ def _deserialize_item(x:Any) -> Any:
         if '_type' in x and x['_type'] == 'tuple':
             return _deserialize_item(tuple(x['data']))
         elif '_type' in x and x['_type'] == 'npy':
-            return _npy_to_b64(x['data_b64'])
+            return _b64_to_npy(x['data_b64'])
         ret = dict()
         for key, val in x.items():
             ret[key] = _deserialize_item(val)
@@ -75,6 +75,11 @@ def _npy_to_b64(x):
     f = io.BytesIO()
     np.save(f, x)
     return base64.b64encode(f.getvalue()).decode('utf-8')
+
+def _b64_to_npy(x):
+    bytes0 = base64.b64decode(x.encode())
+    f = io.BytesIO(bytes0)
+    return np.load(f)
 
 def _random_string(num: int) -> str:
     """Generate random string of a given length.

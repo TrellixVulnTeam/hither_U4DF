@@ -56,13 +56,13 @@ class JobCache:
         if job_dict is None:
             return False
 
-        status_str = JobStatus(job_dict[CachedJobResultKeys.STATUS])
+        status_str = job_dict[CachedJobResultKeys.STATUS]
         if status_str == 'finished':
             status = JobStatus.FINISHED
         elif status_str == 'error':
             status = JobStatus.ERROR
         else:
-            raise Exception('Unexpected: cached job status not in complete statuses.') # pragma: no cover
+            raise Exception(f'Unexpected: cached job status {status_str} not in complete statuses.') # pragma: no cover
 
         job_description = f"{job._label} ({job._function_name} {job._function_version})"
         if status == JobStatus.FINISHED:

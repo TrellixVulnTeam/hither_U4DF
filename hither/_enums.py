@@ -32,7 +32,7 @@ class JobStatus(Enum):
 
 class SerializedJobKeys:
     CACHE_FAILING = 'cache_failing'
-    CODE = 'code'
+    CODE_URI = 'code_uri'
     CONTAINER = 'container'
     FORCE_RUN = 'force_run'
     FUNCTION = 'function'
@@ -48,7 +48,7 @@ class InternalFunctionAttributeKeys:
     HITHER_ADDITIONAL_FILES = '_hither_additional_files'
     HITHER_CONTAINER = '_hither_container'
     HITHER_LOCAL_MODULES = '_hither_local_modules'
-    HITHER_GENERATED_CODE = '_hither_generated_code'
+    HITHER_GENERATED_CODE_URI = '_hither_generated_code_uri'
 
 class JobKeys:
     RESULT = 'result'

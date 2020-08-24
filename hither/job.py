@@ -18,7 +18,7 @@ class Job:
         self, *,
         job_id: Union[None, str],
         f: Union[None, Callable],
-        code: Union[None, dict],
+        code_uri: Union[None, str],
         wrapped_function_arguments,
         job_handler: 'BaseJobHandler',
         job_cache: 'JobCache',
@@ -36,7 +36,7 @@ class Job:
             job_id = _random_string(15)
         self._job_id = str(job_id)
         self._f = f
-        self._code = code
+        self._code_uri = code_uri
         self._wrapped_function_arguments = wrapped_function_arguments
         self._job_handler = job_handler
         self._job_cache = job_cache
@@ -63,7 +63,7 @@ class Job:
     def wait(self, timeout: Union[float, None]=None) -> Union[None, Any]:
         timer = time.time()
         while True:
-            self._job_manager.process_job_queues()
+            self._job_manager.iterate()
             if self._status == JobStatus.FINISHED:
                 return self._result
             elif self._status == JobStatus.ERROR:
@@ -123,8 +123,10 @@ class Job:
             # don't print anything if the job is not complete
             return
         runtime_info = self.get_runtime_info()
-        assert runtime_info is not None
-        assert runtime_info['console_out']
+        if runtime_info is None:
+            return
+        if 'console_out' not in runtime_info:
+            return
         _print_console_out(runtime_info['console_out'])
     
     def cancel(self):
@@ -150,8 +152,8 @@ class Job:
         try:
             ContainerManager.prepare_container(self._container)
         except:
-            self._set_status(JobStatus.ERROR)
-            self._exception = Exception(f"Unable to prepare container for Job {self._label}: {self._container}")
+            exception = Exception(f"Unable to prepare container for Job {self._label}: {self._container}")
+            self._set_error_status(exception=exception, runtime_info=dict())
     
     def is_ready_to_run(self) -> bool:
         """Checks current status and status of Jobs this Job depends on, to determine whether this
@@ -190,6 +192,16 @@ class Job:
     def on_status_changed(self, cb): 
         self._on_status_changed_callbacks.append(cb)
     
+    def _set_finished_status(self, result, runtime_info):
+        self._result = result
+        self._runtime_info = runtime_info
+        self._set_status(JobStatus.FINISHED)
+    
+    def _set_error_status(self, exception, runtime_info):
+        self._exception = exception
+        self._runtime_info = runtime_info
+        self._set_status(JobStatus.ERROR)
+
     def _set_status(self, status: JobStatus):
         if self._status == status:
             return

@@ -78,6 +78,9 @@ def run_service_compute_resource(*, api_port, kachery_p2p_config_dir, kachery_st
 
     with hi.ConsoleCapture(label='[compute-resource]'):
         pjh = hi.ParallelJobHandler(num_workers=4)
-        jc = hi.JobCache(use_tempdir=True)
-        CR = hi.ComputeResource(compute_resource_uri=compute_resource_uri, job_handler=pjh, job_cache=jc, compute_resource_dir=compute_resource_dir)
+        CR = hi.ComputeResource(
+            compute_resource_uri=compute_resource_uri,
+            node_ids_with_access=[],
+            job_handler=pjh
+        )
         CR.run()

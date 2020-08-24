@@ -116,12 +116,12 @@ def test_run_functions_with_job_cache(general, tmp_path):
         do_test_run_functions()
         hi.wait()
     num_jobs = jh._internal_counts.num_jobs
-    num_run_jobs = jh._internal_counts.num_run_jobs
+    num_submitted_jobs = jh._internal_counts.num_submitted_jobs
     num_errored_jobs = jh._internal_counts.num_errored_jobs
     num_finished_jobs = jh._internal_counts.num_finished_jobs
     num_skipped_jobs = jh._internal_counts.num_skipped_jobs
     print(f'Num jobs: {num_jobs}')
-    print(f'Num run jobs: {num_run_jobs}')
+    print(f'Num submitted jobs: {num_submitted_jobs}')
     print(f'Num errored jobs: {num_errored_jobs}')
     print(f'Num finished jobs: {num_finished_jobs}')
     print(f'Num skipped jobs: {num_skipped_jobs}')
@@ -132,16 +132,16 @@ def test_run_functions_with_job_cache(general, tmp_path):
         do_test_run_functions()
         hi.wait()
     num_new_jobs = jh._internal_counts.num_jobs - num_jobs
-    num_new_run_jobs = jh._internal_counts.num_run_jobs - num_run_jobs
+    num_new_submitted_jobs = jh._internal_counts.num_submitted_jobs - num_submitted_jobs
     num_new_errored_jobs = jh._internal_counts.num_errored_jobs - num_errored_jobs
     num_new_finished_jobs = jh._internal_counts.num_finished_jobs - num_finished_jobs
     num_new_skipped_jobs = jh._internal_counts.num_skipped_jobs - num_skipped_jobs
     print(f'Num new jobs: {num_jobs}')
-    print(f'Num new run jobs: {num_new_run_jobs}')
+    print(f'Num new submitted jobs: {num_new_submitted_jobs}')
     print(f'Num new errored jobs: {num_new_errored_jobs}')
     print(f'Num new finished jobs: {num_new_finished_jobs}')
     print(f'Num new skipped jobs: {num_new_skipped_jobs}')
-    assert num_new_run_jobs == num_new_errored_jobs
+    assert num_new_submitted_jobs == num_new_errored_jobs
     assert num_new_jobs == num_new_skipped_jobs + num_errored_jobs
 
 @pytest.mark.container

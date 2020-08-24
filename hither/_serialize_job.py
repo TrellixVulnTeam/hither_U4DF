@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING
 from ._enums import InternalFunctionAttributeKeys, SerializedJobKeys
 from ._generate_source_code_for_function import _generate_source_code_for_function
 from ._util import _serialize_item, _deserialize_item
+import kachery as ka
 
 if TYPE_CHECKING:
     from .job import Job
@@ -10,24 +11,25 @@ def _serialize_job(job: 'Job', generate_code:bool):
     function_name = job.get_function_name()
     function_version = job.get_function_version()
     if generate_code:
-        if job._code is not None:
-            code = job._code
+        if job._code_uri is not None:
+            code_uri = job._code_uri
         else:
             assert job._f is not None, 'Cannot serialize function with generate_code=True when function and code are both not available'
             # only generate code once per function
             if not hasattr(job._f, '_hither_generated_code'):
                 code0 = _generate_source_code_for_function(job._f)
-                setattr(job._f, InternalFunctionAttributeKeys.HITHER_GENERATED_CODE, code0)
-            code = getattr(job._f, InternalFunctionAttributeKeys.HITHER_GENERATED_CODE)
+                code0_uri = ka.store_object(code0)
+                setattr(job._f, InternalFunctionAttributeKeys.HITHER_GENERATED_CODE_URI, code0_uri)
+            code_uri = getattr(job._f, InternalFunctionAttributeKeys.HITHER_GENERATED_CODE_URI)
         function = None
     else:
         assert job._f is not None, 'Cannot serialize function with generate_code=False when function is not available'
-        code = None
+        code_uri = None
         function = job._f
     x = {
         SerializedJobKeys.JOB_ID: job._job_id,
         SerializedJobKeys.FUNCTION: function,
-        SerializedJobKeys.CODE: code,
+        SerializedJobKeys.CODE_URI: code_uri,
         SerializedJobKeys.FUNCTION_NAME: function_name,
         SerializedJobKeys.FUNCTION_VERSION: function_version,
         SerializedJobKeys.LABEL: job.get_label(),
@@ -52,7 +54,7 @@ def _deserialize_job(
     return Job(
         job_id=j[SerializedJobKeys.JOB_ID],
         f=None,
-        code=j[SerializedJobKeys.CODE],
+        code_uri=j[SerializedJobKeys.CODE_URI],
         wrapped_function_arguments=_deserialize_item(j[SerializedJobKeys.WRAPPED_ARGS]),
         job_handler=job_handler,
         job_cache=job_cache,

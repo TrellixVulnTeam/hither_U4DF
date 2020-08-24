@@ -7,8 +7,8 @@ import multiprocessing
 from multiprocessing.connection import Connection
 import time
 
-import hither as hi
-
+from .job import Job
+from ._serialize_job import _serialize_job, _deserialize_job
 from ._basejobhandler import BaseJobHandler
 from ._enums import JobStatus
 from ._exceptions import JobCancelledException
@@ -23,11 +23,11 @@ class ParallelJobHandler(BaseJobHandler):
     def cleanup(self):
         self._halted = True
 
-    def handle_job(self, job):
+    def handle_job(self, job: Job):
         super(ParallelJobHandler, self).handle_job(job)
         import kachery as ka
         pipe_to_parent, pipe_to_child = multiprocessing.Pipe()
-        serialized_job = job._serialize(generate_code=(job._container is not None))
+        serialized_job = _serialize_job(job=job, generate_code=(job._container is not None))
 
         # Note that cancel_filepath will only have an effect if we are running this in a container
         if job._container is not None:
@@ -59,9 +59,7 @@ class ParallelJobHandler(BaseJobHandler):
                         pp.terminate()
                         pp.join()
                         p['job']._result = None
-                        p['job']._set_status(JobStatus.ERROR)
-                        p['job']._exception = JobCancelledException('Job cancelled')
-                        p['job']._runtime_info = None
+                        p['job']._set_error_status(exception=JobCancelledException('Job cancelled'), runtime_info=dict(cancelled=True))
                         p['pjh_status'] = JobStatus.ERROR
                     # if pp.is_alive():
                     #     pp.join(timeout=2)
@@ -69,9 +67,7 @@ class ParallelJobHandler(BaseJobHandler):
                 else:
                     # TODO: Consider if existing ERROR or FINISHED status should change this behavior 
                     p['job']._result = None
-                    p['job']._set_status(JobStatus.ERROR)
-                    p['job']._exception = JobCancelledException('Job cancelled')
-                    p['job']._runtime_info = None
+                    p['job']._set_error_status(exception=JobCancelledException('Job cancelled'), runtime_info=dict(cancelled=True))
                     p['pjh_status'] = JobStatus.ERROR
     
     def iterate(self):
@@ -81,13 +77,17 @@ class ParallelJobHandler(BaseJobHandler):
         for p in self._processes:
             if p['pjh_status'] == JobStatus.RUNNING:
                 if p['pipe_to_child'].poll():
-                    ret = p['pipe_to_child'].recv()
-                    p['pipe_to_child'].send('okay!')
-                    p['job']._result = ret['result']
-                    p['job']._set_status(ret['status'])
-                    p['job']._exception = ret['exception']
-                    p['job']._runtime_info = ret['runtime_info']
-                    p['pjh_status'] = JobStatus.FINISHED
+                    try:
+                        ret = p['pipe_to_child'].recv()
+                    except:
+                        ret = None
+                    if ret is not None:
+                        p['pipe_to_child'].send('okay!')
+                        p['job']._result = ret['result']
+                        p['job']._set_status(ret['status'])
+                        p['job']._exception = ret['exception']
+                        p['job']._runtime_info = ret['runtime_info']
+                        p['pjh_status'] = JobStatus.FINISHED
         
         num_running = 0
         for p in self._processes:
@@ -106,7 +106,7 @@ class ParallelJobHandler(BaseJobHandler):
 
 def _pjh_run_job(pipe_to_parent: Connection, cancel_filepath: str, serialized_job: Any) -> None:
     import kachery as ka
-    job = hi._deserialize_job(
+    job = _deserialize_job(
         serialized_job=serialized_job,
         job_handler=None,
         job_cache=None,

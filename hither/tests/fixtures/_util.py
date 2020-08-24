@@ -1,3 +1,4 @@
+from hither.computeresource.computeresource_new import MessageKeys, MessageTypes
 from urllib import request
 import time
 import json

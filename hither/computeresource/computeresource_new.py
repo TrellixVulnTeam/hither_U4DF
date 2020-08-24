@@ -8,12 +8,14 @@ from ..job import Job, JobStatus, _compute_job_hash
 from .._util import _serialize_item
 from .._workerprocess import WorkerProcess
 from .._enums import SerializedJobKeys
+from .._preventkeyboardinterrupt import PreventKeyboardInterrupt
 from ._computeresourcejobmanager import ComputeResourceJobManager
 
 # types of messages between job handler and compute resource
 # these are communicated via feeds
 class MessageTypes:
     # job handler registry
+    COMPUTE_RESOURCE_STARTED = 'COMPUTE_RESOURCE_STARTED'
     ADD_JOB_HANDLER = 'ADD_JOB_HANDLER'
     REMOVE_JOB_HANDLER = 'REMOVE_JOB_HANDLER'
 
@@ -46,7 +48,7 @@ class InternalJobAttributeKeys:
     CR_JOB_HASH = '_cr_job_hash'
 
 # A couple of names of subfeeds used for the communication
-class SubfeedNames(Enum):
+class SubfeedNames:
     JOB_HANDLER_REGISTRY = 'job_handler_registry'
     MAIN = 'main'
 
@@ -54,14 +56,15 @@ class ComputeResource:
     def __init__(
         self, *,
         compute_resource_uri: str, # feed uri for this compute resource
-        node_ids_with_access: List[str] # ids of nodes that have privileges of writing to this compute resource
+        node_ids_with_access: List[str], # ids of nodes that have privileges of writing to this compute resource
+        job_handler
     ):
         self._compute_resource_uri = compute_resource_uri
         self._node_ids_with_access = node_ids_with_access
         self._active_job_handlers: Dict[str, JobHandlerConnection] = {} # by feed uri
         self._pending_job_handler_uris: Set[str] = set()
         # the manager for all the jobs
-        self._job_manager = ComputeResourceJobManager()
+        self._job_manager = ComputeResourceJobManager(job_handler=job_handler)
 
         # the worker process - listening for incoming messages on the job handler registry feed
         self._worker_process = WorkerProcess(ComputeResourceWorker, (
@@ -70,10 +73,18 @@ class ComputeResource:
         ))
         # handle messages from the worker
         self._worker_process.on_message_from_process(self._handle_message_from_worker)
-    def start(self):
+    def run(self):
         # start the worker process
         self._worker_process.start()
-    def stop(self):
+        try:
+            while True:
+                self.iterate()
+                time.sleep(0.05)
+        except:
+            with PreventKeyboardInterrupt():
+                self.cleanup()
+            raise
+    def cleanup(self):
         # stop the worker process
         self._worker_process.stop()
         # stop the active job handlers
@@ -144,13 +155,22 @@ class ComputeResourceWorker:
             ]
         ))
         self._subfeed = subfeed
-    def on_message_from_parent(self, message):
+        self._subfeed.append_message({
+            MessageKeys.TYPE: MessageTypes.COMPUTE_RESOURCE_STARTED,
+            MessageKeys.TIMESTAMP: time.time() - 0
+        })
+    def handle_message_from_parent(self, message):
         pass
     def iterate(self):
         # listen for messages on the job handler registry subfeed
-        messages = self._subfeed.get_next_messages(wait_msec=3000)
-        for message in messages:
-            self.send_message_to_parent(message)
+        try:
+            messages = self._subfeed.get_next_messages(wait_msec=3000)
+        except:
+            # perhaps the daemon is down
+            messages = None
+        if messages is not None:
+            for message in messages:
+                self.send_message_to_parent(message)
     # The following methods will be overwritten by the framework
     # They are just placeholders to keep linters happy
     def send_message_to_parent(self, message): # overwritten by framework
@@ -224,6 +244,8 @@ class JobHandlerConnection:
                     if msg[MessageKeys.TYPE] == MessageTypes.JOB_FINISHED:
                         # todo: we also need to check whether or not any associated files still exist in kachery storage
                         #       not 100% sure how to do that
+                        # important to swap out the job id
+                        msg[MessageKeys.JOB_ID] = jh_job_id
                         self._send_message_to_job_handler(msg)
                         return
 
@@ -232,13 +254,7 @@ class JobHandlerConnection:
             # and if so will not create a new one (that's why we don't create the job object here)
             # IMPORTANT: the jh_job_id is not necessarily the same as the job._job_id
             job: Job = self._job_manager.add_job(job_hash=job_hash, job_serialized=job_serialized)
-            # notify the job handler that we have queued the job
-            self._send_message_to_job_handler({
-                MessageKeys.TYPE: MessageTypes.JOB_QUEUED,
-                MessageKeys.TIMESTAMP: time.time() - 0,
-                MessageKeys.JOB_ID: jh_job_id,
-                MessageKeys.LABEL: job._label
-            })
+            setattr(job, InternalJobAttributeKeys.CR_JOB_HASH, job_hash)
             # add to the active jobs
             self._active_jobs[jh_job_id] = job
             # handle job status changes
@@ -255,21 +271,29 @@ class JobHandlerConnection:
                 return
             job = self._active_jobs[jh_job_id]
             # this will eventually generate an error (I believe)
-            job.cancel() # todo
+            job.cancel()
     def iterate(self):
-        pass
+        self._worker_process.iterate()
     def _handle_job_status_changed(self, jh_job_id: str):
         # The status of the job has changed
         if jh_job_id not in self._active_jobs:
             return
         job = self._active_jobs[jh_job_id]
-        status = job.get_status() # todo
-        if status == JobStatus.RUNNING:
+        status = job.get_status()
+        if status == JobStatus.QUEUED:
+            # notify the job handler that we have queued the job
+            self._send_message_to_job_handler({
+                MessageKeys.TYPE: MessageTypes.JOB_QUEUED,
+                MessageKeys.TIMESTAMP: time.time() - 0,
+                MessageKeys.JOB_ID: jh_job_id,
+                MessageKeys.LABEL: job._label
+            })
+        elif status == JobStatus.RUNNING:
             # notify the job handler that the job has started
             msg = {
                 MessageKeys.TYPE: MessageTypes.JOB_STARTED,
                 MessageKeys.TIMESTAMP: time.time() - 0,
-                MessageKeys.JOB_ID: job._job_id,
+                MessageKeys.JOB_ID: jh_job_id,
                 MessageKeys.LABEL: job._label
             }
             self._send_message_to_job_handler(msg)
@@ -278,7 +302,7 @@ class JobHandlerConnection:
             msg = {
                 MessageKeys.TYPE: MessageTypes.JOB_FINISHED,
                 MessageKeys.TIMESTAMP: time.time() - 0,
-                MessageKeys.JOB_ID: job._job_id,
+                MessageKeys.JOB_ID: jh_job_id, # important to use jh_job_id here
                 MessageKeys.LABEL: job._label,
                 MessageKeys.RUNTIME_INFO: job.get_runtime_info()
             }
@@ -298,7 +322,7 @@ class JobHandlerConnection:
             msg = {
                 MessageKeys.TYPE: MessageTypes.JOB_ERROR,
                 MessageKeys.TIMESTAMP: time.time() - 0,
-                MessageKeys.JOB_ID: job._job_id,
+                MessageKeys.JOB_ID: jh_job_id,
                 MessageKeys.LABEL: job._label,
                 MessageKeys.RUNTIME_INFO: job.get_runtime_info(),
                 MessageKeys.EXCEPTION: str(job._exception)
@@ -319,13 +343,18 @@ class JobHandlerConnectionWorker:
         self._job_handler_uri = job_handler_uri
         # Load the subfeed of incoming messages from the job handler
         self._incoming_subfeed = kp.load_feed(job_handler_uri).get_subfeed(SubfeedNames.MAIN)
-    def on_message_from_parent(self, message):
+    def handle_message_from_parent(self, message):
         pass
     def iterate(self):
         # Listen for messages from the job handler and send to parent
-        messages = self._incoming_subfeed.get_next_messages(wait_msec=3000)
-        for message in messages:
-            self.send_message_to_parent(message)
+        try:
+            messages = self._incoming_subfeed.get_next_messages(wait_msec=3000)
+        except:
+            # perhaps the daemon is down
+            messages = None
+        if messages is not None:
+            for message in messages:
+                self.send_message_to_parent(message)
     # The following methods will be overwritten by the framework
     # They are just placeholders to keep linters happy
     def send_message_to_parent(self, message): # overwritten by framework

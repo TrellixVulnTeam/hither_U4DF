@@ -11,6 +11,7 @@ from ._basejobhandler import BaseJobHandler
 from ._enums import JobStatus
 from ._filelock import FileLock
 from ._serialize_job import _serialize_job
+from ._exceptions import JobCancelledException
 from .job import Job
 from ._shellscript import ShellScript
 from ._util import _random_string, _deserialize_item
@@ -162,6 +163,7 @@ class SlurmJobHandler(BaseJobHandler):
         for _, b in self._batches.items():
             if b.isRunning():
                 if b.canAddJob(job):
+                    job._set_status(JobStatus.RUNNING)
                     b.addJob(job)
                     return True
 
@@ -570,11 +572,14 @@ class _Worker():
             # Here's the result that we read above
             self._job._set_status(JobStatus(result_serialized['status']))
             self._job._result = _deserialize_item(result_serialized['result'])
+            self._job._runtime_info = result_serialized['runtime_info']
             if result_serialized['exception'] is not None:
-                self._job._exception = Exception(result_serialized['exception'])
+                if self._job._runtime_info and self._job._runtime_info.get('cancelled'):
+                    self._job._exception = JobCancelledException(result_serialized['exception'])
+                else:
+                    self._job._exception = Exception(result_serialized['exception'])
             else:
                 self._job._exception = None
-            self._job._runtime_info = result_serialized['runtime_info']
             # We no longer have a job, and we should set the finished timestamp
             self._job = None
             self._job_finish_timestamp = time.time()
@@ -698,7 +703,12 @@ class _SlurmProcess():
                         
                         # If we have a job to do, then let's do it
                         if job_serialized:
-                            job = _deserialize_job(job_serialized)
+                            job = _deserialize_job(
+                                serialized_job=job_serialized,
+                                job_handler=None,
+                                job_cache=None,
+                                job_manager=None
+                            )
                             job._execute()
                             result = dict(
                                 result=job._result,

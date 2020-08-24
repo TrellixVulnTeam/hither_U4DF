@@ -105,7 +105,7 @@ def function(name, version):
             job = Job(
                 job_id=None, # will be generated
                 f=f,
-                code=None,
+                code_uri=None,
                 wrapped_function_arguments=arguments_for_wrapped_function,
                 job_handler=job_handler,
                 job_cache=job_cache,
