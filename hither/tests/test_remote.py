@@ -1,11 +1,13 @@
+import os
 import pytest
 import numpy as np
 import hither as hi
 from .functions import functions as fun
-from .fixtures import KACHERY_P2P_DAEMON_API_PORT
 
 @pytest.mark.remote
+@pytest.mark.current
 def test_remote_1(general, kachery_p2p_daemon, compute_resource):
+    import kachery_p2p as kp
     with hi.RemoteJobHandler(compute_resource_uri=compute_resource.compute_resource_uri) as jh:
         for passnum in [1, 2]: # do it twice so we can cover the job cache code on the compute resource
             with hi.Config(job_handler=jh, container=True):
@@ -37,7 +39,6 @@ def test_remote_3(general, kachery_p2p_daemon, compute_resource):
         assert jh._internal_counts.num_jobs == 1, f'Unexpected number of jobs: {jh._internal_counts.num_jobs}'
 
 @pytest.mark.remote
-@pytest.mark.current
 def test_remote_4(general, kachery_p2p_daemon, compute_resource):
     with hi.RemoteJobHandler(compute_resource_uri=compute_resource.compute_resource_uri) as jh:
         with hi.Config(job_handler=jh, container=True):
@@ -52,7 +53,6 @@ def test_remote_4(general, kachery_p2p_daemon, compute_resource):
         assert jh._internal_counts.num_jobs == 2, f'Unexpected number of jobs: {jh._internal_counts.num_jobs}'
 
 @pytest.mark.remote
-@pytest.mark.current
 def test_remote_5(general, kachery_p2p_daemon, compute_resource):
     with hi.RemoteJobHandler(compute_resource_uri=compute_resource.compute_resource_uri) as jh:
         ok = False

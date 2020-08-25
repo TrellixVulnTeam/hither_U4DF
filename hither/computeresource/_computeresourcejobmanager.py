@@ -1,4 +1,5 @@
-from typing import Dict
+from hither import computeresource
+from typing import Dict, Any
 import hither as hi
 import kachery_p2p as kp
 from ..job import Job, JobStatus
@@ -6,10 +7,10 @@ from .._enums import SerializedJobKeys
 from .._serialize_job import _deserialize_job
 
 class ComputeResourceJobManager:
-    def __init__(self, job_handler):
+    def __init__(self, compute_resource_job_handlers: Dict[str, Any]):
         # jobs by job_hash
         self._jobs_by_job_hash: Dict[str, Job] = {}
-        self._cr_job_handler = job_handler
+        self._cr_job_handlers = compute_resource_job_handlers
     def add_job(self, job_hash, job_serialized) -> Job:
         job = None
         if job_hash in self._jobs_by_job_hash:
@@ -36,10 +37,11 @@ class ComputeResourceJobManager:
                     job._set_error_status(exception=exception, runtime_info=dict())
             if job.get_status() is not JobStatus.ERROR:
                 job._set_status(JobStatus.QUEUED)
-                job._job_handler = self._cr_job_handler
-                self._cr_job_handler.handle_job(job)
+                job._job_handler = self._cr_job_handlers['default']
+                job._job_handler.handle_job(job)
         assert job is not None
         return job
     def iterate(self):
-        self._cr_job_handler.iterate()
+        for jh in self._cr_job_handlers.values():
+            jh.iterate()
         # todo: periodic cleanup of jobs_by_job_hash

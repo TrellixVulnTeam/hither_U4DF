@@ -56,20 +56,20 @@ class ComputeResource:
     def __init__(
         self, *,
         compute_resource_uri: str, # feed uri for this compute resource
-        node_ids_with_access: List[str], # ids of nodes that have privileges of writing to this compute resource
-        job_handler
+        nodes_with_access: List[dict], # nodes that have privileges of writing to this compute resource. Each is dict(node_id=...)
+        job_handlers
     ):
         self._compute_resource_uri = compute_resource_uri
-        self._node_ids_with_access = node_ids_with_access
+        self._nodes_with_access = nodes_with_access
         self._active_job_handlers: Dict[str, JobHandlerConnection] = {} # by feed uri
         self._pending_job_handler_uris: Set[str] = set()
         # the manager for all the jobs
-        self._job_manager = ComputeResourceJobManager(job_handler=job_handler)
+        self._job_manager = ComputeResourceJobManager(compute_resource_job_handlers=job_handlers)
 
         # the worker process - listening for incoming messages on the job handler registry feed
         self._worker_process = WorkerProcess(ComputeResourceWorker, (
             self._compute_resource_uri,
-            self._node_ids_with_access
+            self._nodes_with_access
         ))
         # handle messages from the worker
         self._worker_process.on_message_from_process(self._handle_message_from_worker)
@@ -137,10 +137,10 @@ class ComputeResourceWorker:
     def __init__(
         self,
         compute_resource_uri, # uri of this compute resource feed
-        node_ids_with_access # ids of nodes that have privileges of writing to this compute resource
+        nodes_with_access # ids of nodes that have privileges of writing to this compute resource
     ):
         self._compute_resource_uri = compute_resource_uri
-        self._node_ids_with_access = node_ids_with_access
+        self._nodes_with_access = nodes_with_access
 
         # Load the job handler registry feed and set the access permissions
         feed = kp.load_feed(self._compute_resource_uri)
@@ -148,10 +148,10 @@ class ComputeResourceWorker:
         subfeed.set_access_rules(dict(
             rules = [
                 dict(
-                    nodeId=node_id,
+                    nodeId=n['node_id'],
                     write=True
                 )
-                for node_id in self._node_ids_with_access
+                for n in self._nodes_with_access
             ]
         ))
         self._subfeed = subfeed

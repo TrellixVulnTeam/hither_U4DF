@@ -33,7 +33,7 @@ class RemoteJobHandler(BaseJobHandler):
             # self._job_handler_feed.delete()
             self._worker_process.stop()
             registry_subfeed = kp.load_feed(self._compute_resource_uri).get_subfeed(SubfeedNames.JOB_HANDLER_REGISTRY)
-            registry_subfeed.append_message({
+            registry_subfeed.submit_message({
                 MessageKeys.TYPE: MessageTypes.REMOVE_JOB_HANDLER
             })
 
@@ -50,7 +50,7 @@ class RemoteJobHandler(BaseJobHandler):
             self._job_handler_feed = kp.create_feed()
             self._outgoing_subfeed = self._job_handler_feed.get_subfeed(SubfeedNames.MAIN)
             self._job_handler_uri = self._job_handler_feed.get_uri()
-            registry_subfeed.append_message({
+            registry_subfeed.submit_message({
                 MessageKeys.TYPE: MessageTypes.ADD_JOB_HANDLER,
                 MessageKeys.JOB_HANDLER_URI: self._job_handler_uri
             })
