@@ -71,6 +71,13 @@ def _run_serialized_job_in_container(job_serialized, cancel_filepath: Union[str,
                     runtime_info = dict()
                     ok_import_hither = False
 
+                # important to do this so that
+                # we don't have the program attempting
+                # to access the daemon, which won't be
+                # running in the container
+                import kachery_p2p as kp
+                kp._experimental_config(nop2p=True)
+
                 if ok_import_hither:
                     from hither import ConsoleCapture
                     from hither import _deserialize_item, _serialize_item

@@ -34,7 +34,7 @@ class ParallelJobHandler(BaseJobHandler):
             cancel_filepath = f'{tempfile.gettempdir()}/pjh_cancel_job_{job._job_id}.txt'
         else:
             cancel_filepath = None
-        process = multiprocessing.Process(target=_pjh_run_job, args=(pipe_to_parent, cancel_filepath, serialized_job))
+        process = multiprocessing.Process(target=_pjh_run_job, args=(pipe_to_parent, cancel_filepath, job))
         self._processes.append(dict(
             job=job,
             process=process,
@@ -104,14 +104,8 @@ class ParallelJobHandler(BaseJobHandler):
         
         time.sleep(0.02)
 
-def _pjh_run_job(pipe_to_parent: Connection, cancel_filepath: str, serialized_job: Any) -> None:
+def _pjh_run_job(pipe_to_parent: Connection, cancel_filepath: str, job: Job) -> None:
     import kachery as ka
-    job = _deserialize_job(
-        serialized_job=serialized_job,
-        job_handler=None,
-        job_cache=None,
-        job_manager=None
-    )
     # Note that cancel_filepath will only have an effect if we are running this in a container
     job._execute(cancel_filepath=cancel_filepath)
     ret = dict(

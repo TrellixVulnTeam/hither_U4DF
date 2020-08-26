@@ -125,7 +125,7 @@ class RemoteJobHandler(BaseJobHandler):
         elif MessageKeys.RESULT_URI:
             result_uri = message[MessageKeys.RESULT_URI]
             x = kp.load_object(result_uri)
-            result = x['result']
+            result = _deserialize_item(x['result'])
         else:
             print('WARNING: RemoteJobHandler - no result or result_uri for finished job')
             result = None

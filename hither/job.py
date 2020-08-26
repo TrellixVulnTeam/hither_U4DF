@@ -170,9 +170,13 @@ class Job:
         for uri in uri_list:
             if uri.startswith('sha1://') or uri.startswith('sha1dir://'):
                 try:
-                    kp.load_file(uri)
+                    x = kp.load_file(uri)
                 except:
                     exception = Exception(f"Unable to load file for Job {self._label}: {uri}")
+                    self._set_error_status(exception=exception, runtime_info=dict())
+                    return
+                if x is None:
+                    exception = Exception(f"Unable to load file for Job (*) {self._label}: {uri}")
                     self._set_error_status(exception=exception, runtime_info=dict())
     
     def is_ready_to_run(self) -> bool:
