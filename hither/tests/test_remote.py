@@ -6,7 +6,6 @@ from .functions import functions as fun
 from .load_kachery_text import load_kachery_text
 
 @pytest.mark.remote
-@pytest.mark.current
 def test_remote_0(general, kachery_p2p_daemon, compute_resource):
     import kachery as ka
     with hi.RemoteJobHandler(compute_resource_uri=compute_resource.compute_resource_uri) as jh:

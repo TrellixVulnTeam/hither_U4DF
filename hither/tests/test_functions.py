@@ -150,6 +150,7 @@ def test_run_functions_in_container(general):
         do_test_run_functions()
 
 @pytest.mark.container
+@pytest.mark.current
 def test_slurmjobhandler(general):
     with hi.TemporaryDirectory() as tmpdir:
         working_dir = f'{tmpdir}/slurmjobhandler'
