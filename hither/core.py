@@ -17,7 +17,9 @@ _default_global_config = dict(
     job_timeout=None,
     force_run=False,
     rerun_failing=False,
-    cache_failing=False
+    cache_failing=False,
+    required_files=None,
+    jhparams={}
 )
 
 Config.set_default_config(_default_global_config)
@@ -101,6 +103,8 @@ def function(name, version):
             force_run = Config.get_current_config_value(ConfigKeys.FORCE_RUN)
             rerun_failing = Config.get_current_config_value(ConfigKeys.RERUN_FAILING)
             cache_failing = Config.get_current_config_value(ConfigKeys.CACHE_FAILING)
+            required_files = Config.get_current_config_value(ConfigKeys.REQUIRED_FILES)
+            jhparams = Config.get_current_config_value(ConfigKeys.JHPARAMS)
             label = name
             job = Job(
                 job_id=None, # will be generated
@@ -115,6 +119,8 @@ def function(name, version):
                 force_run=force_run,
                 rerun_failing=rerun_failing,
                 cache_failing=cache_failing,
+                required_files=required_files,
+                jhparams=jhparams,
                 function_name=name,
                 function_version=version,
                 job_timeout=job_timeout

@@ -3,9 +3,21 @@ import pytest
 import numpy as np
 import hither as hi
 from .functions import functions as fun
+from .load_kachery_text import load_kachery_text
 
 @pytest.mark.remote
 @pytest.mark.current
+def test_remote_0(general, kachery_p2p_daemon, compute_resource):
+    import kachery as ka
+    with hi.RemoteJobHandler(compute_resource_uri=compute_resource.compute_resource_uri) as jh:
+        random_text = 'some-random-text-0901'
+        x = ka.store_text(random_text)
+        with hi.Config(job_handler=jh, container=True, jhparams={'cr_partition': 'partition1'}):
+            with hi.Config(required_files=[x]):
+                txt = load_kachery_text.run(uri=x).wait()
+            assert txt == random_text
+
+@pytest.mark.remote
 def test_remote_1(general, kachery_p2p_daemon, compute_resource):
     import kachery_p2p as kp
     with hi.RemoteJobHandler(compute_resource_uri=compute_resource.compute_resource_uri) as jh:

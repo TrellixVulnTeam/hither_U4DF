@@ -42,6 +42,8 @@ class SerializedJobKeys:
     JOB_TIMEOUT = 'job_timeout'
     LABEL = 'label'
     RERUN_FAILING = 'rerun_failing'
+    REQUIRED_FILES = 'required_files'
+    JHPARAMS = 'jhparams'
     WRAPPED_ARGS = 'kwargs' # TODO CHANGE ME ONCE ALL REFERENCES ARE CENTRALIZED
 
 class InternalFunctionAttributeKeys:
@@ -73,12 +75,14 @@ class ConfigKeys:
     FORCE_RUN = 'force_run'
     RERUN_FAILING = 'rerun_failing'
     CACHE_FAILING = 'cache_failing'
+    REQUIRED_FILES = 'required_files'
+    JHPARAMS = 'jhparams'
 
     @staticmethod
     def known_configuration_keys() -> List[str]:
         return [ConfigKeys.CONTAINER, ConfigKeys.JOB_HANDLER, ConfigKeys.JOB_CACHE,
                 ConfigKeys.TIMEOUT, ConfigKeys.FORCE_RUN,
-                ConfigKeys.RERUN_FAILING, ConfigKeys.CACHE_FAILING]
+                ConfigKeys.RERUN_FAILING, ConfigKeys.CACHE_FAILING, ConfigKeys.REQUIRED_FILES]
 
 class CachedJobResultKeys:
     JOB_HASH = 'job_hash'

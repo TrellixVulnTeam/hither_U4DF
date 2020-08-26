@@ -1,7 +1,8 @@
-from typing import Callable, Union, TYPE_CHECKING, Any, List
+from typing import Callable, Union, TYPE_CHECKING, Any, List, Dict
 import time
 from copy import deepcopy
 import kachery as ka
+import kachery_p2p as kp
 from ._enums import JobStatus
 from ._execute_job import _execute_job
 from ._util import _random_string
@@ -28,6 +29,8 @@ class Job:
         force_run: bool,
         rerun_failing: bool,
         cache_failing: bool,
+        required_files: Union[None, str, List, Dict],
+        jhparams: Dict,
         function_name: str,
         function_version: str,
         job_timeout: Union[None, float]
@@ -46,6 +49,8 @@ class Job:
         self._force_run = force_run
         self._rerun_failing = rerun_failing
         self._cache_failing = cache_failing
+        self._required_files = required_files
+        self._jhparams = jhparams
         self._function_name = function_name
         self._function_version = function_version
         self._job_timeout = job_timeout
@@ -109,6 +114,9 @@ class Job:
             raise Exception('Cannot get exception of job that does not have error status')
         return self._exception
     
+    def get_jhparams(self) -> dict:
+        return self._jhparams
+    
     def set_label(self, label) -> 'Job':
         self._label = label
         return self
@@ -154,6 +162,18 @@ class Job:
         except:
             exception = Exception(f"Unable to prepare container for Job {self._label}: {self._container}")
             self._set_error_status(exception=exception, runtime_info=dict())
+    
+    def load_required_files_if_needed(self) -> None:
+        if self._required_files is None: return
+        if self._job_handler is not None and self._job_handler.is_remote: return
+        uri_list: List[str] = _flatten_nested_collection(self._required_files, _type=str)
+        for uri in uri_list:
+            if uri.startswith('sha1://') or uri.startswith('sha1dir://'):
+                try:
+                    kp.load_file(uri)
+                except:
+                    exception = Exception(f"Unable to load file for Job {self._label}: {uri}")
+                    self._set_error_status(exception=exception, runtime_info=dict())
     
     def is_ready_to_run(self) -> bool:
         """Checks current status and status of Jobs this Job depends on, to determine whether this

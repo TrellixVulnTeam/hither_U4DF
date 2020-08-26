@@ -261,8 +261,7 @@ class JobHandlerConnection:
             job.on_status_changed(lambda: self._handle_job_status_changed(jh_job_id)) # todo
             # it's possible that the job status was already running, finished, or error
             # in that case we should report the job status to the job handler right now
-            if job._status not in [JobStatus.RUNNING, JobStatus.FINISHED, JobStatus.ERROR]:
-                self._handle_job_status_changed(jh_job_id)
+            self._handle_job_status_changed(jh_job_id)
         elif message[MessageKeys.TYPE] == MessageTypes.CANCEL_JOB:
             # the job handler wants to cancel a job
             jh_job_id = message[MessageKeys.JOB_ID]
@@ -342,7 +341,16 @@ class JobHandlerConnectionWorker:
     def __init__(self, job_handler_uri):
         self._job_handler_uri = job_handler_uri
         # Load the subfeed of incoming messages from the job handler
-        self._incoming_subfeed = kp.load_feed(job_handler_uri).get_subfeed(SubfeedNames.MAIN)
+        num_tries = 6
+        self._incoming_subfeed = None
+        for _ in range(num_tries):
+            try:
+                self._incoming_subfeed = kp.load_feed(job_handler_uri, timeout_sec=2).get_subfeed(SubfeedNames.MAIN)
+                break
+            except:
+                pass
+        if self._incoming_subfeed is None:
+            raise Exception(f'Problem loading incoming feed for job handler: {job_handler_uri}')
     def handle_message_from_parent(self, message):
         pass
     def iterate(self):

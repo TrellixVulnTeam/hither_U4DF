@@ -2,7 +2,7 @@ from types import SimpleNamespace
 from collections import deque
 from copy import deepcopy
 from enum import Enum
-from typing import Any, Deque, Dict, Union, TYPE_CHECKING
+from typing import Any, Deque, Dict, List, Union, TYPE_CHECKING
 from ._basejobhandler import BaseJobHandler
 from ._enums import ConfigKeys
 
@@ -23,7 +23,9 @@ class Config:
         job_timeout: Union[float, Inherit, None]=Inherit.INHERIT,
         force_run: Union[bool, Inherit]=Inherit.INHERIT,
         rerun_failing: Union[bool, Inherit]=Inherit.INHERIT,
-        cache_failing: Union[bool, Inherit]=Inherit.INHERIT
+        cache_failing: Union[bool, Inherit]=Inherit.INHERIT,
+        required_files: Union[str, Dict, List, None, Inherit]=Inherit.INHERIT,
+        jhparams: Union[Dict, Inherit]=Inherit.INHERIT
     ):
         """Set hither config parameters in a context manager, inheriting unchanged parameters
         from the default config.
@@ -64,6 +66,10 @@ class Config:
             If True, run the job even if a failing result was found in the job cache (but still cache the job if a job cache has been set, and cache a failing job if cache_failing=True)
         cache_failing: Union[bool], optional
             If True, cache the job even if it fails, and use cached jobs even if they are failing
+        required_files: Union[str, Dict, List, None], optional
+            Indicates that certain files, specified by kachery URIs, are required at runtime for the job
+        jhparams: dict, optional
+            Parameters for the job handler
         """
         old_config = Config.config_stack[-1] # throws if no default set
         self.new_config = dict()
@@ -80,6 +86,8 @@ class Config:
         self.coalesce(ConfigKeys.FORCE_RUN, force_run)
         self.coalesce(ConfigKeys.RERUN_FAILING, rerun_failing)
         self.coalesce(ConfigKeys.CACHE_FAILING, cache_failing)
+        self.coalesce(ConfigKeys.REQUIRED_FILES, required_files)
+        self.coalesce(ConfigKeys.JHPARAMS, jhparams)
 
     @staticmethod
     # TODO: python 3.8 gives better tools for typehinting dicts, revise this eventually

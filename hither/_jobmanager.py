@@ -12,6 +12,7 @@ class _JobManager:
 
     def queue_job(self, job):
         job._set_status(JobStatus.QUEUED)
+        job.load_required_files_if_needed()
         job.prepare_container_if_needed()
         self._unsubmitted_jobs[job._job_id] = job
     

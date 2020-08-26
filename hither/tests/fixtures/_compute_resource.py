@@ -6,7 +6,7 @@ import hither as hi
 import kachery as ka
 import kachery_p2p as kp
 from ._common import _random_string
-from ._util import _wait_for_compute_resource_to_start, _wait_for_kachery_p2p_daemon_to_start
+from ._util import _wait_for_compute_resource_feed, _wait_for_kachery_p2p_daemon_to_start
 from ._kachery_p2p_daemon import run_service_kachery_p2p_daemon
 import time
 
@@ -22,7 +22,6 @@ def compute_resource(tmp_path):
         kachery_storage_dir=kachery_storage_dir_compute_resource
     ))
     kp2p_process.start()
-    
     _wait_for_kachery_p2p_daemon_to_start(api_port=api_port_compute_resource)
     
     x = dict(
@@ -56,7 +55,7 @@ def compute_resource(tmp_path):
         os.environ[k] = x[k]
 
     time.sleep(1)
-    _wait_for_compute_resource_to_start(compute_resource_uri)
+    _wait_for_compute_resource_feed(compute_resource_uri)
 
     for k in x.keys():
         if old_environ[k] is not None:
@@ -98,12 +97,14 @@ def run_service_compute_resource(*, api_port, kachery_p2p_config_dir, kachery_st
 
     with hi.ConsoleCapture(label='[compute-resource]'):
         pjh = hi.ParallelJobHandler(num_workers=4)
+        pjh_p1 = hi.ParallelJobHandler(num_workers=4)
         import kachery_p2p as kp
         CR = hi.ComputeResource(
             compute_resource_uri=compute_resource_uri,
             nodes_with_access=nodes_with_access,
             job_handlers=dict(
-                default=pjh
+                default=pjh,
+                partition1=pjh_p1
             )
         )
         CR.run()

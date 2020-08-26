@@ -36,8 +36,20 @@ class ComputeResourceJobManager:
                     exception = Exception(f'Unable to load code from URI: {code_uri}')
                     job._set_error_status(exception=exception, runtime_info=dict())
             if job.get_status() is not JobStatus.ERROR:
+                job.prepare_container_if_needed()
+            if job.get_status() is not JobStatus.ERROR:
+                job.load_required_files_if_needed()
+            if job.get_status() is not JobStatus.ERROR:
+                cr_partition = job.get_jhparams().get('cr_partition', 'default')
+                if cr_partition not in self._cr_job_handlers.keys():
+                    print(f'WARNING: no job handler for cr_partition: {cr_partition}')
+                    exception = Exception(f'No job handler for cr_partition: {cr_partition}')
+                    job._set_error_status(exception=exception, runtime_info=dict())
+            else:
+                cr_partition = 'default' # keep linter happy
+            if job.get_status() is not JobStatus.ERROR:
                 job._set_status(JobStatus.QUEUED)
-                job._job_handler = self._cr_job_handlers['default']
+                job._job_handler = self._cr_job_handlers[cr_partition]
                 job._job_handler.handle_job(job)
         assert job is not None
         return job

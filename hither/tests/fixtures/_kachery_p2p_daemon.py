@@ -49,7 +49,7 @@ def run_service_kachery_p2p_daemon(*, kachery_storage_dir, kachery_p2p_config_di
         ss = hi.ShellScript(f"""
         #!/bin/bash
 
-        exec kachery-p2p-start-daemon --channel test1 --method npx
+        exec kachery-p2p-start-daemon --channel test1 --nobootstrap --method dev
         """, redirect_output_to_stdout=False)
         ss.start()
 
