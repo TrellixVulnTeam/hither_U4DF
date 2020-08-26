@@ -8,7 +8,7 @@ from ._exceptions import JobCancelledException
 from .job  import Job
 from ._enums import JobStatus
 from ._util import _deserialize_item
-from .computeresource.computeresource_new import MessageTypes, MessageKeys, SubfeedNames
+from .computeresource._compute_resource_enums import MessageTypes, MessageKeys, SubfeedNames
 
 
 class RemoteJobHandler(BaseJobHandler):

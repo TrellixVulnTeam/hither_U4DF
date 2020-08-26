@@ -111,9 +111,9 @@ class Config:
     def __exit__(self, exc_type, exc_val, exc_tb):
         Config.config_stack.pop()
 
-    def coalesce(self, k: str, val: Any) -> None:
+    def coalesce(self, config_key: str, val: Any) -> None:
         if val == Inherit.INHERIT:
             # On INHERIT, we return without making changes, keeping the value from
             # the parent config. Then "None" can be used as an actual value.
             return
-        self.new_config[k] = val
+        self.new_config[config_key] = val

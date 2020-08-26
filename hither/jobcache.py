@@ -112,7 +112,7 @@ class DiskJobCache:
         self._path = path
     
     def _cache_job_result(self, job_hash: str, job:Job):
-        from .computeresource.computeresource_new import _result_small_enough_to_store_directly
+        from .computeresource._result_small_enough_to_store_directly import _result_small_enough_to_store_directly
         cached_result = {
             CachedJobResultKeys.JOB_HASH: job_hash,
             CachedJobResultKeys.RUNTIME_INFO: job.get_runtime_info()

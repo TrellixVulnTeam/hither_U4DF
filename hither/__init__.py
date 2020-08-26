@@ -15,7 +15,7 @@ from .defaultjobhandler import DefaultJobHandler
 from .paralleljobhandler import ParallelJobHandler
 from .slurmjobhandler import SlurmJobHandler
 from .remotejobhandler import RemoteJobHandler
-from .computeresource.computeresource_new import ComputeResource
+from .computeresource.computeresource import ComputeResource
 from .jobcache import JobCache
 from ._enums import JobStatus
 from ._exceptions import JobCancelledException, DeserializationException, DuplicateFunctionException
