@@ -74,7 +74,7 @@ class RemoteJobHandler(BaseJobHandler):
         if self._worker_process is not None:
             self._worker_process.iterate()
             elapsed = time.time() - self._last_outgoing_keepalive_timestamp
-            if elapsed > 30:
+            if elapsed > 20:
                 self._last_outgoing_keepalive_timestamp = time.time()
                 self._outgoing_subfeed.append_message({
                     MessageKeys.TYPE: MessageTypes.KEEP_ALIVE

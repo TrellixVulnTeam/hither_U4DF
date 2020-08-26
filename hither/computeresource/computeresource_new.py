@@ -127,8 +127,15 @@ class ComputeResource:
             self._active_job_handlers[uri] = X
             X.start()
         # iterate the active job handlers
-        for ajh in self._active_job_handlers.values():
+        active_job_handler_uris = list(self._active_job_handlers.keys())
+        for job_handler_uri in active_job_handler_uris:
+            ajh = self._active_job_handlers[job_handler_uri]
             ajh.iterate()
+            if not ajh.is_alive():
+                print(f'Stopping job handler: {job_handler_uri}')
+                ajh.stop()
+                del self._active_job_handlers[job_handler_uri]
+
         # iterate the job manager
         self._job_manager.iterate()
 
@@ -155,6 +162,8 @@ class ComputeResourceWorker:
             ]
         ))
         self._subfeed = subfeed
+        # move to the end of the registry subfeed
+        self._subfeed.set_position(self._subfeed.get_num_messages())
         self._subfeed.append_message({
             MessageKeys.TYPE: MessageTypes.COMPUTE_RESOURCE_STARTED,
             MessageKeys.TIMESTAMP: time.time() - 0
@@ -189,6 +198,8 @@ class JobHandlerConnection:
         self._compute_resource_uri = compute_resource_uri
         self._job_handler_uri = job_handler_uri
         self._job_manager = job_manager
+
+        self._last_keepalive_timestamp = time.time() - 0
 
         # active jobs (by jh_job_id)
         self._active_jobs: Dict[str, Job] = {}
@@ -271,8 +282,15 @@ class JobHandlerConnection:
             job = self._active_jobs[jh_job_id]
             # this will eventually generate an error (I believe)
             job.cancel()
+        elif message[MessageKeys.TYPE] == MessageTypes.KEEP_ALIVE:
+            self._last_keepalive_timestamp = time.time()
     def iterate(self):
         self._worker_process.iterate()
+    
+    def is_alive(self):
+        elapsed_since_keepalive = time.time() - self._last_keepalive_timestamp
+        return (elapsed_since_keepalive <= 80)
+
     def _handle_job_status_changed(self, jh_job_id: str):
         # The status of the job has changed
         if jh_job_id not in self._active_jobs:
