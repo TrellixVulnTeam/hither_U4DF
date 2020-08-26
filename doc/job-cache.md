@@ -33,18 +33,6 @@ You can specify a different location for the job cache via:
 jc = hi.JobCache(path='/path/to/job/cache')
 ```
 
-Or use a MongoDB database:
-
-```python
-# Set up a job cache in a MongoDB database
-jc = hi.JobCache(
-    database=hi.Database(
-        url='mongodb://localhost:27017',
-        database_name='hither-test'
-    )
-)
-```
-
 Before running any Job, hither will first check the cache to see if that result
 has already been computed; if it has, the cached result will be returned instead
 of redoing the computation.

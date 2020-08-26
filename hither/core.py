@@ -5,7 +5,7 @@ import os
 
 from ._Config import Config
 from .defaultjobhandler import DefaultJobHandler
-from ._enums import ConfigKeys, JobKeys
+from ._enums import ConfigKeys, InternalFunctionAttributeKeys
 from .job import Job
 from ._jobmanager import _JobManager
 from ._exceptions import DuplicateFunctionException
@@ -14,11 +14,12 @@ _default_global_config = dict(
     container=None,
     job_handler=None,
     job_cache=None,
-    download_results=None,
     job_timeout=None,
     force_run=False,
     rerun_failing=False,
-    cache_failing=False
+    cache_failing=False,
+    required_files=None,
+    jhparams={}
 )
 
 Config.set_default_config(_default_global_config)
@@ -31,28 +32,29 @@ def reset():
 def container(container):
     assert container.startswith('docker://'), f"Container string {container} must begin with docker://"
     def wrap(f):
-        setattr(f, '_hither_container', container)
+        setattr(f, InternalFunctionAttributeKeys.HITHER_CONTAINER, container)
         return f
     return wrap
 
-def opts(no_resolve_input_files=None):
+# a placeholder for now
+def opts(example_opt=None):
     def wrap(f):
-        if no_resolve_input_files is not None:
-            setattr(f, JobKeys.NO_RESOLVE_INPUT_FILES , no_resolve_input_files)
+        if example_opt is not None:
+            setattr(f, '_example_opt', example_opt)
         return f
     return wrap
 
 
 def additional_files(additional_files):
     def wrap(f):
-        setattr(f, '_hither_additional_files', additional_files)
+        setattr(f, InternalFunctionAttributeKeys.HITHER_ADDITIONAL_FILES, additional_files)
         return f
     return wrap
 
 def local_modules(local_modules):
     assert isinstance(local_modules, list), 'local_modules is not a list'
     def wrap(f):
-        setattr(f, '_hither_local_modules', local_modules)
+        setattr(f, InternalFunctionAttributeKeys.HITHER_LOCAL_MODULES, local_modules)
         return f
     return wrap
 
@@ -88,7 +90,7 @@ def function(name, version):
         def run(**arguments_for_wrapped_function):
             configured_container = Config.get_current_config_value(ConfigKeys.CONTAINER)
             if configured_container is True:
-                container = getattr(f, JobKeys.HITHER_CONTAINER, None)
+                container = getattr(f, InternalFunctionAttributeKeys.HITHER_CONTAINER, None)
             elif configured_container is not None and configured_container is not False:
                 container = configured_container
             else:
@@ -97,21 +99,32 @@ def function(name, version):
             job_cache = Config.get_current_config_value(ConfigKeys.JOB_CACHE)
             if job_handler is None:
                 job_handler = _global_job_handler
-            download_results = Config.get_current_config_value(ConfigKeys.DOWNLOAD_RESULTS)
-            if download_results is None:
-                download_results = False
             job_timeout = Config.get_current_config_value(ConfigKeys.TIMEOUT)
             force_run = Config.get_current_config_value(ConfigKeys.FORCE_RUN)
             rerun_failing = Config.get_current_config_value(ConfigKeys.RERUN_FAILING)
             cache_failing = Config.get_current_config_value(ConfigKeys.CACHE_FAILING)
+            required_files = Config.get_current_config_value(ConfigKeys.REQUIRED_FILES)
+            jhparams = Config.get_current_config_value(ConfigKeys.JHPARAMS)
             label = name
-            no_resolve_input_files = getattr(f, JobKeys.NO_RESOLVE_INPUT_FILES, False)
-            job = Job(f=f, wrapped_function_arguments=arguments_for_wrapped_function,
-                      job_manager=_global_job_manager, job_handler=job_handler, job_cache=job_cache,
-                      container=container, label=label, download_results=download_results,
-                      force_run=force_run, rerun_failing=rerun_failing, cache_failing=cache_failing,
-                      function_name=name, function_version=version,
-                      job_timeout=job_timeout, no_resolve_input_files=no_resolve_input_files)
+            job = Job(
+                job_id=None, # will be generated
+                f=f,
+                code_uri=None,
+                wrapped_function_arguments=arguments_for_wrapped_function,
+                job_handler=job_handler,
+                job_cache=job_cache,
+                job_manager=_global_job_manager,
+                container=container,
+                label=label,
+                force_run=force_run,
+                rerun_failing=rerun_failing,
+                cache_failing=cache_failing,
+                required_files=required_files,
+                jhparams=jhparams,
+                function_name=name,
+                function_version=version,
+                job_timeout=job_timeout
+            )
             _global_job_manager.queue_job(job)
             return job
         setattr(f, 'run', run)
@@ -120,11 +133,6 @@ def function(name, version):
     
 
 _global_job_handler = DefaultJobHandler()
-
-
-# TODO: Would be nice to avoid needing this
-def _deserialize_job(serialized_job):
-    return Job._deserialize(serialized_job)
 
 def _function_path(f):
     return os.path.abspath(inspect.getfile(f))

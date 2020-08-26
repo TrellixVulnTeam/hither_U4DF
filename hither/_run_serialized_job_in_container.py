@@ -5,32 +5,35 @@ import json
 import shutil
 import time
 
+import kachery as ka
 from ._containermanager import ContainerManager
-from ._enums import JobKeys, ConfigKeys
+from ._enums import SerializedJobKeys, EnvironmentKeys
 from ._temporarydirectory import TemporaryDirectory
 from ._shellscript import ShellScript
 from ._util import _random_string, _deserialize_item
 
 
 def _run_serialized_job_in_container(job_serialized, cancel_filepath: Union[str, None]=None):
-    name = job_serialized[JobKeys.FUNCTION_NAME]
-    version = job_serialized[JobKeys.FUNCTION_VERSION]
-    label = job_serialized[JobKeys.LABEL]
+    name = job_serialized[SerializedJobKeys.FUNCTION_NAME]
+    version = job_serialized[SerializedJobKeys.FUNCTION_VERSION]
+    label = job_serialized[SerializedJobKeys.LABEL]
     if label is None:
         label = name
     show_console = True
     gpu = False
     # This variable is reserved for future use
-    timeout: Union[None, float] = None
+    # timeout: Union[None, float] = None
     
-    code = job_serialized[JobKeys.CODE]
-    container = job_serialized[JobKeys.CONTAINER]
-    no_resolve_input_files = job_serialized[JobKeys.NO_RESOLVE_INPUT_FILES]
+    code_uri = job_serialized[SerializedJobKeys.CODE_URI]
+    assert code_uri is not None, '_run_serialized_job_in_container: code_uri is None'
+    code = ka.load_object(code_uri)
+    assert code is not None, f'_run_serialized_job_in_container: unable to load code from kachery storage: {code_uri}'
+    container = job_serialized[SerializedJobKeys.CONTAINER]
 
-    kwargs = job_serialized[JobKeys.WRAPPED_ARGS]
+    kwargs = job_serialized[SerializedJobKeys.WRAPPED_ARGS]
 
     remove = True
-    if os.getenv(ConfigKeys.HITHER_DEBUG_ENV, None) == 'TRUE':
+    if os.getenv(EnvironmentKeys.HITHER_DEBUG_ENV, None) == 'TRUE':
         remove = False
     with TemporaryDirectory(prefix='tmp_hither_run_in_container_' + name + '_', remove=remove) as temp_path:
         _write_python_code_to_directory(os.path.join(temp_path, 'function_src'), code)
@@ -68,10 +71,16 @@ def _run_serialized_job_in_container(job_serialized, cancel_filepath: Union[str,
                     runtime_info = dict()
                     ok_import_hither = False
 
+                # important to do this so that
+                # we don't have the program attempting
+                # to access the daemon, which won't be
+                # running in the container
+                import kachery_p2p as kp
+                kp._experimental_config(nop2p=True)
+
                 if ok_import_hither:
                     from hither import ConsoleCapture
-                    from hither import _deserialize_item, _serialize_item, _copy_structure_with_changes
-                    from hither import File
+                    from hither import _deserialize_item, _serialize_item
 
                     kwargs = json.loads('{kwargs_json}')
                     kwargs = _deserialize_item(kwargs)
@@ -79,11 +88,7 @@ def _run_serialized_job_in_container(job_serialized, cancel_filepath: Union[str,
                         print('###### RUNNING: {label}')
                         try:
                             from function_src import {function_name}
-                            if not {no_resolve_input_files}:
-                                kwargs = _copy_structure_with_changes(kwargs,
-                                    lambda arg: arg.resolve(), _type = File)
                             retval = {function_name}(**kwargs)
-                            retval = _copy_structure_with_changes(retval, File.kache_numpy_array)
                             success = True
                             error = None
                         except Exception as e:
@@ -116,8 +121,7 @@ def _run_serialized_job_in_container(job_serialized, cancel_filepath: Union[str,
             function_name=name,
             label=label,
             show_console_str='True' if show_console else 'False',
-            run_in_container_path=run_in_container_path,
-            no_resolve_input_files='True' if no_resolve_input_files else 'False'
+            run_in_container_path=run_in_container_path
         )
 
         # For unindenting
@@ -158,7 +162,7 @@ def _run_serialized_job_in_container(job_serialized, cancel_filepath: Union[str,
             # """.format(
             #     run_in_container_path=run_in_container_path
             # )
-        elif os.getenv(ConfigKeys.HITHER_USE_SINGULARITY_ENV, None) == 'TRUE':
+        elif os.getenv(EnvironmentKeys.HITHER_USE_SINGULARITY_ENV, None) == 'TRUE':
             if gpu:
                 gpu_opt = '--nv'
             else:
@@ -270,14 +274,14 @@ def _run_serialized_job_in_container(job_serialized, cancel_filepath: Union[str,
                 timed_out=True
             )
             success=False,
-            error=JobKeys.TIMED_OUT
+            error='Job timed out'
             retval = -1
         elif did_cancel:
             runtime_info = dict(
                 cancelled=True
             )
             success=False
-            error=JobKeys.CANCELLED_FLAG
+            error='Job cancelled'
             retval = -1
         else:
             if (retcode != 0):

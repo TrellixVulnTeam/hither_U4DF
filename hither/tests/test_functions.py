@@ -44,9 +44,6 @@ def test_call_functions_directly(general):
             for test_call in function.test_calls():
                 if not test_call.get('container_only'):
                     args = test_call.get('args')
-                    # the following is needed for the case where we send in a hi.File object
-                    args = hi._copy_structure_with_changes(args, lambda r: r.resolve(), _type = hi.File,
-                        _as_side_effect  = False)
                     print(f'Calling {function.__name__} {args}')
                     try:
                         result = function(**args)
@@ -119,12 +116,12 @@ def test_run_functions_with_job_cache(general, tmp_path):
         do_test_run_functions()
         hi.wait()
     num_jobs = jh._internal_counts.num_jobs
-    num_run_jobs = jh._internal_counts.num_run_jobs
+    num_submitted_jobs = jh._internal_counts.num_submitted_jobs
     num_errored_jobs = jh._internal_counts.num_errored_jobs
     num_finished_jobs = jh._internal_counts.num_finished_jobs
     num_skipped_jobs = jh._internal_counts.num_skipped_jobs
     print(f'Num jobs: {num_jobs}')
-    print(f'Num run jobs: {num_run_jobs}')
+    print(f'Num submitted jobs: {num_submitted_jobs}')
     print(f'Num errored jobs: {num_errored_jobs}')
     print(f'Num finished jobs: {num_finished_jobs}')
     print(f'Num skipped jobs: {num_skipped_jobs}')
@@ -135,16 +132,16 @@ def test_run_functions_with_job_cache(general, tmp_path):
         do_test_run_functions()
         hi.wait()
     num_new_jobs = jh._internal_counts.num_jobs - num_jobs
-    num_new_run_jobs = jh._internal_counts.num_run_jobs - num_run_jobs
+    num_new_submitted_jobs = jh._internal_counts.num_submitted_jobs - num_submitted_jobs
     num_new_errored_jobs = jh._internal_counts.num_errored_jobs - num_errored_jobs
     num_new_finished_jobs = jh._internal_counts.num_finished_jobs - num_finished_jobs
     num_new_skipped_jobs = jh._internal_counts.num_skipped_jobs - num_skipped_jobs
     print(f'Num new jobs: {num_jobs}')
-    print(f'Num new run jobs: {num_new_run_jobs}')
+    print(f'Num new submitted jobs: {num_new_submitted_jobs}')
     print(f'Num new errored jobs: {num_new_errored_jobs}')
     print(f'Num new finished jobs: {num_new_finished_jobs}')
     print(f'Num new skipped jobs: {num_new_skipped_jobs}')
-    assert num_new_run_jobs == num_new_errored_jobs
+    assert num_new_submitted_jobs == num_new_errored_jobs
     assert num_new_jobs == num_new_skipped_jobs + num_errored_jobs
 
 @pytest.mark.container
@@ -153,6 +150,7 @@ def test_run_functions_in_container(general):
         do_test_run_functions()
 
 @pytest.mark.container
+@pytest.mark.current
 def test_slurmjobhandler(general):
     with hi.TemporaryDirectory() as tmpdir:
         working_dir = f'{tmpdir}/slurmjobhandler'

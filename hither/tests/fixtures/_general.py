@@ -5,18 +5,27 @@ import kachery as ka
 from ._common import _random_string
 
 @pytest.fixture()
-def local_kachery_storage(tmp_path):
-    old_kachery_storage_dir = os.getenv('KACHERY_STORAGE_DIR', None)
-    kachery_storage_dir = str(tmp_path / f'local-kachery-storage-{_random_string(10)}')
-    os.mkdir(kachery_storage_dir)
-    os.environ['KACHERY_STORAGE_DIR'] = kachery_storage_dir
-    yield kachery_storage_dir
-    # do not remove the kachery storage directory here because it might be used by other things which are not yet shut down
-    if old_kachery_storage_dir is not None:
-        os.environ['KACHERY_STORAGE_DIR'] = old_kachery_storage_dir
+def general(tmp_path):
+    pytest_local_kachery_storage_dir = str(tmp_path / f'local-kachery-storage-{_random_string(10)}')
+    pytest_local_kachery_p2p_config_dir = pytest_local_kachery_storage_dir + '/kachery-p2p-config'
+    pytest_cr_kachery_storage_dir = str(tmp_path / f'cr-kachery-storage-{_random_string(10)}')
+    pytest_cr_kachery_p2p_config_dir = pytest_cr_kachery_storage_dir + '/kachery-p2p-config'
+    os.mkdir(pytest_local_kachery_storage_dir)
+    os.mkdir(pytest_local_kachery_p2p_config_dir)
+    os.mkdir(pytest_cr_kachery_storage_dir)
+    os.mkdir(pytest_cr_kachery_p2p_config_dir)
+    
+    os.environ['PYTEST_LOCAL_KACHERY_STORAGE_DIR'] = pytest_local_kachery_storage_dir
+    os.environ['PYTEST_LOCAL_KACHERY_P2P_CONFIG_DIR'] = pytest_local_kachery_p2p_config_dir
+    os.environ['PYTEST_LOCAL_KACHERY_P2P_API_PORT'] = '29101'
+    os.environ['PYTEST_CR_KACHERY_STORAGE_DIR'] = pytest_cr_kachery_storage_dir
+    os.environ['PYTEST_CR_KACHERY_P2P_CONFIG_DIR'] = pytest_cr_kachery_p2p_config_dir
+    os.environ['PYTEST_CR_KACHERY_P2P_API_PORT'] = '29102'
 
-@pytest.fixture()
-def general(local_kachery_storage):
+    os.environ['KACHERY_STORAGE_DIR'] = pytest_local_kachery_storage_dir
+    os.environ['KACHERY_P2P_CONFIG_DIR'] = pytest_local_kachery_p2p_config_dir
+    os.environ['KACHERY_P2P_API_PORT'] = os.environ['PYTEST_LOCAL_KACHERY_P2P_API_PORT']
+
     # important to clear all the running or queued jobs
     hi.reset()
     # important for clearing the http request cache of the kachery client

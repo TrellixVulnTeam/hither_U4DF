@@ -3,7 +3,6 @@ from expensive_calculation import expensive_calculation
 
 # Create a job cache that uses /tmp
 # You can also use a different location
-# or a mongo database
 jc = hi.JobCache(use_tempdir=True)
 
 with hi.Config(job_cache=jc):

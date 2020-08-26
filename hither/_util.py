@@ -5,18 +5,12 @@ import base64
 import numpy as np
 from typing import Union, List, Any, Callable
 import random
-from .file import File
 
 def _serialize_item(x:Any, require_jsonable:bool=True) -> Any:
-    if isinstance(x, File):
-        return x.serialize()
-    elif isinstance(x, np.integer):
+    if isinstance(x, np.integer):
         return int(x)
     elif isinstance(x, np.floating):
         return float(x)
-    # TODO: This will be required when file enums are working
-    # elif isinstance(x, HitherFileType):
-    #     return x.value
     elif type(x) == dict:
         ret = dict()
         for key, val in x.items():
@@ -62,9 +56,7 @@ def _deserialize_item(x:Any) -> Any:
         if '_type' in x and x['_type'] == 'tuple':
             return _deserialize_item(tuple(x['data']))
         elif '_type' in x and x['_type'] == 'npy':
-            return _npy_to_b64(x['data_b64'])
-        if File.can_deserialize(x):
-            return File.deserialize(x)
+            return _b64_to_npy(x['data_b64'])
         ret = dict()
         for key, val in x.items():
             ret[key] = _deserialize_item(val)
@@ -88,24 +80,6 @@ def _b64_to_npy(x):
     bytes0 = base64.b64decode(x.encode())
     f = io.BytesIO(bytes0)
     return np.load(f)
-
-def _utctime() -> float:
-    from datetime import datetime, timezone
-    return datetime.utcnow().replace(tzinfo=timezone.utc).timestamp()
-
-# NOTE: This can be centralized presently; used identically in computeresource and remotejobhandler.
-# If those ever need different polling interval setups, or if use broadens and we need something
-# more flexible, this can be popped back out easily enough.
-def _get_poll_interval(last_timestamp: float) -> float:
-    elapsed_time = time.time() - last_timestamp
-    if elapsed_time < 3:
-        return 0.1
-    elif elapsed_time < 20:
-        return 1
-    elif elapsed_time < 60:
-        return 3
-    else:
-        return 6
 
 def _random_string(num: int) -> str:
     """Generate random string of a given length.

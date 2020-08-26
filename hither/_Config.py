@@ -2,7 +2,7 @@ from types import SimpleNamespace
 from collections import deque
 from copy import deepcopy
 from enum import Enum
-from typing import Any, Deque, Dict, Union, TYPE_CHECKING
+from typing import Any, Deque, Dict, List, Union, TYPE_CHECKING
 from ._basejobhandler import BaseJobHandler
 from ._enums import ConfigKeys
 
@@ -16,16 +16,16 @@ class Inherit(Enum):
 class Config:
     config_stack: Deque[Dict[str, Any]] = deque()
 
-
     def __init__(self,
         container: Union[str, bool, Inherit, None]=Inherit.INHERIT,
         job_handler: Union[BaseJobHandler, Inherit]=Inherit.INHERIT,
         job_cache: Union['JobCache', Inherit, None]=Inherit.INHERIT,
-        download_results: Union[bool, Inherit, None]=Inherit.INHERIT,
         job_timeout: Union[float, Inherit, None]=Inherit.INHERIT,
         force_run: Union[bool, Inherit]=Inherit.INHERIT,
         rerun_failing: Union[bool, Inherit]=Inherit.INHERIT,
-        cache_failing: Union[bool, Inherit]=Inherit.INHERIT
+        cache_failing: Union[bool, Inherit]=Inherit.INHERIT,
+        required_files: Union[str, Dict, List, None, Inherit]=Inherit.INHERIT,
+        jhparams: Union[Dict, Inherit]=Inherit.INHERIT
     ):
         """Set hither config parameters in a context manager, inheriting unchanged parameters
         from the default config.
@@ -58,8 +58,6 @@ class Config:
             The job handler to use for each function job, by default None
         job_cache : Union[JobCache, None], optional
             The job cache to use for each function job, by default None
-        download_results : Union[bool, None], optional
-            Whether to download results after the function job runs (applied to remote job handler), by default None
         job_timeout : Union[float, None], optional
             A timeout time (in seconds) for each function job, by default None
         force_run : Union[bool], optional
@@ -68,6 +66,10 @@ class Config:
             If True, run the job even if a failing result was found in the job cache (but still cache the job if a job cache has been set, and cache a failing job if cache_failing=True)
         cache_failing: Union[bool], optional
             If True, cache the job even if it fails, and use cached jobs even if they are failing
+        required_files: Union[str, Dict, List, None], optional
+            Indicates that certain files, specified by kachery URIs, are required at runtime for the job
+        jhparams: dict, optional
+            Parameters for the job handler
         """
         old_config = Config.config_stack[-1] # throws if no default set
         self.new_config = dict()
@@ -80,11 +82,12 @@ class Config:
         self.coalesce(ConfigKeys.CONTAINER, container)
         self.coalesce(ConfigKeys.JOB_HANDLER, job_handler)
         self.coalesce(ConfigKeys.JOB_CACHE, job_cache)
-        self.coalesce(ConfigKeys.DOWNLOAD_RESULTS, download_results)
         self.coalesce(ConfigKeys.TIMEOUT, job_timeout)
         self.coalesce(ConfigKeys.FORCE_RUN, force_run)
         self.coalesce(ConfigKeys.RERUN_FAILING, rerun_failing)
         self.coalesce(ConfigKeys.CACHE_FAILING, cache_failing)
+        self.coalesce(ConfigKeys.REQUIRED_FILES, required_files)
+        self.coalesce(ConfigKeys.JHPARAMS, jhparams)
 
     @staticmethod
     # TODO: python 3.8 gives better tools for typehinting dicts, revise this eventually
@@ -108,9 +111,9 @@ class Config:
     def __exit__(self, exc_type, exc_val, exc_tb):
         Config.config_stack.pop()
 
-    def coalesce(self, name: str, val: Any) -> None:
+    def coalesce(self, k: str, val: Any) -> None:
         if val == Inherit.INHERIT:
             # On INHERIT, we return without making changes, keeping the value from
             # the parent config. Then "None" can be used as an actual value.
             return
-        self.new_config[name] = val
+        self.new_config[k] = val

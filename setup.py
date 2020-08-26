@@ -31,10 +31,9 @@ setuptools.setup(
         "bin/hither-compute-resource"
     ],
     install_requires=[
-        "pymongo",
         "click",
         "inquirer",
-        "kachery_p2p>=0.4.23"
+        "kachery_p2p>=0.4.28"
         # non-explicit dependencies: numpy
     ],
     classifiers=[

@@ -79,8 +79,6 @@ RUN apt-get update && \
     apt-get update && \
     apt-get -y install docker-ce
 
-RUN apt-get update && apt-get install -y mongodb
-
 #########################################
 ### Node 12 and yarn
 RUN apt-get update && apt-get install -y curl
@@ -90,8 +88,10 @@ RUN npm install -g yarn
 # We need python3
 RUN rm /usr/bin/python && ln -s python3 /usr/bin/python && rm /usr/bin/pip && ln -s pip3 /usr/bin/pip
 
-RUN pip install kachery_p2p==0.3.2
-RUN pip install numpy pymongo
+# install kachery-p2p
+RUN pip install kachery_p2p==0.4.28
+
+RUN pip install numpy
 RUN pip install click inquirer
 RUN pip install pylint ipython pytest pytest-cov
 RUN pip install rope
