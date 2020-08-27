@@ -93,16 +93,19 @@ class ComputeResource:
         message_type = message[MessageKeys.TYPE]
         if message_type == MessageTypes.ADD_JOB_HANDLER:
             # add a job handler
-            job_handler_uri = message[MessageKeys.JOB_HANDLER_URI]
-            if job_handler_uri in self._active_job_handlers:
-                print('WARNING: job handler is already active')
-                return
-            # add to the pending job handler uris
-            # we do it this way, because as we read through the entire
-            # feed at startup, we will probably remove many handlers
-            # and we don't want the overhead of creating new handler
-            # connections for them
-            self._pending_job_handler_uris.add(job_handler_uri)
+            if MessageKeys.JOB_HANDLER_URI in message:
+                job_handler_uri = message[MessageKeys.JOB_HANDLER_URI]
+                if job_handler_uri in self._active_job_handlers:
+                    print('WARNING: job handler is already active')
+                    return
+                # add to the pending job handler uris
+                # we do it this way, because as we read through the entire
+                # feed at startup, we will probably remove many handlers
+                # and we don't want the overhead of creating new handler
+                # connections for them
+                self._pending_job_handler_uris.add(job_handler_uri)
+            else:
+                print(f'WARNING: no {MessageKeys.JOB_HANDLER_URI} in ADD_JOB_HANDLER message')
         elif message_type == MessageTypes.REMOVE_JOB_HANDLER:
             # remove a job handler
             job_handler_uri = message[MessageKeys.JOB_HANDLER_URI]
