@@ -19,6 +19,7 @@ from .computeresource.computeresource import ComputeResource
 from .jobcache import JobCache
 from ._enums import JobStatus
 from ._exceptions import JobCancelledException, DeserializationException, DuplicateFunctionException
+from .noop.noop import noop
 
 # Run a function by name
 from .core import run
