@@ -51,26 +51,32 @@ class ComputeResource:
         # these are messages that come from the job handler registry feed
         message_type = message[MessageKeys.TYPE]
         if message_type == MessageTypes.ADD_JOB_HANDLER:
-            # add a job handler
-            job_handler_uri = message[MessageKeys.JOB_HANDLER_URI]
-            if job_handler_uri in self._active_job_handlers:
-                print('WARNING: job handler is already active')
-                return
-            # add to the pending job handler uris
-            # we do it this way, because as we read through the entire
-            # feed at startup, we will probably remove many handlers
-            # and we don't want the overhead of creating new handler
-            # connections for them
-            self._pending_job_handler_uris.add(job_handler_uri)
+            if MessageKeys.JOB_HANDLER_URI in message:
+                # add a job handler
+                job_handler_uri = message[MessageKeys.JOB_HANDLER_URI]
+                if job_handler_uri in self._active_job_handlers:
+                    print('WARNING: job handler is already active')
+                    return
+                # add to the pending job handler uris
+                # we do it this way, because as we read through the entire
+                # feed at startup, we will probably remove many handlers
+                # and we don't want the overhead of creating new handler
+                # connections for them
+                self._pending_job_handler_uris.add(job_handler_uri)
+            else:
+                print('WARNING: no JOB_HANDLER_URI in ADD_JOB_HANDLER message')
         elif message_type == MessageTypes.REMOVE_JOB_HANDLER:
-            # remove a job handler
-            job_handler_uri = message[MessageKeys.JOB_HANDLER_URI]
-            if job_handler_uri in self._active_job_handlers:
-                # stop and delete the active job handler
-                self._active_job_handlers[job_handler_uri].stop()
-                del self._active_job_handlers[job_handler_uri]
-            if job_handler_uri in self._pending_job_handler_uris:
-                self._pending_job_handler_uris.remove(job_handler_uri)
+            if MessageKeys.JOB_HANDLER_URI in message:
+                # remove a job handler
+                job_handler_uri = message[MessageKeys.JOB_HANDLER_URI]
+                if job_handler_uri in self._active_job_handlers:
+                    # stop and delete the active job handler
+                    self._active_job_handlers[job_handler_uri].stop()
+                    del self._active_job_handlers[job_handler_uri]
+                if job_handler_uri in self._pending_job_handler_uris:
+                    self._pending_job_handler_uris.remove(job_handler_uri)
+            else:
+                print('WARNING: no JOB_HANDLER_URI in REMOVE_JOB_HANDLER message')
     def iterate(self):
         # iterate the worker process
         self._worker_process.iterate()
