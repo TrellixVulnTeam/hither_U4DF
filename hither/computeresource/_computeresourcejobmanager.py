@@ -13,7 +13,7 @@ class ComputeResourceJobManager:
         self._cr_job_handlers = compute_resource_job_handlers
     def add_job(self, job_hash, job_serialized) -> Job:
         job = None
-        if job_hash in self._jobs_by_job_hash:
+        if (not job_serialized[SerializedJobKeys.FORCE_RUN]) and job_hash in self._jobs_by_job_hash:
             job = self._jobs_by_job_hash[job_hash]
             if job._status == JobStatus.ERROR:
                 create_new_job = True
