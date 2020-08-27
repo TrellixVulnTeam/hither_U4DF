@@ -32,10 +32,12 @@ class RemoteJobHandler(BaseJobHandler):
             # maybe later we will want to clean up the job handler feed:
             # self._job_handler_feed.delete()
             self._worker_process.stop()
-            registry_subfeed = kp.load_feed(self._compute_resource_uri).get_subfeed(SubfeedNames.JOB_HANDLER_REGISTRY)
-            registry_subfeed.submit_message({
-                MessageKeys.TYPE: MessageTypes.REMOVE_JOB_HANDLER
-            })
+            if self._job_handler_uri is not None:
+                registry_subfeed = kp.load_feed(self._compute_resource_uri).get_subfeed(SubfeedNames.JOB_HANDLER_REGISTRY)
+                registry_subfeed.submit_message({
+                    MessageKeys.TYPE: MessageTypes.REMOVE_JOB_HANDLER,
+                    MessageKeys.JOB_HANDLER_URI: self._job_handler_uri
+                })
 
     def handle_job(self, job: Job):
         super(RemoteJobHandler, self).handle_job(job)

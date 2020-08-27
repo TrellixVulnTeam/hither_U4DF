@@ -67,21 +67,22 @@ class JobHandlerConnection:
                 serialized_args=args
             )
 
-            # check to see if the job with this hash has been previously run and finished
-            # with the result stored in the feed (filed under the job hash)
-            job_subfeed = self._compute_resource_feed.get_subfeed(job_hash)
-            n = job_subfeed.get_num_messages()
-            if n > 0:
-                job_subfeed.set_position(n - 1)
-                msg = job_subfeed.get_next_message(wait_msec=0)
-                if msg is not None:
-                    if msg[MessageKeys.TYPE] == MessageTypes.JOB_FINISHED:
-                        # todo: we also need to check whether or not any associated files still exist in kachery storage
-                        #       not 100% sure how to do that
-                        # important to swap out the job id
-                        msg[MessageKeys.JOB_ID] = jh_job_id
-                        self._send_message_to_job_handler(msg)
-                        return
+            if not job_serialized[SerializedJobKeys.FORCE_RUN]:
+                # check to see if the job with this hash has been previously run and finished
+                # with the result stored in the feed (filed under the job hash)
+                job_subfeed = self._compute_resource_feed.get_subfeed(job_hash)
+                n = job_subfeed.get_num_messages()
+                if n > 0:
+                    job_subfeed.set_position(n - 1)
+                    msg = job_subfeed.get_next_message(wait_msec=0)
+                    if msg is not None:
+                        if msg[MessageKeys.TYPE] == MessageTypes.JOB_FINISHED:
+                            # todo: we also need to check whether or not any associated files still exist in kachery storage
+                            #       not 100% sure how to do that
+                            # important to swap out the job id
+                            msg[MessageKeys.JOB_ID] = jh_job_id
+                            self._send_message_to_job_handler(msg)
+                            return
 
             # add job to the job manager
             # note: the job manager will determine if job is already being processed based on the hash,
