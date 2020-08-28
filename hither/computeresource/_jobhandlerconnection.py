@@ -45,9 +45,10 @@ class JobHandlerConnection:
         # stop the worker process
         self._worker_process.stop()
         # cancel the jobs
-        for job in self._active_jobs.values():
+        jobs = list(self._active_jobs.values()) # do it this way because a job may get deleted during this iteration
+        for job in jobs:
             if job._status not in [JobStatus.FINISHED, JobStatus.ERROR]:
-                job.cancel() # todo
+                job.cancel()
     def _handle_message_from_worker(self, message):
         # message from the worker = message from job handler
         if message[MessageKeys.TYPE] == MessageTypes.ADD_JOB:
