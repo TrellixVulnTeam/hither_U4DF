@@ -4,6 +4,7 @@ from .core import function, container, additional_files, local_modules, opts
 from .core import Config
 from .core import wait
 from .core import reset
+from .core import get_function
 from ._identity import identity
 from ._temporarydirectory import TemporaryDirectory
 from ._shellscript import ShellScript

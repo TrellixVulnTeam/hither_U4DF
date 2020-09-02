@@ -197,7 +197,8 @@ class Job:
         errored_jobs: List[Job] = [e for e in wrapped_jobs if e._status == JobStatus.ERROR]
         if errored_jobs:
             self._status = JobStatus.ERROR
-            self._exception = Exception('Error in dependent job.')
+            first_exception = errored_jobs[0].get_exception()
+            self._exception = Exception(f'Error in dependent job: {str(first_exception)}')
             return False
 
         # If any job we depend on is still not finished, we are not ready to run
