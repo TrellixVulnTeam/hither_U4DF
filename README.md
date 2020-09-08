@@ -62,8 +62,7 @@ Decorate your Python function to specify a Docker image from Docker Hub.
 
 import hither as hi
 
-@hi.function('integrate_bessel', '0.1.0')
-@hi.container('docker://jsoules/simplescipy:latest')
+@hi.function('integrate_bessel', '0.1.0', container='docker://jsoules/simplescipy:latest')
 def integrate_bessel(v, a, b):
     # Definite integral of bessel function of first kind
     # of order v from a to b
