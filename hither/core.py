@@ -29,10 +29,13 @@ def reset():
     _global_job_manager.reset()
     Config.set_default_config(_default_global_config)
 
-def container(container):
+def _apply_container_to_hither_function(f, container):
     assert container.startswith('docker://'), f"Container string {container} must begin with docker://"
+    setattr(f, InternalFunctionAttributeKeys.HITHER_CONTAINER, container)
+
+def container(container):
     def wrap(f):
-        setattr(f, InternalFunctionAttributeKeys.HITHER_CONTAINER, container)
+        _apply_container_to_hither_function(f, container)
         return f
     return wrap
 
@@ -73,7 +76,7 @@ def get_function(function_name):
     return _global_registered_functions_by_name[function_name]['function']
 
 ############################################################
-def function(name, version):
+def function(name, version, container=None):
     def wrap(f):
         # register the function
         assert f.__name__ == name, f"Name does not match function name: {name} <> {f.__name__}"
@@ -131,6 +134,8 @@ def function(name, version):
             _global_job_manager.queue_job(job)
             return job
         setattr(f, 'run', run)
+        if container is not None:
+            _apply_container_to_hither_function(f, container)
         return f
     return wrap
     
