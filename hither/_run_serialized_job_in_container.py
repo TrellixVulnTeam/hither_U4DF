@@ -218,7 +218,6 @@ def _run_serialized_job_in_container(job_serialized, cancel_filepath: Union[str,
                     -v $KACHERY_STORAGE_DIR:/kachery-storage \\
                     -v {temp_path}:/run_in_container \\
                     -v /tmp:/tmp \\
-                    -v $HOME:$HOME \\
                     {container} \\
                     bash /run_in_container/run.sh
                 """.format(

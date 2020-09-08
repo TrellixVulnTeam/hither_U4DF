@@ -106,8 +106,10 @@ class ParallelJobHandler(BaseJobHandler):
 
 def _pjh_run_job(pipe_to_parent: Connection, cancel_filepath: str, job: Job) -> None:
     import kachery as ka
+
     # Note that cancel_filepath will only have an effect if we are running this in a container
     job._execute(cancel_filepath=cancel_filepath)
+
     ret = dict(
         result=job._result,
         status=job._status,
