@@ -183,6 +183,8 @@ One of the most powerful capabilities of hither is to use a remote computer (or 
 
 [See the remote compute resource documentation for more details.](./doc/remote-compute-resource.md)
 
+[We also have instructions for setting up a remote compute resource on Linode](./doc/howto_compute_resource_on_linode.md)
+
 ## Reference
 
 For a complete list of hither capabilities, see the [reference documentation](./doc/reference.md)

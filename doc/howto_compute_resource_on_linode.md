@@ -1,10 +1,10 @@
-# How to set up a hither compute resource using on linode
+# How to set up a hither compute resource using linode
 
 ## Step 1: create a linode account and log in
 
 See [linode.com](https://www.linode.com/)
 
-## Step 2: Create a new Linode
+## Step 2: Create a new Linode and log in
 
 From the linode dashboard, create a new Linode (Linux server)
 
@@ -15,9 +15,7 @@ From the linode dashboard, create a new Linode (Linux server)
 * Type in a Linode Label, for example "hither-compute-resource-01"
 * Choose a root password. I recommend using a secure password generator for this, and then storing it in a secure place.
 
-## Step 3: Log in to your linode
-
-In a new terminal
+Once it is up, log in. In a new terminal:
 
 ```bash
 # find the ip address in the Networking tab for your Linode on the linode website
@@ -25,7 +23,7 @@ In a new terminal
 ssh root@[ip]
 ```
 
-## Step 4: Install prerequisites
+## Step 3: Install prerequisites (docker, miniconda)
 
 Inside your linode, we'll do everything as root
 
@@ -45,6 +43,8 @@ bash Miniconda2-latest-Linux-x86_64.sh
 # Then you must re-login
 ```
 
+## Step 4. Install kachery-p2p and hither in a new conda env
+
 **Set up the kachery storage directory**
 
 ```bash
@@ -56,12 +56,10 @@ echo "export KACHERY_STORAGE_DIR=/kachery-storage" >> ~/.bashrc
 source ~/.bashrc
 ```
 
-## Step 5. Install kachery-p2p and hither in a new conda env
-
-For more information, see [the kachery-p2p repo](https://github.com/flatironinstitute/kachery-p2p#setup--installation) and [the hither repo](https://github.com/flatironinstitute/hither).
+**Create a new conda environment with kachery-p2p and hither**
 
 ```bash
-# Set up a new conda environment with kachery-p2p and hither
+# Create a new conda environment with kachery-p2p and hither
 conda create --name hither python=3.8 numpy
 conda activate hither
 
@@ -70,7 +68,9 @@ conda install -c conda-forge nodejs
 pip install --upgrade kachery_p2p hither
 ```
 
-## Step 6. Start the kachery-p2p daemon
+For more information, see [the kachery-p2p repo](https://github.com/flatironinstitute/kachery-p2p#setup--installation) and [the hither repo](https://github.com/flatironinstitute/hither).
+
+## Step 5. Start the kachery-p2p daemon
 
 ```bash
 # Create a new tmux session
@@ -95,7 +95,7 @@ Later you can reconnect to the session via `tmux a -t kachery-p2p`
 
 [See this guide for more information on using tmux](https://linuxize.com/post/getting-started-with-tmux/)
 
-## Step 7. Configure and start the hither compute resource
+## Step 6. Configure and start the hither compute resource
 
 **Configure the compute resource**
 
@@ -181,7 +181,7 @@ hither-compute-resource start
 # you should see your local node listed as having access
 ```
 
-## Step 8: Run a test job
+## Step 7: Run a test job
 
 To test that the remote compute resource is configured properly, create the following two files on your local workstation:
 
