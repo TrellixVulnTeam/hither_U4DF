@@ -231,6 +231,8 @@ If something stops working, log in to the linode and check the two tmux sessions
 
 In order to use a remote compute resource with labbox-ephys, you need to do two things:
 
-* Give the compute labbox-ephys server permission to run jobs on the compute resource. Follow the above procedure for the node ID obtained in the configuration tab of the labbox-ephys GUI
+* Give the labbox-ephys web server permission to run jobs on the compute resource. Follow the above procedure for the node ID obtained in the configuration tab of the labbox-ephys GUI
 
 * Configure labbox-ephys to use the new compute resource. See the devel/example_config_labbox.py script in the labbox-ephys repo. You can modify and run that to generate a configuration URI (sha1://...) which you would then set in the kube config file -- see `LABBOX_CONFIG_URI` in deployment.yml.
+
+* **Important**: in order to do this, the large raw recordings must be on the computer where the compute resource is running. We need to think about how this upload will be done.
