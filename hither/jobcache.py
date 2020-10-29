@@ -1,18 +1,22 @@
-from typing import Dict, List, Union, Any, Optional
-import tempfile
-import os
 import json
+import os
+import tempfile
+from typing import Any, Dict, List, Optional, Union
+
 import kachery_p2p as kp
 
-from ._util import _serialize_item, _deserialize_item
-from ._enums import JobStatus, CachedJobResultKeys
-from .job import Job
+from ._enums import CachedJobResultKeys, JobStatus
 from ._filelock import FileLock
+from ._util import _deserialize_item, _serialize_item
+from .job import Job
+
 
 class JobCache:
     def __init__(self,
         use_tempdir: Union[bool, None]=None,
-        path: Union[str, None]=None
+        path: Union[str, None]=None,
+        feed_uri: Union[str, None]=None,
+        readonly: bool=False
     ):
         """Cache for storing a retrieving results of hither jobs.
 
@@ -22,21 +26,27 @@ class JobCache:
         Keyword Arguments:
             use_tempdir {Union[bool, None]} -- Whether to use a directory inside /tmp (or wherever tempdir is configured) (default: {None})
             path {Union[str, None]} -- Path to directory on local disk (default: {None})
+            feed_uri {Union[str, None]} -- URI of kachery-p2p feed to use
         """
+        self._readonly = readonly
+
         set_parameters = 0
-        errmsg = "You must provide exactly one of: use_tempdir, path"
-        for param in [path, use_tempdir]:
+        errmsg = "You must provide exactly one of: use_tempdir, path, feed_uri"
+        for param in [path, use_tempdir, feed_uri]:
             if param is None: continue
             set_parameters += 1
         assert set_parameters == 1, errmsg
 
-        if path is None:
-            path = f'{tempfile.gettempdir()}/hither_job_cache'
-        if not os.path.exists(path):
-            # Query: do we want to create a specified path, too, if it doesn't exist?
-            # probably, right?
-            os.makedirs(path)
-        self._cache_provider = DiskJobCache(path)
+        if feed_uri is not None:
+            self._cache_provider = FeedJobCache(feed_uri)
+        else:
+            if path is None:
+                path = f'{tempfile.gettempdir()}/hither_job_cache'
+            if not os.path.exists(path):
+                # Query: do we want to create a specified path, too, if it doesn't exist?
+                # probably, right?
+                os.makedirs(path)
+            self._cache_provider = DiskJobCache(path)
         assert self._cache_provider is not None, errmsg
 
     def fetch_cached_job_results(self, job: Job) -> bool:
@@ -99,10 +109,15 @@ class JobCache:
         return True
 
     def cache_job_result(self, job:Job):
+        if self._readonly:
+            return
         if job._status == JobStatus.ERROR and not job._cache_failing:
             return 
         job_hash = job.compute_hash()
         self._cache_provider._cache_job_result(job_hash, job)
+    
+    def readonly(self):
+        return self._readonly
     
     def _fetch_cached_job_result(self, job_hash) -> Union[Dict[str, Any], None]:
         return self._cache_provider._fetch_cached_job_result(job_hash)
@@ -112,7 +127,8 @@ class DiskJobCache:
         self._path = path
     
     def _cache_job_result(self, job_hash: str, job:Job):
-        from .computeresource._result_small_enough_to_store_directly import _result_small_enough_to_store_directly
+        from .computeresource._result_small_enough_to_store_directly import \
+            _result_small_enough_to_store_directly
         cached_result = {
             CachedJobResultKeys.JOB_HASH: job_hash,
             CachedJobResultKeys.RUNTIME_INFO: job.get_runtime_info()
@@ -156,3 +172,41 @@ class DiskJobCache:
             if not os.path.exists(dirpath):
                 os.makedirs(dirpath)
         return f'{dirpath}/{job_hash}.json'
+
+class FeedJobCache:
+    def __init__(self, feed_uri):
+        self._feed_uri = feed_uri
+    
+    def _cache_job_result(self, job_hash: str, job:Job):
+        import kachery_p2p as kp
+
+        # todo: this is duplicated code
+        from .computeresource._result_small_enough_to_store_directly import \
+            _result_small_enough_to_store_directly
+        cached_result = {
+            CachedJobResultKeys.JOB_HASH: job_hash,
+            CachedJobResultKeys.RUNTIME_INFO: job.get_runtime_info()
+        }
+        if job.get_status() == JobStatus.FINISHED:
+            serialized_result = _serialize_item(job.get_result())
+            if _result_small_enough_to_store_directly(serialized_result):
+                cached_result[CachedJobResultKeys.RESULT] = serialized_result
+            else:
+                cached_result[CachedJobResultKeys.RESULT_URI] = kp.store_object(dict(result=serialized_result))
+            cached_result[CachedJobResultKeys.STATUS] = 'finished'
+        elif job.get_status() == JobStatus.ERROR:
+            cached_result[CachedJobResultKeys.EXCEPTION] = '{}'.format(job.get_exception())
+            cached_result[CachedJobResultKeys.STATUS] = 'error'
+
+        obj = cached_result
+        f = kp.load_feed(self._feed_uri)
+        sf = f.get_subfeed(job_hash)
+        sf.append_messages([obj])
+
+    def _fetch_cached_job_result(self, job_hash:str):
+        import kachery_p2p as kp
+        f = kp.load_feed(self._feed_uri)
+        sf = f.get_subfeed(job_hash)
+        m = sf.get_next_message(wait_msec=100)
+        if m is not None:
+            return m
