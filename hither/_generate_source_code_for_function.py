@@ -10,7 +10,7 @@ from ._enums import InternalFunctionAttributeKeys
 def _generate_source_code_for_function(function: Callable) -> dict:
     name = function.__name__
     try:
-        function_source_fname = os.path.abspath(inspect.getsourcefile(function))
+        function_source_fname = os.path.abspath(inspect.getsourcefile(_unwrap_function(function))) # important to unwrap the function so we don't get the source file name of the wrapped function (if there are decorators)
     except:
         raise Exception('Unable to get source file for function {}. Cannot run in a container or remotely.'.format(name))
     additional_files = getattr(function, InternalFunctionAttributeKeys.HITHER_ADDITIONAL_FILES, [])
@@ -90,3 +90,10 @@ def _read_python_code_of_directory(dirname, exclude_init, additional_files=[]):
         files=files,
         dirs=dirs
     )
+
+# strip away the decorators
+def _unwrap_function(f):
+    if hasattr(f, '__wrapped__'):
+        return _unwrap_function(f.__wrapped__)
+    else:
+        return f
