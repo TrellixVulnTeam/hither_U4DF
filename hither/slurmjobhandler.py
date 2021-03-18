@@ -615,7 +615,6 @@ class _SlurmProcess():
     def start(self) -> None:
         """Start the slurm process
         """
-        import kachery as ka
         running_fname = self._working_dir + '/running.txt'
         # This script is run by each worker (slurm task) in the batch
         srun_py_script = ShellScript(f"""
@@ -627,7 +626,6 @@ class _SlurmProcess():
                 import json
                 import random
                 import traceback
-                import kachery as ka
                 from hither import FileLock
                 from hither import _deserialize_job, _serialize_item
 

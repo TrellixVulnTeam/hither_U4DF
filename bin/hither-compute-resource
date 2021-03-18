@@ -8,7 +8,6 @@ import click
 import socket
 from copy import deepcopy
 import inquirer
-import kachery as ka
 import kachery_p2p as kp
 import hither as hi
 
@@ -88,8 +87,6 @@ class ComputeResourceConfig:
 
 @click.command(help='Start the configured compute resource.')
 def start():
-    _test_kachery_version()
-
     config_fname = os.getcwd() + '/compute_resource.json'
     config = ComputeResourceConfig(config_fname)
 
@@ -344,12 +341,6 @@ def _fmt_time(t):
     if t is None:
         return ''
     return datetime.datetime.fromtimestamp(t).isoformat()
-
-def _test_kachery_version():
-    try:
-        ka.set_config(use_hard_links=True)
-    except:
-        print('WARNING: You should update your version of kachery so that the "use_hard_links" configuration option is available.')
 
 # Thanks: https://stackoverflow.com/questions/287871/how-to-print-colored-text-in-terminal-in-python
 class bcolors:

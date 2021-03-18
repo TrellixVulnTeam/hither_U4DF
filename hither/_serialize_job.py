@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING
 from ._enums import InternalFunctionAttributeKeys, SerializedJobKeys
 from ._generate_source_code_for_function import _generate_source_code_for_function
 from ._util import _serialize_item, _deserialize_item
-import kachery as ka
+import kachery_p2p as kp
 
 if TYPE_CHECKING:
     from .job import Job
@@ -18,7 +18,7 @@ def _serialize_job(job: 'Job', generate_code:bool):
             # only generate code once per function
             if not hasattr(job._f, '_hither_generated_code'):
                 code0 = _generate_source_code_for_function(job._f)
-                code0_uri = ka.store_object(code0)
+                code0_uri = kp.store_object(code0)
                 setattr(job._f, InternalFunctionAttributeKeys.HITHER_GENERATED_CODE_URI, code0_uri)
             code_uri = getattr(job._f, InternalFunctionAttributeKeys.HITHER_GENERATED_CODE_URI)
         function = None

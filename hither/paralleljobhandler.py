@@ -25,7 +25,6 @@ class ParallelJobHandler(BaseJobHandler):
 
     def handle_job(self, job: Job):
         super(ParallelJobHandler, self).handle_job(job)
-        import kachery as ka
         pipe_to_parent, pipe_to_child = multiprocessing.Pipe()
         serialized_job = _serialize_job(job=job, generate_code=(job._container is not None))
 
@@ -105,8 +104,6 @@ class ParallelJobHandler(BaseJobHandler):
         time.sleep(0.02)
 
 def _pjh_run_job(pipe_to_parent: Connection, cancel_filepath: str, job: Job) -> None:
-    import kachery as ka
-
     # Note that cancel_filepath will only have an effect if we are running this in a container
     job._execute(cancel_filepath=cancel_filepath)
 

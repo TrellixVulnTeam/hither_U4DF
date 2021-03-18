@@ -1,7 +1,8 @@
+import hashlib
+import json
 from typing import Callable, Union, TYPE_CHECKING, Any, List, Dict
 import time
 from copy import deepcopy
-import kachery as ka
 import kachery_p2p as kp
 from ._enums import JobStatus
 from ._execute_job import _execute_job
@@ -249,7 +250,19 @@ def _compute_job_hash(*, function_name, function_version, serialized_args):
         'function_Version': function_version,
         'args': serialized_args
     }
-    return ka.get_object_hash(hash_object)
+    return _get_object_hash(hash_object)
+
+def _get_object_hash(hash_object: dict):
+    return _sha1_of_object(hash_object)
+
+def _sha1_of_string(txt: str) -> str:
+    hh = hashlib.sha1(txt.encode('utf-8'))
+    ret = hh.hexdigest()
+    return ret
+
+def _sha1_of_object(obj: object) -> str:
+    txt = json.dumps(obj, sort_keys=True, separators=(',', ':'))
+    return _sha1_of_string(txt)
 
 def _fmt_time(t):
     import datetime

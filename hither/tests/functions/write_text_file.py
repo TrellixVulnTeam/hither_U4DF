@@ -1,5 +1,5 @@
 import hither as hi
-import kachery as ka
+import kachery_p2p as kp
 
 @hi.function('write_text_file', '0.1.0')
 @hi.container('docker://jsoules/simplescipy:latest')
@@ -8,7 +8,7 @@ def write_text_file(text):
         fname = tmpddir + '/file.txt'
         with open(fname, 'w') as f:
             f.write(text)
-        return ka.store_file(fname)
+        return kp.store_file(fname)
 
 def test_calls():
     return [

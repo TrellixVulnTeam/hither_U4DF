@@ -1,17 +1,16 @@
 import os
-import shutil
 import tempfile
+import shutil
 import time
 
 
 class TemporaryDirectory():
-    def __init__(self, remove: bool=True, prefix: str='tmp'):
+    def __init__(self, *, remove: bool=True, prefix: str='tmp'):
         self._remove = remove
         self._prefix = prefix
 
     def __enter__(self) -> str:
-        dirpath = None
-        self._path = str(tempfile.mkdtemp(prefix=self._prefix, dir=dirpath))
+        self._path = str(tempfile.mkdtemp(prefix=self._prefix, dir=None))
         return self._path
 
     def __exit__(self, exc_type, exc_val, exc_tb):

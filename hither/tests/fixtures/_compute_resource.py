@@ -3,7 +3,6 @@ import pytest
 import multiprocessing
 import shutil
 import hither as hi
-import kachery as ka
 import kachery_p2p as kp
 from ._common import _random_string
 from ._util import _wait_for_compute_resource_feed, _wait_for_kachery_p2p_daemon_to_start
@@ -89,11 +88,6 @@ def run_service_compute_resource(*, api_port, kachery_p2p_config_dir, kachery_st
     os.environ['KACHERY_P2P_API_PORT_TEST'] = str(api_port)
 
     import kachery_p2p as kp
-
-    try:
-        ka.set_config(use_hard_links=True)
-    except:
-        print('WARNING: You should update your version of kachery so that the "use_hard_links" configuration option is available.')
 
     with hi.ConsoleCapture(label='[compute-resource]'):
         pjh = hi.ParallelJobHandler(num_workers=4)
