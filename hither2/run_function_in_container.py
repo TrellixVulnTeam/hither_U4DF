@@ -3,20 +3,32 @@ import json
 import inspect
 import shutil
 import importlib
-from typing import Callable, Dict, List
-from .run_script_in_container import run_script_in_container
+from typing import Callable, Dict, List, Union
+from .run_script_in_container import DockerImage, run_script_in_container
 from ._temporarydirectory import TemporaryDirectory
 from .run_script_in_container import BindMount
+from ._serialize import _serialize_input, _deserialize_output
 
 
 def run_function_in_container(
     function: Callable, *,
-    image: str,
+    image: Union[str, DockerImage],
     kwargs: dict,
     modules: List[str] = [],
     environment: Dict[str, str] = dict(),
-    bind_mounts: List[BindMount] = []
+    bind_mounts: List[BindMount] = [],
+    kachery_support = False
 ):
+    if kachery_support:
+        from .run_function_in_container_with_kachery_support import run_function_in_container_with_kachery_support
+        return run_function_in_container_with_kachery_support(
+            function=function,
+            image=image,
+            kwargs=kwargs,
+            modules=modules,
+            environment=environment,
+            bind_mounts=bind_mounts
+        )
     with TemporaryDirectory() as tmpdir:
         input_dir = tmpdir + '/input'
         output_dir = tmpdir + '/output'
@@ -40,8 +52,9 @@ def run_function_in_container(
         shutil.copytree(os.path.dirname(function_source_fname), src_dir)
         with open(src_dir + '/__init__.py', 'w') as f:
             pass
+        kwargs2 = _serialize_input(kwargs)
         with open(input_dir + '/kwargs.json', 'w') as f:
-            json.dump(kwargs, f)
+            json.dump(kwargs2, f)
 
         modules2 = modules + ['hither2']
         for module in modules2:
@@ -52,17 +65,21 @@ def run_function_in_container(
         #!/usr/bin/env python3
 
         import sys
-        import json
-
         sys.path.append('/input/modules')
+
+        import json
+        import hither2 as hi2
+
         from f_src.{function_source_basename_noext} import {function_name}
 
         def main(): 
             with open('/input/kwargs.json', 'r') as f:
                 kwargs = json.load(f)
-            return_value = {function_name}(**kwargs)
+            kwargs2 = hi2._deserialize_input(kwargs)
+            return_value = {function_name}(**kwargs2)
+            return_value2 = hi2._serialize_output(return_value)
             with open('/output/return_value.json', 'w') as f:
-                json.dump(return_value, f)
+                json.dump(return_value2, f)
 
         if __name__ == '__main__':
             main()
@@ -78,7 +95,8 @@ def run_function_in_container(
 
         with open(output_dir + '/return_value.json', 'r') as f:
             return_value = json.load(f)
-        return return_value
+        return_value2 = _deserialize_output(return_value)
+        return return_value2
 
 # strip away the decorators
 def _unwrap_function(f):

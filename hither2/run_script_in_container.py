@@ -1,3 +1,4 @@
+from abc import abstractmethod
 import os
 import shutil
 import stat
@@ -12,8 +13,38 @@ class BindMount:
         self.target = target
         self.read_only = read_only
 
+class DockerImage:
+    def __init__(self):
+        pass
+    @abstractmethod
+    def prepare(self) -> None:
+        pass
+    @abstractmethod
+    def get_name(self) -> str:
+        pass
+
+class LocalDockerImage(DockerImage):
+    def __init__(self, *, name: str, dockerfile: str):
+        self._name = name
+        self._dockerfile = dockerfile
+        self._prepared = False
+    def prepare(self):
+        if not self._prepared:
+            dockerfile_dir = os.path.dirname(self._dockerfile)
+            dockerfile_basename = os.path.basename(self._dockerfile)
+            ss = ShellScript(f'''
+            #!/bin/bash
+
+            cd {dockerfile_dir}
+            docker build -t {self._name} -f {dockerfile_basename} .
+            ''')
+            ss.start()
+            ss.wait()
+    def get_name(self) -> str:
+        return self._name
+
 def run_script_in_container(*,
-    image: str,
+    image: Union[str, DockerImage],
     script: str,
     input_dir: Union[str, None]=None, # corresponds to /input in the container
     output_dir: Union[str, None]=None, # corresponds to /output in the container
@@ -23,6 +54,11 @@ def run_script_in_container(*,
     import docker
     from docker.types import Mount
     from docker.models.containers import Container
+
+    if isinstance(image, DockerImage):
+        image.prepare()
+        image = image.get_name()
+
     client = docker.from_env()
     with TemporaryDirectory() as tmpdir:
         script_path = tmpdir + '/script'
@@ -68,7 +104,8 @@ def run_script_in_container(*,
         container = cast(Container, client.containers.create(
             image,
             ['/hither-run'],
-            mounts=mounts   
+            mounts=mounts,
+            network_mode='host'
         ))
 
         # copy input directory to /input

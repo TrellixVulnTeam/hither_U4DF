@@ -1,13 +1,12 @@
 import os
 from copy import deepcopy
-from .run_script_in_container import BindMount
+from .run_script_in_container import BindMount, DockerImage
 from .run_function_in_container import run_function_in_container
-from typing import Callable, Dict, List
-
+from typing import Callable, Dict, List, Union
 
 def run_function_in_container_with_kachery_support(
     function: Callable,
-    image: str,
+    image: Union[str, DockerImage],
     kwargs: dict,
     modules: List[str] = [],
     environment: Dict[str, str] = dict(),
@@ -37,7 +36,7 @@ def run_function_in_container_with_kachery_support(
     if kachery_p2p_api_port is not None:
         environment2['KACHERY_P2P_API_PORT'] = kachery_p2p_api_port
 
-    return run_function_in_container(
+    result_value = run_function_in_container(
         function=function,
         image=image,
         kwargs=kwargs,
@@ -45,3 +44,5 @@ def run_function_in_container_with_kachery_support(
         environment=environment2,
         bind_mounts=bind_mounts2
     )
+
+    return result_value
