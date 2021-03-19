@@ -1,5 +1,4 @@
 import os
-import json
 import inspect
 import shutil
 import importlib
@@ -7,8 +6,7 @@ from typing import Callable, Dict, List, Union
 from .run_script_in_container import DockerImage, run_script_in_container
 from ._temporarydirectory import TemporaryDirectory
 from .run_script_in_container import BindMount
-from ._serialize import _serialize_input, _deserialize_output
-
+from ._safe_pickle import _safe_pickle, _safe_unpickle
 
 def run_function_in_container(
     function: Callable, *,
@@ -52,9 +50,8 @@ def run_function_in_container(
         shutil.copytree(os.path.dirname(function_source_fname), src_dir)
         with open(src_dir + '/__init__.py', 'w') as f:
             pass
-        kwargs2 = _serialize_input(kwargs)
-        with open(input_dir + '/kwargs.json', 'w') as f:
-            json.dump(kwargs2, f)
+
+        _safe_pickle(input_dir + '/kwargs.pkl', kwargs)
 
         modules2 = modules + ['hither2']
         for module in modules2:
@@ -67,19 +64,14 @@ def run_function_in_container(
         import sys
         sys.path.append('/input/modules')
 
-        import json
         import hither2 as hi2
 
         from f_src.{function_source_basename_noext} import {function_name}
 
         def main(): 
-            with open('/input/kwargs.json', 'r') as f:
-                kwargs = json.load(f)
-            kwargs2 = hi2._deserialize_input(kwargs)
-            return_value = {function_name}(**kwargs2)
-            return_value2 = hi2._serialize_output(return_value)
-            with open('/output/return_value.json', 'w') as f:
-                json.dump(return_value2, f)
+            kwargs = hi2._safe_unpickle('/input/kwargs.pkl')
+            return_value = {function_name}(**kwargs)
+            hi2._safe_pickle('/output/return_value.pkl', return_value)
 
         if __name__ == '__main__':
             main()
@@ -93,10 +85,8 @@ def run_function_in_container(
             bind_mounts=bind_mounts
         )
 
-        with open(output_dir + '/return_value.json', 'r') as f:
-            return_value = json.load(f)
-        return_value2 = _deserialize_output(return_value)
-        return return_value2
+        return_value = _safe_unpickle(output_dir + '/return_value.pkl')
+        return return_value
 
 # strip away the decorators
 def _unwrap_function(f):
