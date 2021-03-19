@@ -5,3 +5,4 @@ from .run_script_in_container import LocalDockerImage
 from .function import function
 from ._config import Config
 from ._serialize import _serialize_input, _deserialize_input, _serialize_output, _deserialize_output
+from ._job import Job
