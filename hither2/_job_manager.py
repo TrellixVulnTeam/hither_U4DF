@@ -35,7 +35,8 @@ class JobManager:
         for job_id, job in self._jobs.items():
             if job.get_status() in ['queued', 'running']:
                 jh = job.get_config().job_handler
-                job_handlers_to_iterate[jh._get_internal_id()] = jh
+                if jh is not None:
+                    job_handlers_to_iterate[jh._get_internal_id()] = jh
         for jh in job_handlers_to_iterate.values():
             jh.iterate()
     def wait(self, timeout_sec: Union[float, None]):
