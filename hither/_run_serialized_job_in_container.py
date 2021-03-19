@@ -2,10 +2,8 @@ import os
 import sys
 from typing import Any, List, Tuple, Union, Dict
 import json
-import shutil
-import time
+import kachery_p2p as kp
 
-import kachery as ka
 from ._containermanager import ContainerManager
 from ._enums import SerializedJobKeys, EnvironmentKeys
 from ._temporarydirectory import TemporaryDirectory
@@ -26,7 +24,7 @@ def _run_serialized_job_in_container(job_serialized, cancel_filepath: Union[str,
     
     code_uri = job_serialized[SerializedJobKeys.CODE_URI]
     assert code_uri is not None, '_run_serialized_job_in_container: code_uri is None'
-    code = ka.load_object(code_uri)
+    code = kp.load_object(code_uri)
     assert code is not None, f'_run_serialized_job_in_container: unable to load code from kachery storage: {code_uri}'
     container = job_serialized[SerializedJobKeys.CONTAINER]
 
@@ -41,10 +39,11 @@ def _run_serialized_job_in_container(job_serialized, cancel_filepath: Union[str,
         if container is not None:
             run_in_container_path = '/run_in_container'
             env_vars_inside_container = dict(
-                KACHERY_STORAGE_DIR='/kachery-storage',
-                PYTHONPATH=f'{run_in_container_path}/function_src/_local_modules',
+                PYTHONPATH=f'/working/function_src/_local_modules',
                 HOME='$HOME'
             )
+            if os.getenv('KACHERY_P2P_API_PORT', None) is not None:
+                env_vars_inside_container['KACHERY_P2P_API_PORT'] = os.getenv('KACHERY_P2P_API_PORT', '')
         else:
             raise Exception('Unexpected: container is None') # pragma: no cover
             # run_in_container_path = temp_path
@@ -75,8 +74,8 @@ def _run_serialized_job_in_container(job_serialized, cancel_filepath: Union[str,
                 # we don't have the program attempting
                 # to access the daemon, which won't be
                 # running in the container
-                import kachery_p2p as kp
-                kp._experimental_config(nop2p=True)
+                # import kachery_p2p as kp
+                # kp._experimental_config(nop2p=True)
 
                 if ok_import_hither:
                     from hither import ConsoleCapture
@@ -132,13 +131,15 @@ def _run_serialized_job_in_container(job_serialized, cancel_filepath: Union[str,
             #!/bin/bash
             set -e
 
-            export NUM_WORKERS={num_workers_env}
-            export MKL_NUM_THREADS=$NUM_WORKERS
-            export NUMEXPR_NUM_THREADS=$NUM_WORKERS
-            export OMP_NUM_THREADS=$NUM_WORKERS
+            # export NUM_WORKERS={num_workers_env}
+            # export MKL_NUM_THREADS=$NUM_WORKERS
+            # export NUMEXPR_NUM_THREADS=$NUM_WORKERS
+            # export OMP_NUM_THREADS=$NUM_WORKERS
 
             export {env_vars_inside_container}
-            exec python3 {run_in_container_path}/run.py >> /tmp/debug_log.txt 2>> /tmp/debug_log_err.txt
+            mkdir /working
+            cp -r /run_in_container/* working/
+            exec python3 /working/run.py
         """.format(
             env_vars_inside_container=' '.join(['{}={}'.format(k, v) for k, v in env_vars_inside_container.items()]),
             num_workers_env=os.getenv('NUM_WORKERS', ''),
@@ -147,10 +148,10 @@ def _run_serialized_job_in_container(job_serialized, cancel_filepath: Union[str,
 
         ShellScript(run_inside_container_script).write(os.path.join(temp_path, 'run.sh'))
 
-        if not os.getenv('KACHERY_STORAGE_DIR'):
-            raise Exception('You must set the environment variable: KACHERY_STORAGE_DIR') # pragma: no cover
-
         docker_container_name = None
+        kachery_storage_dir = kp._kachery_storage_dir()
+        if kachery_storage_dir is None:
+            raise Exception('No kachery storage directory found.')
 
         # fancy_command = 'bash -c "((bash /run_in_container/run.sh | tee /run_in_container/stdout.txt) 3>&1 1>&2 2>&3 | tee /run_in_container/stderr.txt) 3>&1 1>&2 1>&3 | tee /run_in_container/console_out.txt"'
         if container is None:
@@ -167,24 +168,17 @@ def _run_serialized_job_in_container(job_serialized, cancel_filepath: Union[str,
                 gpu_opt = '--nv'
             else:
                 gpu_opt = ''
-            run_outside_container_script = """
+            run_outside_container_script = f"""
                 #!/bin/bash
 
                 # {label} ({name} {version})
 
                 exec singularity exec -e {gpu_opt} \\
-                    -B $KACHERY_STORAGE_DIR:/kachery-storage \\
+                    -B {kachery_storage_dir}:{kachery_storage_dir} \\
                     -B {temp_path}:/run_in_container \\
                     {container} \\
                     bash /run_in_container/run.sh
-            """.format(
-                gpu_opt=gpu_opt,
-                container=container,
-                temp_path=temp_path,
-                label=label,
-                name=name,
-                version=version
-            )
+            """
         else:
             if gpu:
                 gpu_opt = '--gpus all'
@@ -192,43 +186,20 @@ def _run_serialized_job_in_container(job_serialized, cancel_filepath: Union[str,
                 gpu_opt = ''
             docker_container_name = _random_string(8) + '_' + name
             # May not want to use -t below as it has the potential to mess up line feeds in the parent process!
-            if (sys.platform == "win32"):
-                if 1: # pragma: no cover
-                    ## This win32 section needs to be updated!
-                    winpath_ = lambda a : '/' + a.replace('\\','/').replace(':','')
-                    container_ = ContainerManager._docker_form_of_container_string(container)
-                    temp_path_ = winpath_(temp_path)
-                    kachery_storage_dir_ = winpath_(os.getenv('KACHERY_STORAGE_DIR'))
-                    print('temp_path_: ' + temp_path_)
-                    run_outside_container_script = f'''
-                        docker run --name {docker_container_name} -i {gpu_opt} ^
-                        -v {kachery_storage_dir_}:/kachery-storage ^
-                        -v {temp_path_}:/run_in_container ^
-                        {container_} ^
-                        bash /run_in_container/run.sh'''
-            else:
-                run_outside_container_script = """
-                #!/bin/bash
+            container2 = ContainerManager._docker_form_of_container_string(container)
+            run_outside_container_script = f"""
+            #!/bin/bash
 
-                # {label} ({name} {version})
+            # {label} ({name} {version})
 
-                exec docker run --name {docker_container_name} -i {gpu_opt} \\
-                    -v /etc/localtime:/etc/localtime:ro \\
-                    -v /etc/passwd:/etc/passwd -u `id -u`:`id -g` \\
-                    -v $KACHERY_STORAGE_DIR:/kachery-storage \\
-                    -v {temp_path}:/run_in_container \\
-                    -v /tmp:/tmp \\
-                    {container} \\
-                    bash /run_in_container/run.sh
-                """.format(
-                    docker_container_name=docker_container_name,
-                    gpu_opt=gpu_opt,
-                    container=ContainerManager._docker_form_of_container_string(container),
-                    temp_path=temp_path,
-                    label=label,
-                    name=name,
-                    version=version
-                )
+            exec docker run --name {docker_container_name} -i {gpu_opt} \\
+                -v /etc/localtime:/etc/localtime:ro \\
+                --net host \\
+                -v {kachery_storage_dir}:{kachery_storage_dir} \\
+                -v {temp_path}:/run_in_container \\
+                {container2} \\
+                bash /run_in_container/run.sh
+            """
         print('#############################################################')
         print(run_outside_container_script)
         print('#############################################################')

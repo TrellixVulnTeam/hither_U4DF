@@ -7,10 +7,10 @@ from .load_kachery_text import load_kachery_text
 
 @pytest.mark.remote
 def test_remote_0(general, kachery_p2p_daemon, compute_resource):
-    import kachery as ka
+    import kachery_p2p as kp
     with hi.RemoteJobHandler(compute_resource_uri=compute_resource.compute_resource_uri) as jh:
         random_text = 'some-random-text-0901'
-        x = ka.store_text(random_text)
+        x = kp.store_text(random_text)
         with hi.Config(job_handler=jh, container=True, jhparams={'cr_partition': 'partition1'}):
             with hi.Config(required_files=[x]):
                 txt = load_kachery_text.run(uri=x).wait()
@@ -18,7 +18,6 @@ def test_remote_0(general, kachery_p2p_daemon, compute_resource):
 
 @pytest.mark.remote
 def test_remote_1(general, kachery_p2p_daemon, compute_resource):
-    import kachery_p2p as kp
     with hi.RemoteJobHandler(compute_resource_uri=compute_resource.compute_resource_uri) as jh:
         for passnum in [1, 2]: # do it twice so we can cover the job cache code on the compute resource
             with hi.Config(job_handler=jh, container=True):

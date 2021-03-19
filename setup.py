@@ -33,7 +33,7 @@ setuptools.setup(
     install_requires=[
         "click",
         "inquirer",
-        "kachery_p2p>=0.5.15"
+        "kachery_p2p>=0.8.2"
         # non-explicit dependencies: numpy
     ],
     classifiers=[

@@ -1,7 +1,6 @@
 import os
 import pytest
 import hither as hi
-import kachery as ka
 from ._common import _random_string
 
 @pytest.fixture()
@@ -28,8 +27,6 @@ def general(tmp_path):
 
     # important to clear all the running or queued jobs
     hi.reset()
-    # important for clearing the http request cache of the kachery client
-    ka.reset()
 
     os.environ['RUNNING_PYTEST'] = 'TRUE'
 
