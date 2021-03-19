@@ -25,7 +25,7 @@ def test2():
     with hi2.Config(use_container=True):
         j = hi2.Job(test_numpy_serialization, dict(x=a))
         j2 = hi2.Job(test_id, dict(x=j))
-        print('---------------------------------------------')
+        print('*******************************************')
         r = j2.wait()
         b, c = r.get_return_value()
         print(b)
