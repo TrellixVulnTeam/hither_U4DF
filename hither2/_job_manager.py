@@ -1,7 +1,7 @@
 import time
 from typing import Any, Dict, List, Union
 from ._job import Job
-from ._job_handler import JobHandler
+from ._job_handler import JobHandler, _run_job_directly
 
 class JobManager:
     def __init__(self):
@@ -15,7 +15,10 @@ class JobManager:
                 if _job_is_ready_to_run(job):
                     jh = job.get_config().job_handler
                     job._set_queued()
-                    jh.queue_job(job)
+                    if jh is not None:
+                        jh.queue_job(job)
+                    else:
+                        _run_job_directly(job)
                 else:
                     e = _get_job_input_error(job)
                     if e is not None:

@@ -23,7 +23,7 @@ class DockerImage:
     def get_name(self) -> str:
         pass
 
-class LocalDockerImage(DockerImage):
+class DockerImageFromScript(DockerImage):
     def __init__(self, *, name: str, dockerfile: str):
         self._name = name
         self._dockerfile = dockerfile
@@ -40,11 +40,12 @@ class LocalDockerImage(DockerImage):
             ''')
             ss.start()
             ss.wait()
+            self._prepared = True
     def get_name(self) -> str:
         return self._name
 
 def run_script_in_container(*,
-    image: Union[str, DockerImage],
+    image: DockerImage,
     script: str,
     input_dir: Union[str, None]=None, # corresponds to /input in the container
     output_dir: Union[str, None]=None, # corresponds to /output in the container
@@ -57,7 +58,7 @@ def run_script_in_container(*,
 
     if isinstance(image, DockerImage):
         image.prepare()
-        image = image.get_name()
+        image_name = image.get_name()
 
     client = docker.from_env()
     with TemporaryDirectory() as tmpdir:
@@ -102,7 +103,7 @@ def run_script_in_container(*,
             )
 
         container = cast(Container, client.containers.create(
-            image,
+            image_name,
             ['/hither-run'],
             mounts=mounts,
             network_mode='host'

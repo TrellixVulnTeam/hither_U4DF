@@ -10,7 +10,7 @@ from ._safe_pickle import _safe_pickle, _safe_unpickle
 
 def run_function_in_container(
     function: Callable, *,
-    image: Union[str, DockerImage],
+    image: DockerImage,
     kwargs: dict,
     modules: List[str] = [],
     environment: Dict[str, str] = dict(),

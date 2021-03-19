@@ -1,3 +1,4 @@
+from numpy import imag
 from .run_function_in_container import run_function_in_container
 import os
 import inspect
@@ -19,22 +20,23 @@ def get_function(function_name):
 class DuplicateFunctionException(Exception):
     pass
 
-def function(name, version, image: Union[str, DockerImage, None]=None, modules: List[str]=[], kachery_support: bool=False):
+def function(name, version, image: Union[DockerImage, None]=None, modules: List[str]=[], kachery_support: bool=False, register_globally=False):
     def wrap(f):
         # register the function
         assert f.__name__ == name, f"Name does not match function name: {name} <> {f.__name__}"
-        if name in _global_registered_functions_by_name:
-            path1 = _function_path(f)
-            path2 = _function_path(_global_registered_functions_by_name[name]['function'])
-            if path1 != path2:
-                if version != _global_registered_functions_by_name[name]['version']:
-                    raise DuplicateFunctionException(f'Hither function {name} is registered in two different files with different versions: {path1} {path2}')
-                print(f"Warning: Hither function with name {name} is registered in two different files: {path1} {path2}") # pragma: no cover
-        else:
-            _global_registered_functions_by_name[name] = dict(
-                function=f,
-                version=version
-            )
+        if register_globally:
+            if name in _global_registered_functions_by_name:
+                path1 = _function_path(f)
+                path2 = _function_path(_global_registered_functions_by_name[name]['function'])
+                if path1 != path2:
+                    if version != _global_registered_functions_by_name[name]['version']:
+                        raise DuplicateFunctionException(f'Hither function {name} is registered in two different files with different versions: {path1} {path2}')
+                    print(f"Warning: Hither function with name {name} is registered in two different files: {path1} {path2}") # pragma: no cover
+            else:
+                _global_registered_functions_by_name[name] = dict(
+                    function=f,
+                    version=version
+                )
         
         def new_f(**arguments_for_wrapped_function):
             conf = Config.get_current_config()
@@ -50,6 +52,7 @@ def function(name, version, image: Union[str, DockerImage, None]=None, modules: 
                 )
             else:
                 return f(**arguments_for_wrapped_function)
+        setattr(new_f, '_hither_image', image)
         return new_f
     return wrap
 

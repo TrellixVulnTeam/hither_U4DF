@@ -1,3 +1,4 @@
+from hither.job import Job
 import hither2 as hi2
 import numpy as np
 from example_functions.test_numpy_serialization import test_numpy_serialization
@@ -5,6 +6,7 @@ from example_functions.test_numpy_serialization import test_numpy_serialization
 def main():
     test1()
     test2()
+    test3()
 
 def test1():
     a = np.array([[1, 2, 3], [4, 5, 6 + 7j]])
@@ -30,6 +32,20 @@ def test2():
         b, c = r.get_return_value()
         print(b)
         print(c)
+
+def test3():
+    jh = hi2.ParallelJobHandler(num_workers=4)
+    a = np.array([1, 2, 3, 4, 5])
+    with hi2.Config(use_container=True, job_handler=jh):
+        jobs = [
+            hi2.Job(test_numpy_serialization, dict(x=a*i, delay=3))
+            for i in range(4)
+        ]
+        j2 = hi2.Job(test_id, {'x': jobs})
+        print('*******************************************')
+        r = j2.wait()
+        cc = r.get_return_value()
+        print(cc)
 
 if __name__ == '__main__':
     main()

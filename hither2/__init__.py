@@ -1,8 +1,10 @@
 from .run_script_in_container import run_script_in_container
 from .run_function_in_container import run_function_in_container
 from .run_function_in_container_with_kachery_support import run_function_in_container_with_kachery_support
-from .run_script_in_container import LocalDockerImage
+from .run_script_in_container import DockerImageFromScript
 from .function import function
 from ._config import Config
 from ._job import Job
 from ._safe_pickle import _safe_pickle, _safe_unpickle
+from .paralleljobhandler import ParallelJobHandler
+from ._job_manager import wait

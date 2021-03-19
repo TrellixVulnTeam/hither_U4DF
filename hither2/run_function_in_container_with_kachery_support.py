@@ -6,7 +6,7 @@ from typing import Callable, Dict, List, Union
 
 def run_function_in_container_with_kachery_support(
     function: Callable,
-    image: Union[str, DockerImage],
+    image: DockerImage,
     kwargs: dict,
     modules: List[str] = [],
     environment: Dict[str, str] = dict(),

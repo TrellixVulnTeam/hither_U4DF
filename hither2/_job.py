@@ -1,3 +1,4 @@
+from hither2.run_script_in_container import DockerImage
 import time
 import uuid
 from typing import Any, Callable, Union
@@ -26,7 +27,10 @@ class Job:
         self._timestamp_created = time.time()
         self._status = 'pending'
         self._result: Union[JobResult, None] = None
-        self._error: Union[Exception, None] = None
+        if self._config.use_container:
+            image = getattr(function, '_hither_image', None)
+            if image is not None:
+                image.prepare()
 
         self._job_manager._add_job(self)
     def get_job_id(self):
@@ -35,6 +39,8 @@ class Job:
         return self._status
     def get_function(self):
         return self._function
+    def get_image(self) -> Union[DockerImage, None]:
+        return getattr(self._function, '_hither_image', None)
     def get_kwargs(self):
         x = _resolve_kwargs(self._kwargs)
         assert isinstance(x, dict)
@@ -45,6 +51,8 @@ class Job:
         return self._result
     def _set_queued(self):
         self._status = 'queued'
+    def _set_running(self):
+        self._status = 'running'
     def _set_finished(self, return_value: Any):
         self._status = 'finished'
         self._result = JobResult(return_value=return_value, status='finished')
@@ -60,7 +68,7 @@ class Job:
                 assert r is not None
                 return r
             elif self._status == 'error':
-                e = self._error
+                e = self._result._error
                 assert e is not None
                 raise e
             else:
