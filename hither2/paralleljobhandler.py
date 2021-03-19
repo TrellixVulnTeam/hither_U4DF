@@ -6,7 +6,7 @@ import time
 import multiprocessing
 from multiprocessing.connection import Connection
 import time
-
+from ._config import UseConfig, Config
 from ._job_handler import JobHandler
 from ._job import Job
 
@@ -88,13 +88,18 @@ class ParallelJobHandler(JobHandler):
         time.sleep(0.02)
 
 def _pjh_run_job(pipe_to_parent: Connection, job: Job) -> None:
-    # Note that cancel_filepath will only have an effect if we are running this in a container
     try:
-        return_value = job.get_function()(**job.get_kwargs())
+        _run_function_with_config = getattr(job.get_function(), '_hither_run_function_with_config', None)
+        assert _run_function_with_config is not None, 'Cannot handle job in pjh: function is not a hither function'
+        return_value = _run_function_with_config(
+            kwargs=job.get_kwargs(),
+            job_cache=None, # already tried elsewhere
+            use_container=job.get_config().use_container
+        )
         error = None
     except Exception as e:
-        return_value = None
         error = e
+        return_value = None
 
     ret = dict(
         return_value=return_value,

@@ -1,7 +1,8 @@
 import time
 from typing import Any, Dict, List, Union
 from ._job import Job
-from ._job_handler import JobHandler, _run_job_directly
+from ._job_handler import JobHandler
+from ._config import UseConfig
 
 class JobManager:
     def __init__(self):
@@ -11,14 +12,41 @@ class JobManager:
     def _iterate(self):
         deletion_job_ids: List[str] = []
         for job_id, job in self._jobs.items():
+            f = job.get_function()
             if job.get_status() == 'pending':
                 if _job_is_ready_to_run(job):
-                    jh = job.get_config().job_handler
-                    job._set_queued()
-                    if jh is not None:
-                        jh.queue_job(job)
+                    _check_job_cache = getattr(f, '_hither_check_job_cache', None)
+                    _run_function_with_config = getattr(f, '_hither_run_function_with_config', None)
+                    if _check_job_cache is None or _run_function_with_config is None:
+                        job._set_error(Exception('Unexpected, not a valid hither function'))
                     else:
-                        _run_job_directly(job)
+                        jc = job.get_config().job_cache
+                        if jc is not None:
+                            job_result = _check_job_cache(kwargs=job.get_kwargs(), job_cache=jc)
+                            if job_result.get_status() == 'finished':
+                                print(f'Using cached result for {job.get_function_name()} ({job.get_function_version()})')
+                                job._set_finished(job_result.get_return_value())
+                        if job.get_status() == 'pending':
+                            jh = job.get_config().job_handler
+                            if jh is not None:
+                                job._set_queued()
+                                jh.queue_job(job)
+                            else:
+                                job._set_running()
+                                try:
+                                    return_value = _run_function_with_config(
+                                        kwargs=job.get_kwargs(),
+                                        job_cache=None, # already tried above
+                                        use_container=job.get_config().use_container
+                                    )
+                                    error = None
+                                except Exception as e:
+                                    error = e
+                                    return_value = None
+                                if error is None:
+                                    job._set_finished(return_value=return_value)
+                                else:
+                                    job._set_error(error)
                 else:
                     e = _get_job_input_error(job)
                     if e is not None:

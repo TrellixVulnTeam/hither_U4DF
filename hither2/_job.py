@@ -5,6 +5,12 @@ from typing import Any, Callable, Union
 
 class JobResult:
     def __init__(self, *, return_value: Any=None, error: Union[Exception, None]=None, status: str):
+        if status == 'finished':
+            assert error == None, 'Error must be None if status is finished'
+        elif status == 'error':
+            assert return_value == None, 'Return value must be None if status is error'
+        else:
+            raise Exception(f'Unexpected status for job result: {status}')
         self._return_value = return_value
         self._error = error
         self._status = status
@@ -14,6 +20,23 @@ class JobResult:
         return self._error
     def get_status(self):
         return self._status
+    def to_cache_dict(self):
+        import kachery_p2p as kp
+        return {
+            'returnValueUri': kp.store_pkl(self._return_value) if self._return_value is not None else None,
+            'errorMessage': str(self._error) if self._error is not None else None,
+            'status': self._status
+        }
+    @staticmethod
+    def from_cache_dict(x: dict):
+        rv = x.get('returnValue', None)
+        e = x.get('errorMessage', None)
+        s = x.get('status', '')
+        return JobResult(
+            return_value=rv,
+            error=Exception(e) if e is not None else None,
+            status=s
+        )
 
 class Job:
     def __init__(self, function: Callable, kwargs: dict):
@@ -27,10 +50,10 @@ class Job:
         self._timestamp_created = time.time()
         self._status = 'pending'
         self._result: Union[JobResult, None] = None
+        self._image: Union[DockerImage, None] = getattr(function, '_hither_image', None)
         if self._config.use_container:
-            image = getattr(function, '_hither_image', None)
-            if image is not None:
-                image.prepare()
+            if self._image is not None:
+                self._image.prepare()
 
         self._job_manager._add_job(self)
     def get_job_id(self):
@@ -39,8 +62,12 @@ class Job:
         return self._status
     def get_function(self):
         return self._function
+    def get_function_name(self):
+        return getattr(self._function, '_hither_function_name', None)
+    def get_function_version(self):
+        return getattr(self._function, '_hither_function_version', None)
     def get_image(self) -> Union[DockerImage, None]:
-        return getattr(self._function, '_hither_image', None)
+        return self._image
     def get_kwargs(self):
         x = _resolve_kwargs(self._kwargs)
         assert isinstance(x, dict)
@@ -70,7 +97,7 @@ class Job:
             elif self._status == 'error':
                 e = self._result._error
                 assert e is not None
-                raise e
+                raise Exception(f'Error in {self.get_function_name()} ({self.get_function_version()}): {str(e)}')
             else:
                 time.sleep(0.05)
             if timeout_sec is not None:

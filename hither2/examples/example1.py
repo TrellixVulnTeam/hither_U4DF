@@ -19,6 +19,7 @@ def test1():
         print(b)
         print(c)
 
+@hi2.function('test_id', '0.1.0')
 def test_id(x):
     return x
 
@@ -46,6 +47,18 @@ def test3():
         r = j2.wait()
         cc = r.get_return_value()
         print(cc)
+
+def test4():
+    a = np.array([1, 2, 3, 4, 5])
+    jc = hi2.JobCache(feed_name='default-job-cache')
+    with hi2.Config(use_container=True, job_cache=jc):
+        j = hi2.Job(test_numpy_serialization, dict(x=a))
+        j2 = hi2.Job(test_id, dict(x=j))
+        print('*******************************************')
+        r = j2.wait()
+        b, c = r.get_return_value()
+        print(b)
+        print(c)
 
 if __name__ == '__main__':
     main()
