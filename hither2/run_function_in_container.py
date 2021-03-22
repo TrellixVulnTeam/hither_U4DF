@@ -2,7 +2,7 @@ import os
 import inspect
 import shutil
 import importlib
-from typing import Callable, Dict, List, Union
+from typing import Callable, Dict, List
 from .run_script_in_container import DockerImage, run_script_in_container
 from ._temporarydirectory import TemporaryDirectory
 from .run_script_in_container import BindMount

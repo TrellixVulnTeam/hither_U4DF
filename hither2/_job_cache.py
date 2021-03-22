@@ -1,5 +1,7 @@
+import hashlib
+import json
 from os import wait
-from typing import Union
+from typing import Any, Dict, Union
 from ._job import Job, JobResult
 from ._safe_pickle import _safe_unpickle, _safe_pickle
 
@@ -11,7 +13,7 @@ class JobCache:
         if (feed_name is not None) and (feed_uri is not None):
             raise Exception('You cannot specify both feed_name and feed_id')
         if feed_name is not None:
-            feed = kp.load_feed(feed_name)
+            feed = kp.load_feed(feed_name, create=True)
         elif feed_uri is not None:
             feed = kp.load_feed(feed_uri)
         else:
@@ -48,3 +50,48 @@ class JobCache:
                 return None
         else:
             return None
+
+def _hash_kwargs(kwargs: Any):
+    if _is_jsonable(kwargs):
+        return _get_object_hash(kwargs)
+    else:
+        import pickle
+        pickle_data = pickle.dumps(kwargs)
+        return hashlib.sha1(pickle_data).hexdigest()
+
+def _is_jsonable(x: Any) -> bool:
+    import json
+    try:
+        json.dumps(x)
+        return True
+    except:
+        return False
+
+def _compute_job_hash(
+    function_name: str,
+    function_version: str,
+    kwargs: dict
+):
+    kwargs_hash = _hash_kwargs(kwargs)
+    hash_object: Dict[str, Any] = {
+        'job_hash_version': '0.1.0',
+        'function_name': function_name,
+        'function_Version': function_version
+    }
+    if _is_jsonable(kwargs):
+        hash_object['kwargs'] = kwargs
+    else:
+        hash_object['kwargs_hash'] = _hash_kwargs(kwargs)
+    return _get_object_hash(hash_object)
+
+def _get_object_hash(hash_object: dict):
+    return _sha1_of_object(hash_object)
+
+def _sha1_of_string(txt: str) -> str:
+    hh = hashlib.sha1(txt.encode('utf-8'))
+    ret = hh.hexdigest()
+    return ret
+
+def _sha1_of_object(obj: object) -> str:
+    txt = json.dumps(obj, sort_keys=True, separators=(',', ':'))
+    return _sha1_of_string(txt)

@@ -10,9 +10,18 @@ class Inherit(Enum):
 
 class ConfigEntry:
     def __init__(self, use_container: bool, job_handler: Union[JobHandler, None], job_cache: Union[JobCache, None]):
-        self.use_container = use_container
-        self.job_handler = job_handler
-        self.job_cache = job_cache
+        self._use_container = use_container
+        self._job_handler = job_handler
+        self._job_cache = job_cache
+    @property
+    def use_container(self):
+        return self._use_container
+    @property
+    def job_handler(self):
+        return self._job_handler
+    @property
+    def job_cache(self):
+        return self._job_cache
 
 class UseConfig:
     def __init__(self, config: ConfigEntry):

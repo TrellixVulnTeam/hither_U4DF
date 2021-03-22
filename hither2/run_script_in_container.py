@@ -6,43 +6,13 @@ from typing import Dict, List, Union, cast
 import tarfile
 from ._temporarydirectory import TemporaryDirectory
 from ._shellscript import ShellScript
+from .dockerimage import DockerImage
 
 class BindMount:
     def __init__(self, source: str, target: str, read_only: bool):
         self.source = source
         self.target = target
         self.read_only = read_only
-
-class DockerImage:
-    def __init__(self):
-        pass
-    @abstractmethod
-    def prepare(self) -> None:
-        pass
-    @abstractmethod
-    def get_name(self) -> str:
-        pass
-
-class DockerImageFromScript(DockerImage):
-    def __init__(self, *, name: str, dockerfile: str):
-        self._name = name
-        self._dockerfile = dockerfile
-        self._prepared = False
-    def prepare(self):
-        if not self._prepared:
-            dockerfile_dir = os.path.dirname(self._dockerfile)
-            dockerfile_basename = os.path.basename(self._dockerfile)
-            ss = ShellScript(f'''
-            #!/bin/bash
-
-            cd {dockerfile_dir}
-            docker build -t {self._name} -f {dockerfile_basename} .
-            ''')
-            ss.start()
-            ss.wait()
-            self._prepared = True
-    def get_name(self) -> str:
-        return self._name
 
 def run_script_in_container(*,
     image: DockerImage,
@@ -134,6 +104,3 @@ def run_script_in_container(*,
                 tar.extractall(tmpdir)
             for fname in os.listdir(tmpdir + '/output'):
                 shutil.move(tmpdir + '/output/' + fname, output_dir + '/' + fname)
-            
-
-

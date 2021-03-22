@@ -14,11 +14,14 @@ class JobResult:
         self._return_value = return_value
         self._error = error
         self._status = status
-    def get_return_value(self):
+    @property
+    def return_value(self):
         return self._return_value
-    def get_error(self):
+    @property
+    def error(self):
         return self._error
-    def get_status(self):
+    @property
+    def status(self):
         return self._status
     def to_cache_dict(self):
         import kachery_p2p as kp
@@ -42,39 +45,54 @@ class Job:
     def __init__(self, function: Callable, kwargs: dict):
         from ._config import Config
         from ._job_manager import global_job_manager
+        from .function import _get_hither_function_wrapper
         self._job_manager = global_job_manager
         self._config = Config.get_current_config()
         self._function = function
+        fw = _get_hither_function_wrapper(function)
+        if fw is None:
+            raise Exception('This function is not a hither function. You must use the @hither.function decorator.')
+        self._function_wrapper = fw
         self._kwargs = kwargs
         self._job_id = 'j-' + str(uuid.uuid4())[-12:]
         self._timestamp_created = time.time()
         self._status = 'pending'
         self._result: Union[JobResult, None] = None
-        self._image: Union[DockerImage, None] = getattr(function, '_hither_image', None)
         if self._config.use_container:
-            if self._image is not None:
-                self._image.prepare()
+            if self._function_wrapper.image is not None:
+                self._function_wrapper.image.prepare()
 
         self._job_manager._add_job(self)
-    def get_job_id(self):
+    @property
+    def job_id(self):
         return self._job_id
-    def get_status(self):
+    @property
+    def status(self):
         return self._status
-    def get_function(self):
+    @property
+    def function(self):
         return self._function
-    def get_function_name(self):
-        return getattr(self._function, '_hither_function_name', None)
-    def get_function_version(self):
-        return getattr(self._function, '_hither_function_version', None)
-    def get_image(self) -> Union[DockerImage, None]:
-        return self._image
-    def get_kwargs(self):
+    @property
+    def function_wrapper(self):
+        return self._function_wrapper
+    @property
+    def function_name(self):
+        return self._function_wrapper.name
+    @property
+    def function_version(self):
+        return self._function_wrapper.version
+    @property
+    def image(self) -> Union[DockerImage, None]:
+        return self._function_wrapper.image
+    def get_resolved_kwargs(self):
         x = _resolve_kwargs(self._kwargs)
         assert isinstance(x, dict)
         return x
-    def get_config(self):
+    @property
+    def config(self):
         return self._config
-    def get_result(self):
+    @property
+    def result(self):
         return self._result
     def _set_queued(self):
         self._status = 'queued'
@@ -97,7 +115,7 @@ class Job:
             elif self._status == 'error':
                 e = self._result._error
                 assert e is not None
-                raise Exception(f'Error in {self.get_function_name()} ({self.get_function_version()}): {str(e)}')
+                raise Exception(f'Error in {self.function_name} ({self.function_version}): {str(e)}')
             else:
                 time.sleep(0.05)
             if timeout_sec is not None:
@@ -107,8 +125,8 @@ class Job:
 
 def _resolve_kwargs(x: Any):
     if isinstance(x, Job):
-        if x.get_status() == 'finished':
-            return x.get_result().get_return_value()
+        if x.status == 'finished':
+            return x.result.return_value
         else:
             return x
     elif isinstance(x, dict):

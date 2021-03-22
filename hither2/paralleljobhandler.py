@@ -1,3 +1,4 @@
+from hither2.function import FunctionWrapper
 import os
 import signal
 import tempfile
@@ -6,9 +7,10 @@ import time
 import multiprocessing
 from multiprocessing.connection import Connection
 import time
-from ._config import UseConfig, Config
+from ._config import ConfigEntry
 from ._job_handler import JobHandler
 from ._job import Job
+from ._run_function import _run_function
 
 class ParallelJobHandler(JobHandler):
     def __init__(self, num_workers):
@@ -23,7 +25,7 @@ class ParallelJobHandler(JobHandler):
     def queue_job(self, job: Job):
         pipe_to_parent, pipe_to_child = multiprocessing.Pipe()
 
-        process = multiprocessing.Process(target=_pjh_run_job, args=(pipe_to_parent, job))
+        process = multiprocessing.Process(target=_pjh_run_job, args=(pipe_to_parent, job.function_wrapper, job.get_resolved_kwargs(), job.config))
         self._processes.append(dict(
             job=job,
             process=process,
@@ -87,14 +89,13 @@ class ParallelJobHandler(JobHandler):
         
         time.sleep(0.02)
 
-def _pjh_run_job(pipe_to_parent: Connection, job: Job) -> None:
+def _pjh_run_job(pipe_to_parent: Connection, function_wrapper: FunctionWrapper, kwargs: Dict[str, Any], config: ConfigEntry) -> None:
     try:
-        _run_function_with_config = getattr(job.get_function(), '_hither_run_function_with_config', None)
-        assert _run_function_with_config is not None, 'Cannot handle job in pjh: function is not a hither function'
-        return_value = _run_function_with_config(
-            kwargs=job.get_kwargs(),
+        return_value = _run_function(
+            function_wrapper=function_wrapper,
+            kwargs=kwargs,
             job_cache=None, # already tried elsewhere
-            use_container=job.get_config().use_container
+            use_container=config.use_container
         )
         error = None
     except Exception as e:
