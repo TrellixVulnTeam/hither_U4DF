@@ -2,7 +2,7 @@ import os
 import inspect
 import shutil
 import importlib
-from typing import Callable, Dict, List, Union
+from typing import Callable, Dict, List
 from .run_script_in_container import DockerImage, run_script_in_container
 from ._temporarydirectory import TemporaryDirectory
 from .run_script_in_container import BindMount
@@ -10,7 +10,7 @@ from ._safe_pickle import _safe_pickle, _safe_unpickle
 
 def run_function_in_container(
     function: Callable, *,
-    image: Union[str, DockerImage],
+    image: DockerImage,
     kwargs: dict,
     modules: List[str] = [],
     environment: Dict[str, str] = dict(),

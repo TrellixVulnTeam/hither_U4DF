@@ -6,6 +6,7 @@ from typing import Dict, List, Union, cast
 import tarfile
 from ._temporarydirectory import TemporaryDirectory
 from ._shellscript import ShellScript
+from .dockerimage import DockerImage
 
 class BindMount:
     def __init__(self, source: str, target: str, read_only: bool):
@@ -13,38 +14,8 @@ class BindMount:
         self.target = target
         self.read_only = read_only
 
-class DockerImage:
-    def __init__(self):
-        pass
-    @abstractmethod
-    def prepare(self) -> None:
-        pass
-    @abstractmethod
-    def get_name(self) -> str:
-        pass
-
-class LocalDockerImage(DockerImage):
-    def __init__(self, *, name: str, dockerfile: str):
-        self._name = name
-        self._dockerfile = dockerfile
-        self._prepared = False
-    def prepare(self):
-        if not self._prepared:
-            dockerfile_dir = os.path.dirname(self._dockerfile)
-            dockerfile_basename = os.path.basename(self._dockerfile)
-            ss = ShellScript(f'''
-            #!/bin/bash
-
-            cd {dockerfile_dir}
-            docker build -t {self._name} -f {dockerfile_basename} .
-            ''')
-            ss.start()
-            ss.wait()
-    def get_name(self) -> str:
-        return self._name
-
 def run_script_in_container(*,
-    image: Union[str, DockerImage],
+    image: DockerImage,
     script: str,
     input_dir: Union[str, None]=None, # corresponds to /input in the container
     output_dir: Union[str, None]=None, # corresponds to /output in the container
@@ -57,7 +28,7 @@ def run_script_in_container(*,
 
     if isinstance(image, DockerImage):
         image.prepare()
-        image = image.get_name()
+        image_name = image.get_name()
 
     client = docker.from_env()
     with TemporaryDirectory() as tmpdir:
@@ -102,7 +73,7 @@ def run_script_in_container(*,
             )
 
         container = cast(Container, client.containers.create(
-            image,
+            image_name,
             ['/hither-run'],
             mounts=mounts,
             network_mode='host'
@@ -133,6 +104,3 @@ def run_script_in_container(*,
                 tar.extractall(tmpdir)
             for fname in os.listdir(tmpdir + '/output'):
                 shutil.move(tmpdir + '/output/' + fname, output_dir + '/' + fname)
-            
-
-
