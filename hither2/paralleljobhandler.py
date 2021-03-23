@@ -21,6 +21,9 @@ class ParallelJobHandler(JobHandler):
 
     def cleanup(self):
         self._halted = True
+    
+    def is_remote(self) -> bool:
+        return False
 
     def queue_job(self, job: Job):
         pipe_to_parent, pipe_to_child = multiprocessing.Pipe()
@@ -33,7 +36,7 @@ class ParallelJobHandler(JobHandler):
             pjh_status='pending'
         ))
     
-    def cancel_job(self, job_id):
+    def cancel_job(self, job_id: str):
         for p in self._processes:
             if p['job']._job_id == job_id:
                 if p['pjh_status'] == 'running':
@@ -47,7 +50,7 @@ class ParallelJobHandler(JobHandler):
                 else:
                     # TODO: Consider if existing ERROR or FINISHED status should change this behavior
                     j: Job = p['job']
-                    j._set_error(Exception('Job cancelled *'))
+                    j._set_error(Exception('Job cancelled prior to running'))
                     p['pjh_status'] = 'error'
     
     def iterate(self):

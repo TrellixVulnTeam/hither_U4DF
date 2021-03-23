@@ -57,6 +57,7 @@ class Job:
         self._job_id = 'j-' + str(uuid.uuid4())[-12:]
         self._timestamp_created = time.time()
         self._status = 'pending'
+        self._cancel_pending = False
         self._result: Union[JobResult, None] = None
         if self._config.use_container:
             if self._function_wrapper.image is not None:
@@ -94,6 +95,11 @@ class Job:
     @property
     def result(self):
         return self._result
+    def cancel(self):
+        self._cancel_pending = True
+    @property
+    def cancel_pending(self):
+        return self._cancel_pending
     def _set_queued(self):
         self._status = 'queued'
     def _set_running(self):

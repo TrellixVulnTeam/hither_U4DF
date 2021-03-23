@@ -11,5 +11,11 @@ class JobHandler:
     @abstractmethod
     def iterate(self):
         pass
+    @abstractmethod
+    def cancel_job(self, job_id: str):
+        pass
+    @abstractmethod
+    def is_remote(self) -> bool:
+        pass
     def _get_internal_id(self):
         return self._internal_id
