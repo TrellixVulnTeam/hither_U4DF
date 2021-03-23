@@ -32,11 +32,17 @@ class JobResult:
         }
     @staticmethod
     def from_cache_dict(x: dict):
-        rv = x.get('returnValue', None)
+        import kachery_p2p as kp
+        rv_uri = x.get('returnValueUri', None)
         e = x.get('errorMessage', None)
         s = x.get('status', '')
+        if rv_uri is None:
+            raise Exception('No returnValueUri')
+        if kp.load_file(rv_uri) is None:
+            raise Exception('Unable to load cached return value')
+        return_value = kp.load_pkl(rv_uri)
         return JobResult(
-            return_value=rv,
+            return_value=return_value,
             error=Exception(e) if e is not None else None,
             status=s
         )

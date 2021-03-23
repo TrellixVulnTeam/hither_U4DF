@@ -38,6 +38,6 @@ RUN apt-get install -y nano
 
 RUN pip install pylint ipython pytest pytest-cov
 
-RUN pip install hither==0.5.3
+RUN pip install hither==0.5.4
 
 COPY ./inside_container /working

@@ -1,6 +1,7 @@
 from typing import Any, Callable, Dict, Union
 from .function import FunctionWrapper
 from ._job_cache import JobCache, _compute_job_hash
+from ._job import JobResult
 
 
 def _check_job_cache(function_name: str, function_version: str, kwargs: Dict[str, Any], job_cache: JobCache):
@@ -10,3 +11,8 @@ def _check_job_cache(function_name: str, function_version: str, kwargs: Dict[str
         if job_result is not None:
             if job_result.status == 'finished':
                 return job_result
+
+def _write_result_to_job_cache(job_result: JobResult, function_name: str, function_version: str, kwargs: Dict[str, Any], job_cache: JobCache):
+    job_hash: Union[str, None] = _compute_job_hash(function_name=function_name, function_version=function_version, kwargs=kwargs)
+    if job_hash is not None:
+        job_cache._cache_job_result(job_hash, job_result)

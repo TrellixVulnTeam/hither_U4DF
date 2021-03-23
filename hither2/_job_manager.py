@@ -4,7 +4,7 @@ from ._job import Job
 from ._job_handler import JobHandler
 from ._config import UseConfig
 from .function import _get_hither_function_wrapper
-from ._check_job_cache import _check_job_cache
+from ._check_job_cache import _check_job_cache, _write_result_to_job_cache
 from ._run_function import _run_function
 
 class JobManager:
@@ -29,6 +29,7 @@ class JobManager:
                         if job_result is not None and job_result.status == 'finished':
                             print(f'Using cached result for {job.function_name} ({job.function_version})')
                             job._set_finished(job_result.return_value)
+                            deletion_job_ids.append(job_id) # important so that we don't write the new result to the cache
                     if job.status == 'pending':
                         jh = job.config.job_handler
                         if jh is not None:
@@ -62,6 +63,11 @@ class JobManager:
                     if jh is not None:
                         jh.cancel_job(job.job_id)
             elif job.status == 'finished':
+                jc = job.config.job_cache
+                if jc is not None:
+                    jr = job.result
+                    if jr is not None:
+                        _write_result_to_job_cache(job_result=jr, function_name=fw.name, function_version=fw.version, kwargs=job.get_resolved_kwargs(), job_cache=jc)
                 deletion_job_ids.append(job_id)
             elif job.status == 'error':
                 deletion_job_ids.append(job_id)
@@ -139,5 +145,5 @@ def _get_kwargs_job_error(x: Any):
     return None
 
 global_job_manager = JobManager()
-def wait(timeout_sec: Union[float, None]):
+def wait(timeout_sec: Union[float, None]=None):
     global_job_manager.wait(timeout_sec)

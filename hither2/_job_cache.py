@@ -3,7 +3,7 @@ import json
 from typing import Any, Dict, Union
 from ._job import JobResult
 
-job_cache_version = '0.1.0'
+job_cache_version = '0.1.1'
 
 class JobCache:
     def __init__(self, *, feed_name: Union[str, None]=None, feed_uri: Union[str, None]=None):
@@ -32,7 +32,7 @@ class JobCache:
     def _fetch_cached_job_result(self, job_hash:str) -> Union[JobResult, None]:
         import kachery_p2p as kp
         sf = self._feed.get_subfeed({'jobHash': job_hash})
-        messages =  sf.get_next_messages(wait_msec=100)
+        messages =  sf.get_next_messages(wait_msec=0)
         if len(messages) > 0:
             obj = messages[-1] # last message
             if obj.get('jobCacheVersion', None) != job_cache_version:
@@ -43,7 +43,6 @@ class JobCache:
                     obj['jobResult']
                 )
             except Exception as e:
-                print(obj)
                 print('Warning: problem retrieving cached result:', e)
                 return None
         else:
