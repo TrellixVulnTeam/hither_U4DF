@@ -20,11 +20,13 @@ class JobManager:
             if fw is None:
                 raise Exception('Unexpected: no function wrapper')
             if job.status == 'pending':
-                if _job_is_ready_to_run(job):
+                if job.cancel_pending:
+                    job._set_error(Exception('Job cancelled while pending.'))
+                elif _job_is_ready_to_run(job):
                     jc = job.config.job_cache
                     if jc is not None:
                         job_result = _check_job_cache(function_name=fw.name, function_version=fw.version, kwargs=job.get_resolved_kwargs(), job_cache=jc)
-                        if job_result.status == 'finished':
+                        if job_result is not None and job_result.status == 'finished':
                             print(f'Using cached result for {job.function_name} ({job.function_version})')
                             job._set_finished(job_result.return_value)
                     if job.status == 'pending':
@@ -54,8 +56,11 @@ class JobManager:
                     e = _get_job_input_error(job)
                     if e is not None:
                         job._set_error(e)
-            elif job.status == 'running':
-                pass
+            elif job.status in ['queued', 'running']:
+                if job.cancel_pending:
+                    jh = job.config.job_handler
+                    if jh is not None:
+                        jh.cancel_job(job.job_id)
             elif job.status == 'finished':
                 deletion_job_ids.append(job_id)
             elif job.status == 'error':

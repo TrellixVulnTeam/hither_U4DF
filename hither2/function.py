@@ -4,19 +4,17 @@ import inspect
 from hither2.run_script_in_container import DockerImage
 from typing import Callable, Dict, List, Union
 from ._config import Config
+from ._job import Job
 from ._job import JobResult
 from ._job_cache import JobCache
 
 _global_registered_functions_by_name: Dict[str, Callable] = {}
 
-# run a registered function by name
-def run(function_name, **kwargs):
-    f = get_function(function_name)
-    return f.run(**kwargs)
-
-def get_function(function_name):
-    assert function_name in _global_registered_functions_by_name, f'Hither function {function_name} not registered'
-    return _global_registered_functions_by_name[function_name]
+def get_function(function_name) -> Union[Callable, None]:
+    if function_name in _global_registered_functions_by_name:
+        return _global_registered_functions_by_name[function_name]
+    else:
+        return None
 
 class DuplicateFunctionException(Exception):
     pass
@@ -89,6 +87,10 @@ def function(
             else:
                 _global_registered_functions_by_name[name] = f
         
+        def run(**kwargs):
+            return Job(f, kwargs)
+        setattr(f, 'run', run)
+
         return f
     return wrap
 

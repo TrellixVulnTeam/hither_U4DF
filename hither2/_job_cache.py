@@ -1,9 +1,7 @@
 import hashlib
 import json
-from os import wait
 from typing import Any, Dict, Union
-from ._job import Job, JobResult
-from ._safe_pickle import _safe_unpickle, _safe_pickle
+from ._job import JobResult
 
 job_cache_version = '0.1.0'
 
