@@ -2,6 +2,7 @@ import os
 import inspect
 import shutil
 import importlib
+import fnmatch
 from typing import Callable, Dict, List
 from .run_script_in_container import DockerImage, run_script_in_container
 from ._temporarydirectory import TemporaryDirectory
@@ -56,7 +57,8 @@ def run_function_in_container(
         modules2 = modules + ['hither2']
         for module in modules2:
             module_path = os.path.dirname(importlib.import_module(module).__file__)
-            shutil.copytree(module_path, modules_dir + '/' + module)
+            _copy_py_module_dir(module_path, modules_dir + '/' + module)
+            # shutil.copytree(module_path, modules_dir + '/' + module)
 
         script = f'''
         #!/usr/bin/env python3
@@ -87,6 +89,25 @@ def run_function_in_container(
 
         return_value = _safe_unpickle(output_dir + '/return_value.pkl')
         return return_value
+
+def _copy_py_module_dir(src_path: str, dst_path: str):
+    patterns = ['*.py']
+    if not os.path.isdir(dst_path):
+        os.mkdir(dst_path)
+    for fname in os.listdir(src_path):
+        src_fpath = f'{src_path}/{fname}'
+        dst_fpath = f'{dst_path}/{fname}'
+        if os.path.isfile(src_fpath):
+            matches = False
+            for pattern in patterns:
+                if fnmatch.fnmatch(fname, pattern):
+                    matches = True
+            if matches:
+                shutil.copyfile(src_fpath, dst_fpath)
+        elif os.path.isdir(dst_fpath):
+            if (not fname.startswith('__')) and (not fname.startswith('.')):
+                _copy_py_module_dir(src_fpath, dst_fpath)
+
 
 # strip away the decorators
 def _unwrap_function(f):

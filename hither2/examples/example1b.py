@@ -21,7 +21,7 @@ def test_parallel_cache():
     with hi.Config(job_cache=jc, job_handler=jh):
         for i in range(8):
             print(f'Creating job {i}')
-            j = hi.Job(multiply_arrays, dict(x=np.array([i, i]), y=np.array([2, 2]), delay=4))
+            j = hi.Job(multiply_arrays, dict(x=np.array([i, i]), y=np.array([2, 2]), delay=2))
             jobs.append(j)
     
     # Wait for jobs to complete

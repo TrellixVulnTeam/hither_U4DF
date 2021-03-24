@@ -4,7 +4,7 @@ from ._job import Job
 from ._job_handler import JobHandler
 from ._config import UseConfig
 from .function import _get_hither_function_wrapper
-from ._check_job_cache import _check_job_cache, _write_result_to_job_cache
+from ._check_job_cache import _check_job_cache, _write_result_to_job_cache, _batch_check_job_cache
 from ._run_function import _run_function
 
 class JobManager:
@@ -14,6 +14,13 @@ class JobManager:
         self._jobs[job.job_id] = job
     def _iterate(self):
         deletion_job_ids: List[str] = []
+
+        # check job cache for the pending jobs that are ready to run
+        # important to do this in a single batch (instead of individual checks)
+        jobs_to_check = [job for job in self._jobs.values() if (job.status == 'pending') and (job.config.job_cache is not None) and (_job_is_ready_to_run(job))]
+        if len(jobs_to_check) > 0:
+            _batch_check_job_cache(jobs_to_check)
+
         for job_id, job in self._jobs.items():
             f = job.function
             fw = _get_hither_function_wrapper(f)
@@ -23,36 +30,27 @@ class JobManager:
                 if job.cancel_pending:
                     job._set_error(Exception('Job cancelled while pending.'))
                 elif _job_is_ready_to_run(job):
-                    jc = job.config.job_cache
-                    if jc is not None:
-                        job_result = _check_job_cache(function_name=fw.name, function_version=fw.version, kwargs=job.get_resolved_kwargs(), job_cache=jc)
-                        if job_result is not None and job_result.status == 'finished':
-                            print(f'Using cached result for {job.function_name} ({job.function_version})')
-                            job._set_finished(job_result.return_value)
-                            deletion_job_ids.append(job_id) # important so that we don't write the new result to the cache
-                    if job.status == 'pending':
-                        jh = job.config.job_handler
-                        if jh is not None:
-                            # we have a job handler
-                            job._set_queued()
-                            jh.queue_job(job)
+                    jh = job.config.job_handler
+                    if jh is not None:
+                        # we have a job handler
+                        job._set_queued()
+                        jh.queue_job(job)
+                    else:
+                        job._set_running()
+                        try:
+                            return_value = _run_function(
+                                function_wrapper=fw,
+                                kwargs=job.get_resolved_kwargs(),
+                                use_container=job.config.use_container
+                            )
+                            error = None
+                        except Exception as e:
+                            error = e
+                            return_value = None
+                        if error is None:
+                            job._set_finished(return_value=return_value)
                         else:
-                            job._set_running()
-                            try:
-                                return_value = _run_function(
-                                    function_wrapper=fw,
-                                    kwargs=job.get_resolved_kwargs(),
-                                    job_cache=None, # already tried above
-                                    use_container=job.config.use_container
-                                )
-                                error = None
-                            except Exception as e:
-                                error = e
-                                return_value = None
-                            if error is None:
-                                job._set_finished(return_value=return_value)
-                            else:
-                                job._set_error(error)
+                            job._set_error(error)
                 else:
                     e = _get_job_input_error(job)
                     if e is not None:
@@ -63,11 +61,12 @@ class JobManager:
                     if jh is not None:
                         jh.cancel_job(job.job_id)
             elif job.status == 'finished':
-                jc = job.config.job_cache
-                if jc is not None:
-                    jr = job.result
-                    if jr is not None:
-                        _write_result_to_job_cache(job_result=jr, function_name=fw.name, function_version=fw.version, kwargs=job.get_resolved_kwargs(), job_cache=jc)
+                if not job.result_is_from_cache:
+                    jc = job.config.job_cache
+                    if jc is not None:
+                        jr = job.result
+                        if jr is not None:
+                            _write_result_to_job_cache(job_result=jr, function_name=fw.name, function_version=fw.version, kwargs=job.get_resolved_kwargs(), job_cache=jc)
                 deletion_job_ids.append(job_id)
             elif job.status == 'error':
                 deletion_job_ids.append(job_id)

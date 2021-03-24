@@ -9,16 +9,15 @@ from .run_function_in_container import run_function_in_container
 def _run_function(*,
     function_wrapper: FunctionWrapper,
     kwargs: dict,
-    job_cache: Union[JobCache, None],
     use_container: bool
 ):
     fw = function_wrapper
-    if job_cache is not None:
-        cache_result = _check_job_cache(function_name=fw.name, function_version=fw.version, kwargs=kwargs, job_cache=job_cache)
-        if cache_result is not None:
-            if cache_result.status == 'finished':
-                print(f'Using cached result for {fw.name} ({fw.version})')
-                return cache_result.return_value
+    # if job_cache is not None:
+    #     cache_result = _check_job_cache(function_name=fw.name, function_version=fw.version, kwargs=kwargs, job_cache=job_cache)
+    #     if cache_result is not None:
+    #         if cache_result.status == 'finished':
+    #             print(f'Using cached result for {fw.name} ({fw.version})')
+    #             return cache_result.return_value
 
     image = fw.image
     if use_container and (image is not None):

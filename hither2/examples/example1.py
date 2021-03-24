@@ -62,7 +62,7 @@ def test4():
         print(b)
         print(c)
 
-@hi.function('multiply_arrays', '0.1.1')
+@hi.function('multiply_arrays', '0.1.2')
 def multiply_arrays(x: np.ndarray, y: np.ndarray, delay: float):
     if delay > 0: time.sleep(delay)
     return x * y

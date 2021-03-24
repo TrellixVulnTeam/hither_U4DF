@@ -65,6 +65,7 @@ class Job:
         self._status = 'pending'
         self._cancel_pending = False
         self._result: Union[JobResult, None] = None
+        self._result_is_from_cache: bool = False
         if self._config.use_container:
             if self._function_wrapper.image is not None:
                 self._function_wrapper.image.prepare()
@@ -101,6 +102,9 @@ class Job:
     @property
     def result(self):
         return self._result
+    @property
+    def result_is_from_cache(self):
+        return self._result_is_from_cache
     def cancel(self):
         self._cancel_pending = True
     @property
@@ -110,9 +114,10 @@ class Job:
         self._status = 'queued'
     def _set_running(self):
         self._status = 'running'
-    def _set_finished(self, return_value: Any):
+    def _set_finished(self, return_value: Any, result_is_from_cache=False):
         self._status = 'finished'
         self._result = JobResult(return_value=return_value, status='finished')
+        self._result_is_from_cache = result_is_from_cache
     def _set_error(self, error: Exception):
         self._status = 'error'
         self._result = JobResult(error=error, status='error')

@@ -97,7 +97,6 @@ def _pjh_run_job(pipe_to_parent: Connection, function_wrapper: FunctionWrapper, 
         return_value = _run_function(
             function_wrapper=function_wrapper,
             kwargs=kwargs,
-            job_cache=None, # already tried elsewhere
             use_container=config.use_container
         )
         error = None
