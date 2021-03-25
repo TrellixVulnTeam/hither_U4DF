@@ -34,7 +34,7 @@ setuptools.setup(
         "click",
         "inquirer",
         "dockerfile-parse",
-        "kachery_p2p>=0.8.2"
+        "kachery_p2p>=0.8.3"
         # non-explicit dependencies: numpy
     ],
     classifiers=[

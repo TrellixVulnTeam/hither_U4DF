@@ -10,9 +10,16 @@ from ._run_function import _run_function
 class JobManager:
     def __init__(self):
         self._jobs: Dict[str, Job] = {}
+        self._last_status_report_timestamp = time.time()
+        self._last_status_text = ''
+        self._num_finished = 0
+        self._num_errored = 0
+        self._num_cache_hits = 0
     def _add_job(self, job: Job):
         self._jobs[job.job_id] = job
     def _iterate(self):
+        self._handle_status_report()
+
         deletion_job_ids: List[str] = []
 
         # check job cache for the pending jobs that are ready to run
@@ -87,7 +94,16 @@ class JobManager:
                     deletion_job_ids.append(job_id)
         
         for job_id in deletion_job_ids:
+            j = self._jobs[job_id]
+            s = j.status
+            if s == 'finished':
+                if j.result_is_from_cache:
+                    self._num_cache_hits += 1
+                self._num_finished += 1
+            elif s == 'error': self._num_errored += 1
             del self._jobs[job_id]
+        if len(deletion_job_ids) > 0 and len(self._jobs.values()) == 0:
+            self._handle_status_report(force=True)
 
         with Timer(label='iterate-job-handlers'):
             job_handlers_to_iterate: Dict[str, JobHandler] = dict()
@@ -110,6 +126,23 @@ class JobManager:
                 elaped = time.time() - timer
                 if elaped > timeout_sec:
                     return
+    def _handle_status_report(self, force: bool=False):
+        elapsed = time.time() - self._last_status_report_timestamp
+        if (not force) and (elapsed <= 2): return
+        self._last_status_report_timestamp = time.time()
+        job_counts_by_status: Dict[str, int] = {}
+        for job in self._jobs.values():
+            s = job.status
+            if s not in job_counts_by_status: job_counts_by_status[s] = 0
+            job_counts_by_status[s] = job_counts_by_status[s] + 1
+        num_pending = job_counts_by_status.get('pending', 0)
+        num_queued = job_counts_by_status.get('queued', 0)
+        num_running = job_counts_by_status.get('running', 0)
+        status_txt = f'HITHER JOBS: {num_pending} pending; {num_queued} queued; {num_running} running; {self._num_finished} finished; {self._num_errored} errored; {self._num_cache_hits} cache hits'
+        if (force) or (status_txt != self._last_status_text):
+            print(status_txt)
+            self._last_status_text = status_txt
+
 
 def _job_is_ready_to_run(job: Job):
     return _kwargs_are_all_resolved(job.get_resolved_kwargs())

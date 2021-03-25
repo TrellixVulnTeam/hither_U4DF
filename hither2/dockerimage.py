@@ -1,5 +1,6 @@
 from abc import abstractmethod
 import os
+from typing import Union
 from ._shellscript import ShellScript
 
 class DockerImage:
@@ -22,9 +23,21 @@ def _use_singularity():
     return os.getenv('HITHER_USE_SINGULARITY', None) in ['1', 'TRUE']
 
 class LocalDockerImage(DockerImage):
-    def __init__(self, name: str, tag: str):
-        self._name = name
-        self._tag = tag
+    def __init__(self, name: str, *, tag: Union[str, None]=None):
+        if tag is not None:
+            if ':' in name: raise Exception('Cannot provide tag argument if name already contains a tag')
+            self._name = name
+            self._tag = tag
+        else:
+            v = name.split(':')
+            if len(v) == 1:
+                self._name = name
+                self._tag = 'latest'
+            elif len(v) == 2:
+                self._name = v[0]
+                self._tag = v[1]
+            else:
+                raise Exception(f'Invalid docker image name: {name}')
         self._prepared = False
     def prepare(self):
         if not self._prepared:
@@ -53,9 +66,23 @@ class LocalDockerImage(DockerImage):
         return self._tag
 
 class RemoteDockerImage(DockerImage):
-    def __init__(self, name: str, tag: str):
-        self._name = name
-        self._tag = tag
+    def __init__(self, name: str, *, tag: Union[str, None]=None):
+        if name.startswith('docker://'):
+            name = name[len('docker://'):]
+        if tag is not None:
+            if ':' in name: raise Exception('Cannot provide tag argument if name already contains a tag')
+            self._name = name
+            self._tag = tag
+        else:
+            v = name.split(':')
+            if len(v) == 1:
+                self._name = name
+                self._tag = 'latest'
+            elif len(v) == 2:
+                self._name = v[0]
+                self._tag = v[1]
+            else:
+                raise Exception(f'Invalid docker image name: {name}')
         self._prepared = False
     def prepare(self):
         if not self._prepared:

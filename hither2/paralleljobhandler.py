@@ -26,13 +26,10 @@ class ParallelJobHandler(JobHandler):
         return False
 
     def queue_job(self, job: Job):
-        pipe_to_parent, pipe_to_child = multiprocessing.Pipe()
-
-        process = multiprocessing.Process(target=_pjh_run_job, args=(pipe_to_parent, job.function_wrapper, job.get_resolved_kwargs(), job.config))
         self._processes.append(dict(
             job=job,
-            process=process,
-            pipe_to_child=pipe_to_child,
+            process=None,
+            pipe_to_child=None,
             pjh_status='pending'
         ))
     
@@ -84,6 +81,12 @@ class ParallelJobHandler(JobHandler):
         for p in self._processes:
             if p['pjh_status'] == 'pending':
                 if num_running < self._num_workers:
+                    job = p['job']
+                    pipe_to_parent, pipe_to_child = multiprocessing.Pipe()
+                    process = multiprocessing.Process(target=_pjh_run_job, args=(pipe_to_parent, job.function_wrapper, job.get_resolved_kwargs(), job.config))
+                    p['process'] = process
+                    p['pipe_to_child'] = pipe_to_child
+
                     p['pjh_status'] = 'running'
                     j: Job = p['job']
                     j._set_running()
