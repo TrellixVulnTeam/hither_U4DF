@@ -33,6 +33,7 @@ setuptools.setup(
     install_requires=[
         "click",
         "inquirer",
+        "dockerfile-parse",
         "kachery_p2p>=0.8.2"
         # non-explicit dependencies: numpy
     ],

@@ -1,7 +1,8 @@
 from .run_script_in_container import run_script_in_container
 from .run_function_in_container import run_function_in_container
 from .run_function_in_container_with_kachery_support import run_function_in_container_with_kachery_support
-from .dockerimage import DockerImageFromScript, LocalDockerImage, RemoteDockerImage
+from .dockerimage import LocalDockerImage, RemoteDockerImage
+from .dockerimagefromscript import DockerImageFromScript
 from .function import function
 from ._config import Config, UseConfig
 from ._job import Job

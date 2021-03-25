@@ -8,7 +8,7 @@ thisdir = os.path.dirname(os.path.realpath(__file__))
 
 @hi2.function(
     'test_numpy_serialization', '0.1.0',
-    image=hi2.DockerImageFromScript(name='numpy', dockerfile=f'{thisdir}/docker/Dockerfile.numpy'),
+    image=hi2.DockerImageFromScript(name='magland/numpy', dockerfile=f'{thisdir}/docker/Dockerfile.numpy'),
     modules=[]
 )
 def test_numpy_serialization(*, x: np.ndarray, delay: Union[float, None]=None):

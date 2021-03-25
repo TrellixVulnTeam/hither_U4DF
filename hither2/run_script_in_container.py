@@ -25,7 +25,7 @@ def run_script_in_container(*,
     bind_mounts: List[BindMount] = []
 ):
     if not image.is_prepared():
-        raise Exception(f'Image must be prepared prior to running in container: {image.get_name()}')
+        raise Exception(f'Image must be prepared prior to running in container: {image.get_name()}:{image.get_tag()}')
 
     with TemporaryDirectory() as tmpdir:
         script_path = tmpdir + '/script'
@@ -102,6 +102,7 @@ def _run_script_in_container_docker(*,
     from docker.models.containers import Container
 
     image_name = image.get_name()
+    image_tag = image.get_tag()
 
     client = docker.from_env()
 
@@ -113,7 +114,7 @@ def _run_script_in_container_docker(*,
 
     # create the container
     container = cast(Container, client.containers.create(
-        image_name,
+        image_name + ':' + image_tag,
         [script_path],
         mounts=mounts,
         network_mode='host'
@@ -155,10 +156,8 @@ def _run_script_in_container_singularity(*,
     tmpdir: str,
     script_path: str # path of script inside the container
 ):
-    if isinstance(image, RemoteDockerImage):
-        image_name = image.get_name()
-    else:
-        raise Exception('Can only use singularity with remote docker images')
+    image_name = image.get_name()
+    image_tag = image.get_tag()
 
     bind_opts = ' '.join([
         f'--bind {bm.source}:{bm.target}'
@@ -172,7 +171,7 @@ def _run_script_in_container_singularity(*,
         {bind_opts} \\
         --bind {input_dir}:/input \\
         --bind {output_dir}:/output \\
-        docker://{image_name} \\
+        docker://{image_name}:{image_tag} \\
         {script_path}
     ''')
     print(ss._script)
