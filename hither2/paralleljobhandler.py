@@ -69,9 +69,13 @@ class ParallelJobHandler(JobHandler):
                         if e is None:
                             j._set_finished(rv)
                             p['pjh_status'] = 'finished'
+                            p['process'].join()
+                            p['process'].close()
                         else:
                             j._set_error(Exception(f'Error running job (pjh): {e}'))
                             p['pjh_status'] = 'error'
+                            p['process'].join()
+                            p['process'].close()
         
         num_running = 0
         for p in self._processes:

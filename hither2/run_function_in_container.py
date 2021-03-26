@@ -104,7 +104,7 @@ def _copy_py_module_dir(src_path: str, dst_path: str):
                     matches = True
             if matches:
                 shutil.copyfile(src_fpath, dst_fpath)
-        elif os.path.isdir(dst_fpath):
+        elif os.path.isdir(src_fpath):
             if (not fname.startswith('__')) and (not fname.startswith('.')):
                 _copy_py_module_dir(src_fpath, dst_fpath)
 
