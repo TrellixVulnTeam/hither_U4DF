@@ -5,3 +5,4 @@ projectAuthorEmail: jmagland@flatironinstitute.org
 projectDescription:
 projectUrl: https://github.com/flatironinstitute/hither
 projectBugTrackerUrl: https://github.com/flatironinstitute/hither/issues
+pythonPackageDir: .

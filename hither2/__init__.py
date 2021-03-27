@@ -1,3 +1,4 @@
+from .version import __version__
 from .run_script_in_container import run_script_in_container
 from .run_function_in_container import run_function_in_container
 from .run_function_in_container_with_kachery_support import run_function_in_container_with_kachery_support
