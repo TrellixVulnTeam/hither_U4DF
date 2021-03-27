@@ -5,7 +5,6 @@ import importlib
 import fnmatch
 from typing import Callable, Dict, List
 from .run_script_in_container import DockerImage, run_script_in_container
-from ._temporarydirectory import TemporaryDirectory
 from .run_script_in_container import BindMount
 from ._safe_pickle import _safe_pickle, _safe_unpickle
 
@@ -18,6 +17,7 @@ def run_function_in_container(
     bind_mounts: List[BindMount] = [],
     kachery_support = False
 ):
+    import kachery_p2p as kp
     if kachery_support:
         from .run_function_in_container_with_kachery_support import run_function_in_container_with_kachery_support
         return run_function_in_container_with_kachery_support(
@@ -28,7 +28,7 @@ def run_function_in_container(
             environment=environment,
             bind_mounts=bind_mounts
         )
-    with TemporaryDirectory() as tmpdir:
+    with kp.TemporaryDirectory() as tmpdir:
         input_dir = tmpdir + '/input'
         output_dir = tmpdir + '/output'
         os.mkdir(input_dir)

@@ -1,4 +1,4 @@
-__version__ = "0.5.8"
+from .version import __version__
 
 from .core import function, container, additional_files, local_modules, opts
 from .core import Config

@@ -1,7 +1,6 @@
 from abc import abstractmethod
 import os
 from typing import Union
-from ._shellscript import ShellScript
 from .dockerimage import DockerImage, _use_singularity
 
 class DockerImageFromScript(DockerImage):
@@ -23,6 +22,7 @@ class DockerImageFromScript(DockerImage):
             raise Exception('Dockerfile must have "LABEL version=..."')
         return version
     def prepare(self):
+        import kachery_p2p as kp
         if not self._prepared:
             self._tag = self._get_tag_from_dockerfile()
             dockerfile_dir = os.path.dirname(self._dockerfile)
@@ -33,7 +33,7 @@ class DockerImageFromScript(DockerImage):
                 raise Exception('docker python package not installed.')
 
             if _use_singularity():
-                ss = ShellScript(f'''
+                ss = kp.ShellScript(f'''
                 #!/bin/bash
 
                 singularity pull docker://{self._name}:{self._tag}
@@ -60,7 +60,7 @@ class DockerImageFromScript(DockerImage):
                 # client = docker.from_env()
                 # image = client.images.build(tag=self._name, path=dockerfile_dir, dockerfile=dockerfile_basename)
                 
-                ss = ShellScript(f'''
+                ss = kp.ShellScript(f'''
                 #!/bin/bash
 
                 cd {dockerfile_dir}

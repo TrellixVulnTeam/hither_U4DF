@@ -1,7 +1,6 @@
 from abc import abstractmethod
 import os
 from typing import Union
-from ._shellscript import ShellScript
 
 class DockerImage:
     def __init__(self):
@@ -40,11 +39,12 @@ class LocalDockerImage(DockerImage):
                 raise Exception(f'Invalid docker image name: {name}')
         self._prepared = False
     def prepare(self):
+        import kachery_p2p as kp
         if not self._prepared:
             if _use_singularity():
                 raise Exception('Cannot use LocalDockerImage in singularity mode')
             else:
-                ss = ShellScript(f'''
+                ss = kp.ShellScript(f'''
                 #!/bin/bash
 
                 result=$( docker images -q {self._name} )
@@ -85,9 +85,10 @@ class RemoteDockerImage(DockerImage):
                 raise Exception(f'Invalid docker image name: {name}')
         self._prepared = False
     def prepare(self):
+        import kachery_p2p as kp
         if not self._prepared:
             if _use_singularity():
-                ss = ShellScript(f'''
+                ss = kp.ShellScript(f'''
                 #!/bin/bash
 
                 singularity pull docker://{self._name}
@@ -96,7 +97,7 @@ class RemoteDockerImage(DockerImage):
                 ss.wait()
                 self._prepared = True
             else:
-                ss = ShellScript(f'''
+                ss = kp.ShellScript(f'''
                 #!/bin/bash
 
                 docker pull {self._name}

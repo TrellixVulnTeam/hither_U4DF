@@ -6,8 +6,6 @@ from typing import Dict, List, Union, cast
 import tarfile
 
 from numpy import source
-from ._temporarydirectory import TemporaryDirectory
-from ._shellscript import ShellScript
 from .dockerimage import DockerImage, RemoteDockerImage
 
 class BindMount:
@@ -24,12 +22,14 @@ def run_script_in_container(*,
     environment: Dict[str, str] = dict(),
     bind_mounts: List[BindMount] = []
 ):
+    import kachery_p2p as kp
+
     if not image.is_prepared():
         raise Exception(f'Image must be prepared prior to running in container: {image.get_name()}:{image.get_tag()}')
 
-    with TemporaryDirectory() as tmpdir:
+    with kp.TemporaryDirectory() as tmpdir:
         script_path = tmpdir + '/script'
-        ShellScript(script).write(script_path)
+        kp.ShellScript(script).write(script_path)
         os.chmod(script_path, os.stat(script_path).st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH) # executable
 
         environment_strings: List[str] = []
@@ -55,7 +55,7 @@ def run_script_in_container(*,
         exec ./script
         '''
         run_path = tmpdir + '/run'
-        ShellScript(run_script).write(run_path)
+        kp.ShellScript(run_script).write(run_path)
         os.chmod(run_path, os.stat(script_path).st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH) # executable
 
 
@@ -156,6 +156,7 @@ def _run_script_in_container_singularity(*,
     tmpdir: str,
     script_path: str # path of script inside the container
 ):
+    import kachery_p2p as kp
     image_name = image.get_name()
     image_tag = image.get_tag()
 
@@ -164,7 +165,7 @@ def _run_script_in_container_singularity(*,
         for bm in all_bind_mounts
     ])
 
-    ss = ShellScript(f'''
+    ss = kp.ShellScript(f'''
     #!/bin/bash
 
     singularity exec \\
