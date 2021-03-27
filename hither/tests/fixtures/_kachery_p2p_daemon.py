@@ -3,6 +3,7 @@ import shutil
 import multiprocessing
 import pytest
 import hither as hi
+import kachery_p2p as kp
 from urllib import request
 from ._common import _random_string
 from ._util import _wait_for_kachery_p2p_daemon_to_start
@@ -46,7 +47,7 @@ def run_service_kachery_p2p_daemon(*, kachery_storage_dir, kachery_p2p_config_di
     os.environ['KACHERY_P2P_API_PORT'] = str(api_port)
 
     with hi.ConsoleCapture(label='[kachery-p2p-daemon]'):
-        ss = hi.ShellScript(f"""
+        ss = kp.ShellScript(f"""
         #!/bin/bash
 
         exec kachery-p2p-start-daemon --channel test1 --nobootstrap --method npx
