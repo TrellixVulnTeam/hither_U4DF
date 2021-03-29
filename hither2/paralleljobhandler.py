@@ -40,7 +40,10 @@ class ParallelJobHandler(JobHandler):
                     print(f'ParallelJobHandler: Terminating job.')
                     pp = p['process']
                     pp.terminate()
-                    pp.join()
+                    try:
+                        pp.join()
+                    except:
+                        print('WARNING: unable to join process for job being cancelled')
                     j: Job = p['job']
                     j._set_error(Exception('job cancelled'))
                     p['pjh_status'] = 'error'
@@ -56,26 +59,47 @@ class ParallelJobHandler(JobHandler):
 
         for p in self._processes:
             if p['pjh_status'] == 'running':
-                if p['pipe_to_child'].poll():
+                pp: multiprocessing.Process = p['process']
+                j: Job = p['job']
+                if pp.is_alive():
+                    if p['pipe_to_child'].poll():
+                        try:
+                            ret = p['pipe_to_child'].recv()
+                        except:
+                            ret = None
+                        if ret is not None:
+                            p['pipe_to_child'].send('okay!')
+                            rv = ret['return_value']
+                            e: str = ret['error']
+                            if e is None:
+                                j._set_finished(rv)
+                                p['pjh_status'] = 'finished'
+                                try:
+                                    p['process'].join()
+                                except:
+                                    raise Exception('pjh: Problem joining finished job process')
+                                try:
+                                    p['process'].close()
+                                except:
+                                    raise Exception('pjh: Problem closing finished job process')
+                            else:
+                                j._set_error(Exception(f'Error running job (pjh): {e}'))
+                                p['pjh_status'] = 'error'
+                                try:
+                                    p['process'].join()
+                                except:
+                                    print('WARNING: problem joining errored job process')
+                                try:
+                                    p['process'].close()
+                                except:
+                                    print('WARNING: problem closing errored job process')
+                else:
+                    j._set_error(Exception(f'Job process is not alive'))
+                    p['pjh_status'] = 'error'
                     try:
-                        ret = p['pipe_to_child'].recv()
+                        p['process'].close()
                     except:
-                        ret = None
-                    if ret is not None:
-                        p['pipe_to_child'].send('okay!')
-                        j: Job = p['job']
-                        rv = ret['return_value']
-                        e: str = ret['error']
-                        if e is None:
-                            j._set_finished(rv)
-                            p['pjh_status'] = 'finished'
-                            p['process'].join()
-                            p['process'].close()
-                        else:
-                            j._set_error(Exception(f'Error running job (pjh): {e}'))
-                            p['pjh_status'] = 'error'
-                            p['process'].join()
-                            p['process'].close()
+                        print('WARNING: problem closing job process that is no longer alive (probably crashed)')
         
         num_running = 0
         for p in self._processes:
