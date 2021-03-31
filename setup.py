@@ -6,11 +6,13 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     include_package_data=True,
     scripts=[
-        "bin/hither-compute-resource"
+        "bin/hither-compute-resource",
+        "bin/hither-scriptdir-runner"
     ],
     install_requires=[
         "click",
         "inquirer",
+        "pyyaml",
         "dockerfile-parse",
         "kachery_p2p>=0.8.6"
         # non-explicit dependencies: numpy

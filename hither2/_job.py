@@ -1,4 +1,4 @@
-from hither2.run_script_in_container import DockerImage
+from hither2.run_scriptdir_in_container import DockerImage
 import time
 import uuid
 from typing import Any, Callable, Union
@@ -114,7 +114,7 @@ class Job:
         self._status = 'queued'
     def _set_running(self):
         self._status = 'running'
-    def _set_finished(self, return_value: Any, result_is_from_cache=False):
+    def _set_finished(self, return_value: Any, result_is_from_cache: bool=False):
         self._status = 'finished'
         self._result = JobResult(return_value=return_value, status='finished')
         self._result_is_from_cache = result_is_from_cache

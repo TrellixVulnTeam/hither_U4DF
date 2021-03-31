@@ -1,7 +1,7 @@
 from .run_function_in_container import run_function_in_container
 import os
 import inspect
-from hither2.run_script_in_container import DockerImage
+from hither2.run_scriptdir_in_container import DockerImage
 from typing import Callable, Dict, List, Union
 from ._config import Config
 from ._job import Job

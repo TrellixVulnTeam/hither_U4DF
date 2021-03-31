@@ -1,0 +1,25 @@
+#!/usr/bin/env python
+
+import os
+import time
+import click
+import hither2 as hi
+
+@click.group(help="Low-level tool for running jobs defined by script directories")
+def cli():
+    pass
+
+@click.command(help='Start running jobs from current working directory')
+def start():
+    jr = hi.ScriptDirRunner(os.getcwd())
+    while True:
+        if os.path.isfile(os.getcwd() + '/stop'):
+            print('Stopping scriptdir runner.')
+            return
+        jr.iterate()
+        time.sleep(1)
+
+cli.add_command(start)
+
+if __name__ == "__main__":
+    cli()

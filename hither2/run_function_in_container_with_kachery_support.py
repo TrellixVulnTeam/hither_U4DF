@@ -1,6 +1,6 @@
 import os
 from copy import deepcopy
-from .run_script_in_container import BindMount, DockerImage
+from .run_scriptdir_in_container import BindMount, DockerImage
 from .run_function_in_container import run_function_in_container
 from typing import Callable, Dict, List, Union
 

@@ -14,11 +14,9 @@ class BindMount:
         self.target = target
         self.read_only = read_only
 
-def run_script_in_container(*,
+def run_scriptdir_in_container(*,
     image: DockerImage,
-    script: str,
-    input_dir: Union[str, None]=None, # corresponds to /input in the container
-    output_dir: Union[str, None]=None, # corresponds to /output in the container
+    scriptdir: str,
     environment: Dict[str, str] = dict(),
     bind_mounts: List[BindMount] = []
 ):
@@ -27,11 +25,11 @@ def run_script_in_container(*,
     if not image.is_prepared():
         raise Exception(f'Image must be prepared prior to running in container: {image.get_name()}:{image.get_tag()}')
 
-    with kp.TemporaryDirectory() as tmpdir:
-        script_path = tmpdir + '/script'
-        kp.ShellScript(script).write(script_path)
-        os.chmod(script_path, os.stat(script_path).st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH) # executable
+    run_path = f'{scriptdir}/run'
+    input_dir = f'{scriptdir}/input'
+    output_dir = f'{scriptdir}/output'
 
+    with kp.TemporaryDirectory() as tmpdir:
         environment_strings: List[str] = []
         for k, v in environment.items():
             environment_strings.append(f'export {k}="{v}"')
@@ -50,19 +48,19 @@ def run_script_in_container(*,
         # do not buffer the stdout
         export PYTHONUNBUFFERED=1
 
-        mkdir -p /output
+        mkdir -p /working/output
         cd /working
-        exec ./script
+        exec ./run
         '''
-        run_path = tmpdir + '/run'
-        kp.ShellScript(run_script).write(run_path)
-        os.chmod(run_path, os.stat(script_path).st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH) # executable
+        entry_path = tmpdir + '/entry'
+        kp.ShellScript(run_script).write(entry_path)
+        os.chmod(entry_path, os.stat(entry_path).st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH) # executable
 
 
         all_bind_mounts: List[BindMount] = [
             BindMount(target='/hither-env', source=env_path, read_only=True),
-            BindMount(target='/hither-run', source=run_path, read_only=True),
-            BindMount(target='/working/script', source=script_path, read_only=True)
+            BindMount(target='/hither-entry', source=entry_path, read_only=True),
+            BindMount(target='/working/run', source=run_path, read_only=True)
         ]
         for bm in bind_mounts:
             all_bind_mounts.append(bm)
@@ -75,7 +73,7 @@ def run_script_in_container(*,
                 input_dir=input_dir,
                 output_dir=output_dir,
                 tmpdir=tmpdir,
-                script_path='/hither-run'
+                script_path='/hither-entry'
             )
         elif use_singularity in ['TRUE', '1']:
             _run_script_in_container_singularity(
@@ -84,7 +82,7 @@ def run_script_in_container(*,
                 input_dir=input_dir,
                 output_dir=output_dir,
                 tmpdir=tmpdir,
-                script_path='/hither-run'
+                script_path='/hither-entry'
             )
         else:
             raise Exception('Unexpected value of HITHER_USE_SINGULARITY environment variable')
@@ -126,7 +124,7 @@ def _run_script_in_container_docker(*,
         with tarfile.open(input_tar_path, 'w:gz') as tar:
             tar.add(input_dir, arcname='input')
         with open(input_tar_path, 'rb') as tarf:
-            container.put_archive('/', tarf)
+            container.put_archive('/working/', tarf)
 
     # run the container
     container.start()
@@ -136,9 +134,9 @@ def _run_script_in_container_docker(*,
             if b:
                 print(b.decode())
     
-    # copy output from /output
+    # copy output from /working/output
     if output_dir:
-        strm, st = container.get_archive(path='/output/')
+        strm, st = container.get_archive(path='/working/output/')
         output_tar_path = tmpdir + '/output.tar.gz'
         with open(output_tar_path, 'wb') as f:
             for d in strm:
@@ -170,8 +168,8 @@ def _run_script_in_container_singularity(*,
 
     singularity exec \\
         {bind_opts} \\
-        --bind {input_dir}:/input \\
-        --bind {output_dir}:/output \\
+        --bind {input_dir}:/working/input \\
+        --bind {output_dir}:/working/output \\
         docker://{image_name}:{image_tag} \\
         {script_path}
     ''')
