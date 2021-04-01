@@ -37,7 +37,8 @@ class DockerImageFromScript(DockerImage):
                 #!/bin/bash
 
                 singularity pull docker://{self._name}:{self._tag}
-                singularity build docker://{self._name}:{self._tag}
+                # singularity build docker://{self._name}:{self._tag}
+                singularity exec docker://{self._name}:{self._tag} bash -c "echo preparing"
                 ''')
                 ss.start()
                 ss.wait()
