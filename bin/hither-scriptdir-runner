@@ -19,6 +19,9 @@ def start():
         jr.iterate()
         time.sleep(1)
 
+def run_in_container():
+    hi.run_scriptdir_in_container(scriptdir=os.getcwd())
+
 cli.add_command(start)
 
 if __name__ == "__main__":

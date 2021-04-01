@@ -3,7 +3,7 @@ import json
 import shutil
 from typing import Dict, Union
 from .._job import Job
-from ..create_scriptdir_for_function import create_scriptdir_for_function
+from ..create_scriptdir_for_function_run import create_scriptdir_for_function_run
 from .._safe_pickle import _safe_unpickle
 
 class SlurmBatch:
@@ -49,7 +49,7 @@ class SlurmBatch:
         self._script.wait()
     def add_job(self, job: Job):
         self._jobs[job.job_id] = job
-        create_scriptdir_for_function(
+        create_scriptdir_for_function_run(
             directory=f'{self._jobs_dir}/{job.job_id}',
             function=job.function,
             kwargs=job.get_resolved_kwargs(),
