@@ -120,8 +120,6 @@ class ParallelJobHandler(JobHandler):
                     j._set_running()
                     p['process'].start()
                     num_running = num_running + 1
-        
-        time.sleep(0.02)
 
 def _pjh_run_job(pipe_to_parent: Connection, function_wrapper: FunctionWrapper, kwargs: Dict[str, Any], config: ConfigEntry) -> None:
     try:

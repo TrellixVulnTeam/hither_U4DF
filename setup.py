@@ -14,7 +14,7 @@ setuptools.setup(
         "inquirer",
         "pyyaml",
         "dockerfile-parse",
-        "kachery_p2p>=0.8.6"
+        "kachery_p2p>=0.8.10"
         # non-explicit dependencies: numpy
     ]
 )

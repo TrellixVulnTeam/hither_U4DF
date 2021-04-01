@@ -18,7 +18,7 @@ def _serialize_job(job: 'Job', generate_code:bool):
             # only generate code once per function
             if not hasattr(job._f, '_hither_generated_code'):
                 code0 = _generate_source_code_for_function(job._f)
-                code0_uri = kp.store_object(code0)
+                code0_uri = kp.store_json(code0)
                 setattr(job._f, InternalFunctionAttributeKeys.HITHER_GENERATED_CODE_URI, code0_uri)
             code_uri = getattr(job._f, InternalFunctionAttributeKeys.HITHER_GENERATED_CODE_URI)
         function = None

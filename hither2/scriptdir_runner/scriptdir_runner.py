@@ -1,4 +1,5 @@
 import os
+import shutil
 from typing import Dict, Union
 import json
 
@@ -101,5 +102,6 @@ def _write_text_file_if_changed(path: str, txt: str):
             txt_existing = f.read()
             if txt_existing == txt:
                 return
-    with open(path, 'w') as f:
+    with open(path + '.writing', 'w') as f:
         f.write(txt)
+    shutil.move(path + '.writing', path)

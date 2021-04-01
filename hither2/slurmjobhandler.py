@@ -1,4 +1,5 @@
 import shutil
+import time
 from typing import Dict, List, Union
 import uuid
 import os
@@ -16,10 +17,12 @@ class SlurmJobHandler(JobHandler):
         self._pending_jobs: Dict[str, Job] = {}
         with kp.TemporaryDirectory(remove=False) as tmpdir:
             self._directory = tmpdir
-        self._batches: List[SlurmBatch] = []
+        self._pending_batches: Dict[str, SlurmBatch] = {}
+        self._running_batches: Dict[str, SlurmBatch] = {}
+        self._batches_marked_for_stopping: Dict[str, Union[None, float]] = {}
 
     def cleanup(self):
-        for b in self._batches:
+        for b in self._running_batches.values():
             b.stop()
         shutil.rmtree(self._directory)
         self._halted = True
@@ -31,21 +34,23 @@ class SlurmJobHandler(JobHandler):
         self._pending_jobs[job.job_id] = job
     
     def _find_batch_with_empty_slot(self):
-        for b in self._batches:
+        for b in self._running_batches.values():
             n = b.get_num_incomplete_jobs()
             if n < self._num_jobs_per_batch:
                 return b
-        if (self._max_num_batches is None) or (len(self._batches) < self._max_num_batches):
-            return self._add_batch()
+        if (self._max_num_batches is None) or (len(self._running_batches.values()) < self._max_num_batches):
+            if len(self._pending_batches.values()) == 0:
+                self._start_new_batch()
+        return None
     
-    def _add_batch(self):
+    def _start_new_batch(self):
+        print('Starting batch')
         batch_id = 'batch-' + str(uuid.uuid4())[-12:]
         batchdir = f'{self._directory}/{batch_id}'
         os.mkdir(batchdir)
         b = SlurmBatch(directory=batchdir, srun_cmd=self._srun_command)
         b.start()
-        self._batches.append(b)
-        return b
+        self._pending_batches[batch_id] = b
     
     def cancel_job(self, job_id: str):
         pass
@@ -61,11 +66,22 @@ class SlurmJobHandler(JobHandler):
                 b.add_job(job)
                 del self._pending_jobs[job_id]
 
-        new_batch_list: List[SlurmBatch] = []
-        for b in self._batches:
+        running_batch_ids = list(self._running_batches.keys())
+        for bi in running_batch_ids:
+            b = self._running_batches[bi]
             b.iterate()
-            if b.get_num_incomplete_jobs() == 0:
-                b.stop()
-            else:
-                new_batch_list.append(b)
-        self._batches = new_batch_list
+            if (b.get_num_incomplete_jobs() == 0) and (len(self._pending_jobs.values()) == 0):
+                x = self._batches_marked_for_stopping.get(bi)
+                elapsed = time.time() - x if x is not None else -1
+                if elapsed > 2:
+                    b.stop()
+                    del self._running_batches[bi]
+                else:
+                    self._batches_marked_for_stopping[bi] = time.time()
+        pending_batch_ids = list(self._pending_batches.keys())
+        for bi in pending_batch_ids:
+            b = self._pending_batches[bi]
+            b.iterate()
+            if b.is_running():
+                self._running_batches[bi] = b
+                del self._pending_batches[bi]

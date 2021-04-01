@@ -31,16 +31,19 @@ def test_id(x):
 
 def test_sing():
     jh = hi.SlurmJobHandler(num_jobs_per_batch=2, max_num_batches=2, srun_command='')
-    a = np.array([1, 2, 3, 4, 5])
-    with hi.Config(use_container=True, job_handler=jh):
-        jobs = [
-            hi.Job(test_numpy_serialization2, dict(x=a*i, delay=3))
-            for i in range(9)
-        ]
-        j2 = hi.Job(test_id, {'x': jobs})
-        print('*******************************************')
-        cc = j2.wait().return_value
-        print(cc)
+    try:
+        a = np.array([1, 2, 3, 4, 5])
+        with hi.Config(use_container=True, job_handler=jh):
+            jobs = [
+                hi.Job(test_numpy_serialization2, dict(x=a*i, delay=3))
+                for i in range(9)
+            ]
+            j2 = hi.Job(test_id, {'x': jobs})
+            print('*******************************************')
+            cc = j2.wait().return_value
+            print(cc)
+    finally:
+        jh.cleanup()
 
 if __name__ == '__main__':
     main()

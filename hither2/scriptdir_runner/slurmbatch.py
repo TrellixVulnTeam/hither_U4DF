@@ -14,6 +14,7 @@ class SlurmBatch:
         self._jobs: Dict[str, Job] = {}
         self._jobs_dir = f'{self._directory}/jobs'
         self._script: Union[kp.ShellScript, None] = None
+        self._is_running: bool = False
         if not os.path.isdir(self._jobs_dir):
             os.mkdir(self._jobs_dir)
     def start(self):
@@ -42,6 +43,7 @@ class SlurmBatch:
         ''')
         self._script.start()
     def stop(self):
+        print('Stopping batch')
         with open(self._directory + '/stop', 'w') as f:
             f.write('Please stop.')
         self._script.wait()
@@ -53,12 +55,19 @@ class SlurmBatch:
             kwargs=job.get_resolved_kwargs(),
             modules=[] # wait until containerization is implemented
         )
+    def is_running(self):
+        return self._is_running
     def iterate(self):
         state_path = f'{self._directory}/state.json'
         if not os.path.exists(state_path):
             return
-        with open(state_path, 'r') as f:
-            state = json.load(f)
+        self._is_running = True
+        try:
+            with open(state_path, 'r') as f:
+                state = json.load(f)
+        except Exception as e:
+            print('WARNING: problem reading state.json', str(e))
+            return
         for job_id, job_state in state['jobs'].items():
             s = job_state['status']
             j = self._jobs[job_id]

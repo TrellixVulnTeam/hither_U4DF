@@ -138,7 +138,7 @@ class DiskJobCache:
             if _result_small_enough_to_store_directly(serialized_result):
                 cached_result[CachedJobResultKeys.RESULT] = serialized_result
             else:
-                cached_result[CachedJobResultKeys.RESULT_URI] = kp.store_object(dict(result=serialized_result))
+                cached_result[CachedJobResultKeys.RESULT_URI] = kp.store_json(dict(result=serialized_result))
             cached_result[CachedJobResultKeys.STATUS] = 'finished'
         elif job.get_status() == JobStatus.ERROR:
             cached_result[CachedJobResultKeys.EXCEPTION] = '{}'.format(job.get_exception())
@@ -192,7 +192,7 @@ class FeedJobCache:
             if _result_small_enough_to_store_directly(serialized_result):
                 cached_result[CachedJobResultKeys.RESULT] = serialized_result
             else:
-                cached_result[CachedJobResultKeys.RESULT_URI] = kp.store_object(dict(result=serialized_result))
+                cached_result[CachedJobResultKeys.RESULT_URI] = kp.store_json(dict(result=serialized_result))
             cached_result[CachedJobResultKeys.STATUS] = 'finished'
         elif job.get_status() == JobStatus.ERROR:
             cached_result[CachedJobResultKeys.EXCEPTION] = '{}'.format(job.get_exception())

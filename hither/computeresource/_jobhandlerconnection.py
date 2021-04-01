@@ -154,7 +154,7 @@ class JobHandlerConnection:
             if _result_small_enough_to_store_directly(serialized_result):
                 msg[MessageKeys.RESULT] = serialized_result
             else:
-                msg[MessageKeys.RESULT_URI] = kp.store_object(dict(result=serialized_result))
+                msg[MessageKeys.RESULT_URI] = kp.store_json(dict(result=serialized_result))
             self._send_message_to_job_handler(msg)
             job_subfeed = self._compute_resource_feed.get_subfeed(getattr(job, InternalJobAttributeKeys.CR_JOB_HASH))
             job_subfeed.append_message(msg)
