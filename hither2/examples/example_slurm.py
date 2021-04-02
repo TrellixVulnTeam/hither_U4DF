@@ -30,13 +30,13 @@ def test_id(x):
     return x
 
 def test_sing():
-    jh = hi.SlurmJobHandler(num_jobs_per_batch=2, max_num_batches=2, srun_command='')
+    jh = hi.SlurmJobHandler(num_jobs_per_allocation=4, max_simultaneous_allocations=3, srun_command='sleep 4 && ')
     try:
         a = np.array([1, 2, 3, 4, 5])
         with hi.Config(use_container=True, job_handler=jh):
             jobs = [
-                hi.Job(test_numpy_serialization2, dict(x=a*i, delay=3))
-                for i in range(9)
+                hi.Job(test_numpy_serialization2, dict(x=a*i, delay=7))
+                for i in range(20)
             ]
             j2 = hi.Job(test_id, {'x': jobs})
             print('*******************************************')

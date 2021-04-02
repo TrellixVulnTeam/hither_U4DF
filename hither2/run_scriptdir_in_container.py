@@ -1,8 +1,8 @@
 from abc import abstractmethod
+import json
 import os
 import shutil
-import stat
-from typing import Dict, List, Union, cast
+from typing import List, Union, cast
 import tarfile
 
 from numpy import source
@@ -13,37 +13,46 @@ class BindMount:
         self.source = source
         self.target = target
         self.read_only = read_only
+    def serialize(self):
+        return {
+            'source': self.source,
+            'target': self.target,
+            'read_only': self.read_only
+        }
+    @staticmethod
+    def deserialize(x: dict):
+        return BindMount(**x)
 
 def run_scriptdir_in_container(*,
-    image: DockerImage,
     scriptdir: str,
-    environment: Dict[str, str] = dict(),
-    bind_mounts: List[BindMount] = []
+    image_name: str,
+    bind_mounts_path: str,
+    output_dir: str
+):
+    with open(bind_mounts_path, 'r') as f:
+        x = json.load(f)
+        bind_mounts = [BindMount.deserialize(a) for a in x]
+    
+    run_scriptdir_in_container_2(scriptdir=scriptdir, image_name=image_name, bind_mounts=bind_mounts, output_dir=output_dir)
+
+def run_scriptdir_in_container_2(*,
+    scriptdir: str,
+    image_name: str,
+    bind_mounts: List[BindMount],
+    output_dir: str
 ):
     import kachery_p2p as kp
 
-    if not image.is_prepared():
-        raise Exception(f'Image must be prepared prior to running in container: {image.get_name()}:{image.get_tag()}')
-
     run_path = f'{scriptdir}/run'
+    env_path = f'{scriptdir}/env'
     input_dir = f'{scriptdir}/input'
-    output_dir = f'{scriptdir}/output'
 
     with kp.TemporaryDirectory() as tmpdir:
-        environment_strings: List[str] = []
-        for k, v in environment.items():
-            environment_strings.append(f'export {k}="{v}"')
-        env_path = tmpdir + '/env'
-        with open(env_path, 'w') as f:
-            f.write('\n'.join(environment_strings))
-
         # entrypoint script to run inside the container
-        run_script = f'''
+        entry_sh_script = f'''
         #!/bin/bash
 
         set -e
-        
-        source /hither-env
 
         # do not buffer the stdout
         export PYTHONUNBUFFERED=1
@@ -52,15 +61,14 @@ def run_scriptdir_in_container(*,
         cd /working
         exec ./run
         '''
-        entry_path = tmpdir + '/entry'
-        kp.ShellScript(run_script).write(entry_path)
-        os.chmod(entry_path, os.stat(entry_path).st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH) # executable
+        entry_sh_path = tmpdir + '/entry.sh'
+        kp.ShellScript(entry_sh_script).write(entry_sh_path)
 
-
+        ##############################################
         all_bind_mounts: List[BindMount] = [
-            BindMount(target='/hither-env', source=env_path, read_only=True),
-            BindMount(target='/hither-entry', source=entry_path, read_only=True),
-            BindMount(target='/working/run', source=run_path, read_only=True)
+            BindMount(target='/hither-entry.sh', source=entry_sh_path, read_only=True),
+            BindMount(target='/working/run', source=run_path, read_only=True),
+            BindMount(target='/working/env', source=env_path, read_only=True)
         ]
         for bm in bind_mounts:
             all_bind_mounts.append(bm)
@@ -69,27 +77,27 @@ def run_scriptdir_in_container(*,
         if use_singularity in [None, 'FALSE', '0']:
             _run_script_in_container_docker(
                 all_bind_mounts=all_bind_mounts,
-                image=image,
+                image_name=image_name,
                 input_dir=input_dir,
                 output_dir=output_dir,
                 tmpdir=tmpdir,
-                script_path='/hither-entry'
+                script_path='/hither-entry.sh'
             )
         elif use_singularity in ['TRUE', '1']:
             _run_script_in_container_singularity(
                 all_bind_mounts=all_bind_mounts,
-                image=image,
+                image_name=image_name,
                 input_dir=input_dir,
                 output_dir=output_dir,
                 tmpdir=tmpdir,
-                script_path='/hither-entry'
+                script_path='/hither-entry.sh'
             )
         else:
             raise Exception('Unexpected value of HITHER_USE_SINGULARITY environment variable')
 
 def _run_script_in_container_docker(*,
     all_bind_mounts: List[BindMount],
-    image: DockerImage,
+    image_name: str,
     input_dir: Union[str, None], # corresponds to /input in the container
     output_dir: Union[str, None], # corresponds to /output in the container
     tmpdir: str,
@@ -99,26 +107,27 @@ def _run_script_in_container_docker(*,
     from docker.types import Mount
     from docker.models.containers import Container
 
-    image_name = image.get_name()
-    image_tag = image.get_tag()
-
+    print('--- a1')
     client = docker.from_env()
 
+    print('--- a2')
     # create the mounts
     mounts = [
         Mount(target=x.target, source=x.source, type='bind', read_only=x.read_only)
         for x in all_bind_mounts
     ]
 
+    print('--- a3')
     # create the container
     container = cast(Container, client.containers.create(
-        image_name + ':' + image_tag,
+        image_name,
         [script_path],
         mounts=mounts,
         network_mode='host'
     ))
 
-    # copy input directory to /input
+    print('--- a4')
+    # copy input directory to /working/input
     if input_dir:
         input_tar_path = tmpdir + '/input.tar.gz'
         with tarfile.open(input_tar_path, 'w:gz') as tar:
@@ -126,6 +135,7 @@ def _run_script_in_container_docker(*,
         with open(input_tar_path, 'rb') as tarf:
             container.put_archive('/working/', tarf)
 
+    print('--- a5')
     # run the container
     container.start()
     logs = container.logs(stream=True)
@@ -134,6 +144,7 @@ def _run_script_in_container_docker(*,
             if b:
                 print(b.decode())
     
+    print('--- a6')
     # copy output from /working/output
     if output_dir:
         strm, st = container.get_archive(path='/working/output/')
@@ -145,18 +156,18 @@ def _run_script_in_container_docker(*,
             tar.extractall(tmpdir)
         for fname in os.listdir(tmpdir + '/output'):
             shutil.move(tmpdir + '/output/' + fname, output_dir + '/' + fname)
+    
+    print('--- a7')
 
 def _run_script_in_container_singularity(*,
     all_bind_mounts: List[BindMount],
-    image: DockerImage,
+    image_name: str,
     input_dir: Union[str, None], # corresponds to /input in the container
     output_dir: Union[str, None], # corresponds to /output in the container
     tmpdir: str,
     script_path: str # path of script inside the container
 ):
     import kachery_p2p as kp
-    image_name = image.get_name()
-    image_tag = image.get_tag()
 
     bind_opts = ' '.join([
         f'--bind {bm.source}:{bm.target}'
@@ -168,9 +179,10 @@ def _run_script_in_container_singularity(*,
 
     singularity exec \\
         {bind_opts} \\
+        -C \\
         --bind {input_dir}:/working/input \\
         --bind {output_dir}:/working/output \\
-        docker://{image_name}:{image_tag} \\
+        docker://{image_name} \\
         {script_path}
     ''')
     print(ss._script)

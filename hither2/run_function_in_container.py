@@ -1,3 +1,4 @@
+from hither2.run_scriptdir import run_scriptdir
 from hither2.create_scriptdir_for_function_run import create_scriptdir_for_function_run
 import os
 import inspect
@@ -28,7 +29,7 @@ def run_function_in_container(
             environment=environment,
             bind_mounts=bind_mounts
         )
-    with kp.TemporaryDirectory() as tmpdir:
+    with kp.TemporaryDirectory(remove=True) as tmpdir:
         create_scriptdir_for_function_run(
             directory=tmpdir,
             function=function,
@@ -38,14 +39,8 @@ def run_function_in_container(
             environment=environment,
             bind_mounts=bind_mounts
         )
-        input_dir = f'{tmpdir}/input'
         output_dir = f'{tmpdir}/output'
-        # run_scriptdir_in_container(
-        #     image=image,
-        #     scriptdir=tmpdir,
-        #     environment=environment,
-        #     bind_mounts=bind_mounts
-        # )
+        run_scriptdir(scriptdir=tmpdir)
 
         return_value = _safe_unpickle(output_dir + '/return_value.pkl')
         return return_value

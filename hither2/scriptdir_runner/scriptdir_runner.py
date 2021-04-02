@@ -20,12 +20,14 @@ class ScriptDirRunnerJob:
     def start(self):
         import kachery_p2p as kp
         assert self._status == 'pending'
+        source_env_str = 'source ./env' if os.path.isfile(f'{self._directory}/env') else ''
         self._script = kp.ShellScript(f'''
         #!/bin/bash
 
         set -e
 
         cd {self._directory}
+        {source_env_str}
         exec ./run
         ''')
         self._set_status('running')

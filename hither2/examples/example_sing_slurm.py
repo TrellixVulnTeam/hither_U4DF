@@ -30,7 +30,7 @@ def test_id(x):
     return x
 
 def test_sing():
-    jh = hi.ParallelJobHandler(num_workers=4)
+    jh = hi.SlurmJobHandler(num_jobs_per_allocation=4, max_simultaneous_allocations=4, srun_command='sleep 3 && ')
     a = np.array([1, 2, 3, 4, 5])
     with hi.Config(use_container=True, job_handler=jh):
         jobs = [

@@ -19,10 +19,22 @@ def start():
         jr.iterate()
         time.sleep(1)
 
-def run_in_container():
-    hi.run_scriptdir_in_container(scriptdir=os.getcwd())
+@click.command(help='Run a scriptdir')
+@click.option('--scriptdir', help='The scriptdir to run')
+def run_scriptdir(scriptdir: str):
+    hi.run_scriptdir(scriptdir=scriptdir)
+
+@click.command(help='Run a scriptdir in a container')
+@click.option('--scriptdir', help='The scriptdir to run inside the container')
+@click.option('--image', help='The name of the image')
+@click.option('--bind-mounts', help='Path of bind_mounts.json')
+@click.option('--output-dir', help='Path of output directory on the host')
+def run_scriptdir_in_container(scriptdir: str, image: str, bind_mounts: str, output_dir: str):
+    hi.run_scriptdir_in_container(scriptdir=scriptdir, image_name=image, bind_mounts_path=bind_mounts, output_dir=output_dir)
 
 cli.add_command(start)
+cli.add_command(run_scriptdir)
+cli.add_command(run_scriptdir_in_container)
 
 if __name__ == "__main__":
     cli()
