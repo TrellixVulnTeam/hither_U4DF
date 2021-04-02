@@ -107,17 +107,14 @@ def _run_script_in_container_docker(*,
     from docker.types import Mount
     from docker.models.containers import Container
 
-    print('--- a1')
     client = docker.from_env()
 
-    print('--- a2')
     # create the mounts
     mounts = [
         Mount(target=x.target, source=x.source, type='bind', read_only=x.read_only)
         for x in all_bind_mounts
     ]
 
-    print('--- a3')
     # create the container
     container = cast(Container, client.containers.create(
         image_name,
@@ -126,7 +123,6 @@ def _run_script_in_container_docker(*,
         network_mode='host'
     ))
 
-    print('--- a4')
     # copy input directory to /working/input
     if input_dir:
         input_tar_path = tmpdir + '/input.tar.gz'
@@ -135,7 +131,6 @@ def _run_script_in_container_docker(*,
         with open(input_tar_path, 'rb') as tarf:
             container.put_archive('/working/', tarf)
 
-    print('--- a5')
     # run the container
     container.start()
     logs = container.logs(stream=True)
@@ -144,7 +139,6 @@ def _run_script_in_container_docker(*,
             if b:
                 print(b.decode())
     
-    print('--- a6')
     # copy output from /working/output
     if output_dir:
         strm, st = container.get_archive(path='/working/output/')
@@ -156,8 +150,6 @@ def _run_script_in_container_docker(*,
             tar.extractall(tmpdir)
         for fname in os.listdir(tmpdir + '/output'):
             shutil.move(tmpdir + '/output/' + fname, output_dir + '/' + fname)
-    
-    print('--- a7')
 
 def _run_script_in_container_singularity(*,
     all_bind_mounts: List[BindMount],

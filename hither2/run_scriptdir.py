@@ -1,5 +1,5 @@
 import time
-from .scriptdir_runner.scriptdir_runner import ScriptDirRunnerJob
+from .scriptdir_runner import ScriptDirRunnerJob
 
 from numpy import source
 from .dockerimage import DockerImage, RemoteDockerImage

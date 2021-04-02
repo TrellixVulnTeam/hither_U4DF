@@ -1,4 +1,3 @@
-from abc import abstractmethod
 import os
 from typing import Union
 from .dockerimage import DockerImage, _use_singularity

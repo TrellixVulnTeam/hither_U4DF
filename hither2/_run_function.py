@@ -1,5 +1,5 @@
-from hither2.function import FunctionWrapper
-from hither2.run_scriptdir_in_container import DockerImage
+from .function import FunctionWrapper
+from .run_scriptdir_in_container import DockerImage
 from typing import Callable, Union
 from ._job_cache import JobCache
 from ._check_job_cache import _check_job_cache

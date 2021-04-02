@@ -1,4 +1,4 @@
-from hither2.run_scriptdir_in_container import DockerImage
+from .run_scriptdir_in_container import DockerImage
 import time
 import uuid
 from typing import Any, Callable, Union

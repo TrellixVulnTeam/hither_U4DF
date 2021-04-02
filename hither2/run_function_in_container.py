@@ -1,13 +1,11 @@
-from hither2.run_scriptdir import run_scriptdir
-from hither2.create_scriptdir_for_function_run import create_scriptdir_for_function_run
+from .run_scriptdir import run_scriptdir
+from .create_scriptdir_for_function_run import create_scriptdir_for_function_run
 import os
-import inspect
 import shutil
-import importlib
 import fnmatch
 from typing import Callable, Dict, List
 from .run_scriptdir_in_container import DockerImage, BindMount, run_scriptdir_in_container
-from ._safe_pickle import _safe_pickle, _safe_unpickle
+from ._safe_pickle import _safe_unpickle
 
 def run_function_in_container(
     function: Callable, *,

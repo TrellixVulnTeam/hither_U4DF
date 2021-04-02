@@ -1,12 +1,12 @@
 import fnmatch
-from hither2.dockerimage import DockerImage
+from .dockerimage import DockerImage
 import importlib
 import inspect
 import os
 import shutil
 import json
 from typing import Callable, Dict, List, Union
-from ._safe_pickle import _safe_pickle, _safe_unpickle
+from ._safe_pickle import _safe_pickle
 from .run_scriptdir_in_container import BindMount
 
 

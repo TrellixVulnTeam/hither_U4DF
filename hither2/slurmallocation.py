@@ -2,9 +2,9 @@ import os
 import json
 import time
 from typing import Dict, Union
-from .._job import Job
-from ..create_scriptdir_for_function_run import create_scriptdir_for_function_run
-from .._safe_pickle import _safe_unpickle
+from ._job import Job
+from .create_scriptdir_for_function_run import create_scriptdir_for_function_run
+from ._safe_pickle import _safe_unpickle
 
 class SlurmAllocation:
     def __init__(self, *, directory: str, srun_command: str, allocation_id: str):

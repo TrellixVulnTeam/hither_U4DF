@@ -3,10 +3,9 @@ import time
 from typing import Dict, List, Union
 import uuid
 import os
-import operator
 from ._job_handler import JobHandler
 from ._job import Job
-from .scriptdir_runner.slurmallocation import SlurmAllocation
+from .slurmallocation import SlurmAllocation
 
 class SlurmJobHandler(JobHandler):
     def __init__(self, *, num_jobs_per_allocation: int, max_simultaneous_allocations: Union[int, None], srun_command: str):
