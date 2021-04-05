@@ -1,7 +1,6 @@
 from .version import __version__
 from .run_scriptdir_in_container import run_scriptdir_in_container
 from .run_function_in_container import run_function_in_container
-from .run_function_in_container_with_kachery_support import run_function_in_container_with_kachery_support
 from .dockerimage import LocalDockerImage, RemoteDockerImage
 from .dockerimagefromscript import DockerImageFromScript
 from .function import function

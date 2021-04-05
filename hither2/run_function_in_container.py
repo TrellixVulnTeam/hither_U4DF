@@ -1,41 +1,34 @@
+from .function import FunctionWrapper
 from .run_scriptdir import run_scriptdir
 from .create_scriptdir_for_function_run import create_scriptdir_for_function_run
 import os
 import shutil
 import fnmatch
-from typing import Callable, Dict, List
+from typing import Callable, Dict, List, Union
 from .run_scriptdir_in_container import DockerImage, BindMount, run_scriptdir_in_container
 from ._safe_pickle import _safe_unpickle
+from .create_scriptdir_for_function_run import _update_bind_mounts_and_environment_for_kachery_support
 
 def run_function_in_container(
-    function: Callable, *,
-    image: DockerImage,
+    function_wrapper: FunctionWrapper, *,
     kwargs: dict,
-    modules: List[str] = [],
-    environment: Dict[str, str] = dict(),
-    bind_mounts: List[BindMount] = [],
-    kachery_support = False
+    _environment: Dict[str, str] = dict(),
+    _bind_mounts: List[BindMount] = [],
+    _kachery_support: Union[None, bool] = None
 ):
     import kachery_p2p as kp
-    if kachery_support:
-        from .run_function_in_container_with_kachery_support import run_function_in_container_with_kachery_support
-        return run_function_in_container_with_kachery_support(
-            function=function,
-            image=image,
-            kwargs=kwargs,
-            modules=modules,
-            environment=environment,
-            bind_mounts=bind_mounts
-        )
+    if _kachery_support is None:
+        _kachery_support = function_wrapper.kachery_support
+    if _kachery_support:
+        _bind_mounts, _environment = _update_bind_mounts_and_environment_for_kachery_support(_bind_mounts, _environment)
     with kp.TemporaryDirectory(remove=True) as tmpdir:
         create_scriptdir_for_function_run(
             directory=tmpdir,
-            function=function,
+            function_wrapper=function_wrapper,
             kwargs=kwargs,
-            modules=modules,
-            image=image,
-            environment=environment,
-            bind_mounts=bind_mounts
+            use_container=True,
+            _environment=_environment,
+            _bind_mounts=_bind_mounts
         )
         output_dir = f'{tmpdir}/output'
         run_scriptdir(scriptdir=tmpdir)

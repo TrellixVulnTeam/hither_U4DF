@@ -33,6 +33,17 @@ class FunctionWrapper:
         self._image = image
         self._modules = modules
         self._kachery_support = kachery_support
+
+        function_name = self._name
+        try:
+            function_source_path = inspect.getsourcefile(_unwrap_function(f)) # important to unwrap the function so we don't get the source file name of the wrapped function (if there are decorators)
+            if function_source_path is None:
+                raise Exception(f'Unable to get source file for function {function_name} (*). Cannot run in a container or remotely.')
+            function_source_path = os.path.abspath(function_source_path)
+        except:
+            raise Exception(f'Unable to get source file for function {function_name}. Cannot run in a container or remotely.')
+        self._function_source_path = function_source_path
+
     @property
     def f(self) -> Callable:
         return self._f
@@ -51,6 +62,9 @@ class FunctionWrapper:
     @property
     def kachery_support(self) -> bool:
         return self._kachery_support
+    @property
+    def function_source_path(self) -> str:
+        return self._function_source_path
 
 def function(
     name: str,
@@ -98,3 +112,10 @@ def _get_hither_function_wrapper(f: Callable) -> FunctionWrapper:
 
 def _function_path(f):
     return os.path.abspath(inspect.getfile(f))
+
+# strip away the decorators
+def _unwrap_function(f):
+    if hasattr(f, '__wrapped__'):
+        return _unwrap_function(f.__wrapped__)
+    else:
+        return f

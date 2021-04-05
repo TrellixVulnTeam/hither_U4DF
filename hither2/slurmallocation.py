@@ -55,11 +55,12 @@ class SlurmAllocation:
         self._status = 'stopped'
     def add_job(self, job: Job):
         self._jobs[job.job_id] = job
+        function_wrapper = job.function_wrapper
         create_scriptdir_for_function_run(
             directory=f'{self._jobs_dir}/{job.job_id}',
-            function=job.function,
+            function_wrapper=function_wrapper,
             kwargs=job.get_resolved_kwargs(),
-            modules=[] # wait until containerization is implemented
+            use_container=job.config.use_container
         )
     @property
     def is_running(self):

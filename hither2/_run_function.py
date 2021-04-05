@@ -11,7 +11,7 @@ def _run_function(*,
     kwargs: dict,
     use_container: bool
 ):
-    fw = function_wrapper
+    # fw = function_wrapper
     # if job_cache is not None:
     #     cache_result = _check_job_cache(function_name=fw.name, function_version=fw.version, kwargs=kwargs, job_cache=job_cache)
     #     if cache_result is not None:
@@ -19,16 +19,13 @@ def _run_function(*,
     #             print(f'Using cached result for {fw.name} ({fw.version})')
     #             return cache_result.return_value
 
-    image = fw.image
-    if use_container and (image is not None):
+    if use_container and (function_wrapper.image is not None):
         return run_function_in_container(
-            function=fw.f,
-            image=image,
+            function_wrapper=function_wrapper,
             kwargs=kwargs,
-            modules=fw.modules,
-            environment={},
-            bind_mounts=[],
-            kachery_support=fw.kachery_support
+            _environment={},
+            _bind_mounts=[],
+            _kachery_support=function_wrapper.kachery_support
         )
     else:
-        return fw.f(**kwargs)
+        return function_wrapper.f(**kwargs)
