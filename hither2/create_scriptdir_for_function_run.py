@@ -72,7 +72,8 @@ def create_scriptdir_for_function_run(
             kwargs=kwargs,
             use_container=False,
             show_console=show_console,
-            _kachery_support = False
+            _kachery_support = False,
+            _environment=_environment
         )
         bind_mounts_path = f'{directory}/bind_mounts.json'
         with open(bind_mounts_path, 'w') as f:
