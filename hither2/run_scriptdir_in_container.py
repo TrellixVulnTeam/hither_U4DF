@@ -47,7 +47,8 @@ def run_scriptdir_in_container_2(*,
     env_path = f'{scriptdir}/env'
     input_dir = f'{scriptdir}/input'
 
-    with kp.TemporaryDirectory() as tmpdir:
+    remove = False if os.getenv('HITHER_CONTAINER_DEBUG', None) in ['TRUE', '1'] else True
+    with kp.TemporaryDirectory(remove=remove) as tmpdir:
         # entrypoint script to run inside the container
         entry_sh_script = f'''
         #!/bin/bash
