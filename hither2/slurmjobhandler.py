@@ -25,7 +25,10 @@ class SlurmJobHandler(JobHandler):
         for b in self._allocations:
             if b.status == 'running':
                 b.stop()
-        shutil.rmtree(self._directory)
+        if os.getenv('HITHER_SLURM_DEBUG', None) not in ['1', 'TRUE']:
+            shutil.rmtree(self._directory)
+        else:
+            print(f'Keeping directory because HITHER_SLURM_DEBUG=1: {self._directory}')
         self._halted = True
     
     def is_remote(self) -> bool:
