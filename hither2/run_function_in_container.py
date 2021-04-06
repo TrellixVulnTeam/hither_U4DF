@@ -30,7 +30,8 @@ def run_function_in_container(
             use_container=True,
             show_console=show_console,
             _environment=_environment,
-            _bind_mounts=_bind_mounts
+            _bind_mounts=_bind_mounts,
+            _kachery_support=False
         )
         output_dir = f'{tmpdir}/output'
         j = run_scriptdir(scriptdir=tmpdir)
