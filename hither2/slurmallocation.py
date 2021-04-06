@@ -60,7 +60,8 @@ class SlurmAllocation:
             directory=f'{self._jobs_dir}/{job.job_id}',
             function_wrapper=function_wrapper,
             kwargs=job.get_resolved_kwargs(),
-            use_container=job.config.use_container
+            use_container=job.config.use_container,
+            show_console=job.config.show_console
         )
     @property
     def is_running(self):
@@ -110,17 +111,25 @@ class SlurmAllocation:
             elif s == 'queued':
                 pass
             elif s == 'running':
-                j._set_running()
-            elif s == 'finished':
-                return_value = _safe_unpickle(f'{self._jobs_dir}/{job_id}/output/return_value.pkl')
-                j._set_finished(return_value)
-            elif s == 'error':
-                error_path = f'{self._jobs_dir}/{job_id}/output/error.pkl'
-                if os.path.isfile(error_path):
-                    error_message = _safe_unpickle(error_path)
-                else:
-                    error_message = 'Error running job - no error.pkl found'
-                j._set_error(Exception(error_message))
+                if j.status != 'running':
+                    j._set_running()
+            elif s == 'complete':
+                if j.status not in ['finished', 'error']:
+                    console_lines_path = f'{self._jobs_dir}/{job_id}/output/console_lines.pkl'
+                    if os.path.isfile(console_lines_path):
+                        console_lines = _safe_unpickle(console_lines_path)
+                        j._set_console_lines(console_lines)
+                    return_value_path = f'{self._jobs_dir}/{job_id}/output/return_value.pkl'
+                    error_message_path = f'{self._jobs_dir}/{job_id}/output/error_message.pkl'
+                    if os.path.isfile(return_value_path):
+                        return_value = _safe_unpickle(return_value_path)
+                        j._set_finished(return_value)
+                    elif os.path.isfile(error_message_path):
+                        error_message = _safe_unpickle(error_message_path)
+                        j._set_error(Exception(error_message))
+                    else:
+                        error_message = 'No error_message.pkl found'
+                        j._set_error(Exception(error_message))
     def get_num_incomplete_jobs(self):
         ret = 0
         for job_id, job in self._jobs.items():

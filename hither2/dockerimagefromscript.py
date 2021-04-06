@@ -26,10 +26,6 @@ class DockerImageFromScript(DockerImage):
             self._tag = self._get_tag_from_dockerfile()
             dockerfile_dir = os.path.dirname(self._dockerfile)
             dockerfile_basename = os.path.basename(self._dockerfile)
-            try:
-                import docker
-            except:
-                raise Exception('docker python package not installed.')
 
             if _use_singularity():
                 ss = kp.ShellScript(f'''
@@ -43,6 +39,10 @@ class DockerImageFromScript(DockerImage):
                 ss.wait()
                 self._prepared = True
             else:
+                try:
+                    import docker
+                except:
+                    raise Exception('docker python package not installed.')
                 docker_client = docker.from_env()
                 try:
                     docker_client.images.get(self._name + ':' + self._tag)

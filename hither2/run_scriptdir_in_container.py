@@ -58,6 +58,7 @@ def run_scriptdir_in_container_2(*,
         export PYTHONUNBUFFERED=1
 
         mkdir -p /working/output
+        echo "dummy" > /working/output/dummy
         cd /working
         exec ./run
         '''

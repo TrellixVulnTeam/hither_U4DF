@@ -6,6 +6,7 @@ from ._config import UseConfig
 from .function import _get_hither_function_wrapper
 from ._check_job_cache import _check_job_cache, _write_result_to_job_cache, _batch_check_job_cache
 from ._run_function import _run_function
+from .log import Log
 
 class JobManager:
     def __init__(self):
@@ -15,6 +16,7 @@ class JobManager:
         self._num_finished = 0
         self._num_errored = 0
         self._num_cache_hits = 0
+        self._current_log: Union[None, Log] = None
     def _add_job(self, job: Job):
         self._jobs[job.job_id] = job
     def _iterate(self):
@@ -32,6 +34,8 @@ class JobManager:
         with Timer('manage-pending-jobs'):
             for job_id, job in self._jobs.items():
                 if job.status == 'pending':
+                    if job.log is not None:
+                        self._current_log = job.log
                     f = job.function
                     fw = _get_hither_function_wrapper(f)
                     if fw is None:
@@ -42,20 +46,18 @@ class JobManager:
                         jh = job.config.job_handler
                         if jh is not None:
                             # we have a job handler
-                            job._set_queued()
                             jh.queue_job(job)
+                            job._set_queued()
                         else:
                             job._set_running()
-                            try:
-                                return_value = _run_function(
-                                    function_wrapper=fw,
-                                    kwargs=job.get_resolved_kwargs(),
-                                    use_container=job.config.use_container
-                                )
-                                error = None
-                            except Exception as e:
-                                error = e
-                                return_value = None
+                            return_value, error, console_lines = _run_function(
+                                function_wrapper=fw,
+                                kwargs=job.get_resolved_kwargs(),
+                                use_container=job.config.use_container,
+                                show_console=job.config.show_console
+                            )
+                            if console_lines is not None:
+                                job._set_console_lines(console_lines)
                             if error is None:
                                 job._set_finished(return_value=return_value)
                             else:
@@ -139,6 +141,8 @@ class JobManager:
         num_queued = job_counts_by_status.get('queued', 0)
         num_running = job_counts_by_status.get('running', 0)
         status_txt = f'HITHER JOBS: {num_pending} pending; {num_queued} queued; {num_running} running; {self._num_finished} finished; {self._num_errored} errored; {self._num_cache_hits} cache hits'
+        if self._current_log is not None:
+            status_txt = status_txt + '\n' + f'hither-log print --log-id {self._current_log.log_id} --follow'
         if (force) or (status_txt != self._last_status_text):
             print(status_txt)
             self._last_status_text = status_txt

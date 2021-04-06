@@ -7,7 +7,8 @@ setuptools.setup(
     include_package_data=True,
     scripts=[
         "bin/hither-compute-resource",
-        "bin/hither-scriptdir-runner"
+        "bin/hither-scriptdir-runner",
+        "bin/hither-log"
     ],
     install_requires=[
         "click",

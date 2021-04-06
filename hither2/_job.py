@@ -1,10 +1,10 @@
 from .run_scriptdir_in_container import DockerImage
 import time
 import uuid
-from typing import Any, Callable, Union
+from typing import Any, Callable, List, Union, cast
 
 class JobResult:
-    def __init__(self, *, return_value: Any=None, error: Union[Exception, None]=None, status: str):
+    def __init__(self, *, return_value: Any=None, error: Union[Exception, None]=None, console_lines: List[dict], status: str):
         if status == 'finished':
             assert error == None, 'Error must be None if status is finished'
         elif status == 'error':
@@ -13,6 +13,7 @@ class JobResult:
             raise Exception(f'Unexpected status for job result: {status}')
         self._return_value = return_value
         self._error = error
+        self._console_lines = console_lines
         self._status = status
     @property
     def return_value(self):
@@ -21,6 +22,9 @@ class JobResult:
     def error(self):
         return self._error
     @property
+    def console_lines(self):
+        return self._console_lines
+    @property
     def status(self):
         return self._status
     def to_cache_dict(self):
@@ -28,6 +32,7 @@ class JobResult:
         return {
             'returnValueUri': kp.store_pkl(self._return_value) if self._return_value is not None else None,
             'errorMessage': str(self._error) if self._error is not None else None,
+            'consoleLinesUri': kp.store_json(self._console_lines),
             'status': self._status
         }
     @staticmethod
@@ -35,15 +40,21 @@ class JobResult:
         import kachery_p2p as kp
         rv_uri = x.get('returnValueUri', None)
         e = x.get('errorMessage', None)
+        cl_uri = x.get('consoleLinesUri', None)
         s = x.get('status', '')
         if rv_uri is None:
             raise Exception('No returnValueUri')
         if kp.load_file(rv_uri) is None:
             raise Exception('Unable to load cached return value')
         return_value = kp.load_pkl(rv_uri)
+        if cl_uri is not None:
+            cl = cast(List[dict], kp.load_json(cl_uri))
+        else:
+            cl = None
         return JobResult(
             return_value=return_value,
             error=Exception(e) if e is not None else None,
+            console_lines=cl if cl is not None else [],
             status=s
         )
 
@@ -66,11 +77,14 @@ class Job:
         self._cancel_pending = False
         self._result: Union[JobResult, None] = None
         self._result_is_from_cache: bool = False
+        self._console_lines: Union[None, List[dict]] = None
         if self._config.use_container:
             if self._function_wrapper.image is not None:
                 self._function_wrapper.image.prepare()
 
         self._job_manager._add_job(self)
+        if self.log:
+            self.log._report_job_created(self)
     @property
     def job_id(self):
         return self._job_id
@@ -110,17 +124,30 @@ class Job:
     @property
     def cancel_pending(self):
         return self._cancel_pending
+    @property
+    def log(self):
+        return self.config.log
     def _set_queued(self):
         self._status = 'queued'
+        if self.log:
+            self.log._report_job_queued(self)
     def _set_running(self):
         self._status = 'running'
+        if self.log:
+            self.log._report_job_running(self)
     def _set_finished(self, return_value: Any, result_is_from_cache: bool=False):
         self._status = 'finished'
-        self._result = JobResult(return_value=return_value, status='finished')
+        self._result = JobResult(return_value=return_value, status='finished', console_lines=self._console_lines if self._console_lines is not None else [])
         self._result_is_from_cache = result_is_from_cache
+        if self.log:
+            self.log._report_job_finished(self)
     def _set_error(self, error: Exception):
         self._status = 'error'
-        self._result = JobResult(error=error, status='error')
+        self._result = JobResult(error=error, status='error', console_lines=self._console_lines if self._console_lines is not None else [])
+        if self.log:
+            self.log._report_job_error(self)
+    def _set_console_lines(self, lines: List[dict]=[]):
+        self._console_lines = lines
     def wait(self, timeout_sec: Union[float, None]=None):
         timer = time.time()
         while True:
@@ -139,6 +166,21 @@ class Job:
                 elaped = time.time() - timer
                 if elaped > timeout_sec:
                     return None
+    def print_console(self, label: Union[None, str]=None):
+        if label is None:
+            label = self.function_name
+        lines = self._console_lines
+        if lines is not None:
+            _print_console_lines(lines, label=label)
+
+def _print_console_lines(lines: List[dict], *, label: str=''):
+    if lines is None:
+        return
+    for line in lines:
+        ts = line["timestamp"]
+        txt = line["text"]
+        label_str = f' {label}' if label else ''
+        print(f'{_fmt_time(ts)}{label_str}: {txt}')
 
 def _resolve_kwargs(x: Any):
     if isinstance(x, Job):
@@ -157,3 +199,7 @@ def _resolve_kwargs(x: Any):
         return tuple([_resolve_kwargs(a) for a in x])
     else:
         return x
+
+def _fmt_time(t):
+    import datetime
+    return datetime.datetime.fromtimestamp(t).isoformat()

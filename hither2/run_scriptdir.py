@@ -11,7 +11,7 @@ def run_scriptdir(*,
     j.start()
     while True:
         j.iterate()
-        if j.status in ['finished', 'error']:
+        if j.status == 'complete':
             break
         time.sleep(0.1)
     return j

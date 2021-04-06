@@ -4,7 +4,7 @@ from .create_scriptdir_for_function_run import create_scriptdir_for_function_run
 import os
 import shutil
 import fnmatch
-from typing import Callable, Dict, List, Union
+from typing import Any, Callable, Dict, List, Tuple, Union
 from .run_scriptdir_in_container import DockerImage, BindMount, run_scriptdir_in_container
 from ._safe_pickle import _safe_unpickle
 from .create_scriptdir_for_function_run import _update_bind_mounts_and_environment_for_kachery_support
@@ -12,10 +12,11 @@ from .create_scriptdir_for_function_run import _update_bind_mounts_and_environme
 def run_function_in_container(
     function_wrapper: FunctionWrapper, *,
     kwargs: dict,
+    show_console: bool,
     _environment: Dict[str, str] = dict(),
     _bind_mounts: List[BindMount] = [],
     _kachery_support: Union[None, bool] = None
-):
+) -> Tuple[Any, Union[None, Exception], Union[None, List[dict]]]:
     import kachery_p2p as kp
     if _kachery_support is None:
         _kachery_support = function_wrapper.kachery_support
@@ -27,14 +28,35 @@ def run_function_in_container(
             function_wrapper=function_wrapper,
             kwargs=kwargs,
             use_container=True,
+            show_console=show_console,
             _environment=_environment,
             _bind_mounts=_bind_mounts
         )
         output_dir = f'{tmpdir}/output'
-        run_scriptdir(scriptdir=tmpdir)
+        j = run_scriptdir(scriptdir=tmpdir)
 
-        return_value = _safe_unpickle(output_dir + '/return_value.pkl')
-        return return_value
+        if j.status == 'complete':
+            return_value_path = output_dir + '/return_value.pkl'
+            error_message_path = output_dir + '/error_message.pkl'
+            if os.path.isfile(return_value_path):
+                return_value = _safe_unpickle(return_value_path)
+                error = None
+            elif os.path.isfile(error_message_path):
+                return_value = None
+                error_message = _safe_unpickle(error_message_path)
+                error = Exception(error_message)
+            else:
+                return_value = None
+                error_message = 'Not found: error_message.pkl'
+                error = Exception(error_message)
+        else:
+            raise Exception(f'Unexpected status for scriptdir job: {j.status}')
+        console_lines_path = output_dir + '/console_lines.pkl'
+        if os.path.isfile(console_lines_path):
+            console_lines = _safe_unpickle(console_lines_path)
+        else:
+            console_lines = None
+        return return_value, error, console_lines
 
 def _copy_py_module_dir(src_path: str, dst_path: str):
     patterns = ['*.py']

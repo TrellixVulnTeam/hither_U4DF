@@ -44,6 +44,7 @@ def create_scriptdir_for_function_run(
     function_wrapper: FunctionWrapper,
     kwargs: dict,
     use_container: bool,
+    show_console: bool,
     _bind_mounts: List[BindMount] = [],
     _environment: Dict[str, str] = {},
     _kachery_support: Union[None, bool] = None
@@ -69,7 +70,8 @@ def create_scriptdir_for_function_run(
             directory=incontainer_scriptdir_path,
             function_wrapper=function_wrapper,
             kwargs=kwargs,
-            use_container=False
+            use_container=False,
+            show_console=show_console
         )
         bind_mounts_path = f'{directory}/bind_mounts.json'
         with open(bind_mounts_path, 'w') as f:
@@ -131,18 +133,26 @@ def create_scriptdir_for_function_run(
     import sys
     sys.path.append(f'{{input_dir}}/modules')
 
+    import traceback
     import hither2 as hi
 
     from f_src.{function_source_basename_noext} import {function_name}
 
     def main(): 
         kwargs = hi._safe_unpickle(f'{{input_dir}}/kwargs.pkl')
-        try:
-            return_value = {function_name}(**kwargs)
-        except Exception as e:
-            hi._safe_pickle(f'{{output_dir}}/error.pkl', str(e))
-            raise e
-        hi._safe_pickle(f'{{output_dir}}/return_value.pkl', return_value)
+        with hi.ConsoleCapture(show_console={show_console}) as cc:
+            try:
+                return_value = {function_name}(**kwargs)
+                error = None
+            except Exception as e:
+                return_value = None
+                error = e
+                print(traceback.format_exc())
+            if return_value is not None:
+                hi._safe_pickle(f'{{output_dir}}/return_value.pkl', return_value)
+            if error is not None:
+                hi._safe_pickle(f'{{output_dir}}/error_message.pkl', str(error))
+            hi._safe_pickle(f'{{output_dir}}/console_lines.pkl', cc.lines)
 
     if __name__ == '__main__':
         main()

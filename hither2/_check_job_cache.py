@@ -47,6 +47,8 @@ def _batch_check_job_cache(jobs: List[Job]):
                     if job_result is not None:
                         if job_result.status == 'finished':
                             print(f'Using cached result for {job.function_name} ({job.function_version})')
+                            if job_result.console_lines is not None:
+                                job._set_console_lines(job_result.console_lines)
                             job._set_finished(job_result.return_value, result_is_from_cache=True)
                 else:
                     print('Warning: incorrect job cache version')

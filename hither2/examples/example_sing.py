@@ -21,6 +21,10 @@ def main():
     modules=[]
 )
 def test_numpy_serialization2(*, x: np.ndarray, delay: Union[float, None]=None):
+    print(f'test numpy serialization {x.shape} {delay}')
+    print('a')
+    print('abc')
+    print('def')
     if delay is not None:
         time.sleep(delay)
     return x, x * 2
@@ -31,8 +35,11 @@ def test_id(x):
 
 def test_sing():
     jh = hi.ParallelJobHandler(num_workers=4)
+    log = hi.Log()
     a = np.array([1, 2, 3, 4, 5])
-    with hi.Config(use_container=True, job_handler=jh):
+    # jc = hi.JobCache(feed_name='c2')
+    jc = None
+    with hi.Config(use_container=True, job_handler=jh, log=log, job_cache=jc):
         jobs = [
             hi.Job(test_numpy_serialization2, dict(x=a*i, delay=3))
             for i in range(6)
@@ -41,6 +48,8 @@ def test_sing():
         print('*******************************************')
         cc = j2.wait().return_value
         print(cc)
+        for job in jobs:
+            job.print_console()
 
 if __name__ == '__main__':
     main()

@@ -10,7 +10,6 @@ class ScriptDirRunnerJob:
         self._directory = directory
         self._status = ''
         self._script: Union[None, kp.ShellScript] = None
-        self._retcode: Union[None, int] = None
         self._set_status('pending')
 
     @property
@@ -39,9 +38,10 @@ class ScriptDirRunnerJob:
             if retcode is not None:
                 self._retcode = retcode
                 if retcode == 0:
-                    self._set_status('finished')
+                    self._set_status('complete')
                 else:
-                    self._set_status('error')
+                    print(f'WARNING: Unexpected return code in ScriptDirRunnerJob: {retcode}')
+                    self._set_status('complete')
 
     def _set_status(self, status):
         if self._status == status:
@@ -84,8 +84,7 @@ class ScriptDirRunner:
             'job_counts': {
                 'pending': 0,
                 'running': 0,
-                'finished': 0,
-                'error': 0
+                'complete': 0
             },
             'jobs': {}
         }

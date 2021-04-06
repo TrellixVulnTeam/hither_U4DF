@@ -21,19 +21,23 @@ def main():
     modules=[]
 )
 def test_numpy_serialization2(*, x: np.ndarray, delay: Union[float, None]=None):
+    print(f'nps {x.shape} {delay}')
     if delay is not None:
         time.sleep(delay)
     return x, x * 2
 
 @hi.function('test_id', '0.1.0')
 def test_id(x):
+    print(f'+++id+++')
     return x
 
 def test_sing():
     jh = hi.SlurmJobHandler(num_jobs_per_allocation=4, max_simultaneous_allocations=3, srun_command='sleep 4 && ')
+    # jh = hi.ParallelJobHandler(num_workers=4)
+    log = hi.Log()
     try:
         a = np.array([1, 2, 3, 4, 5])
-        with hi.Config(use_container=True, job_handler=jh):
+        with hi.Config(use_container=True, job_handler=jh, log=log):
             jobs = [
                 hi.Job(test_numpy_serialization2, dict(x=a*i, delay=7))
                 for i in range(20)
@@ -42,6 +46,8 @@ def test_sing():
             print('*******************************************')
             cc = j2.wait().return_value
             print(cc)
+            for j in jobs:
+                j.print_console()
     finally:
         jh.cleanup()
 

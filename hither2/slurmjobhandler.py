@@ -74,7 +74,6 @@ class SlurmJobHandler(JobHandler):
             job = self._pending_jobs[job_id]
             b = self._find_running_allocation_with_empty_slot()
             if b is not None:
-                job._set_queued()
                 b.add_job(job)
                 del self._pending_jobs[job_id]
 

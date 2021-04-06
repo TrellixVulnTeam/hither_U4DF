@@ -15,5 +15,7 @@ from ._job_handler import JobHandler
 from .function import get_function
 from .scriptdir_runner import ScriptDirRunner
 from .run_scriptdir import run_scriptdir
+from .log import Log, LogReader
+from .consolecapture import ConsoleCapture
 
 # from kachery_p2p import TemporaryDirectory, ShellScript

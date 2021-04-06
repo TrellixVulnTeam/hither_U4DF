@@ -1,5 +1,5 @@
 from .function import FunctionWrapper
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Union
 import time
 import multiprocessing
 from multiprocessing.connection import Connection
@@ -67,7 +67,10 @@ class ParallelJobHandler(JobHandler):
                         if ret is not None:
                             p['pipe_to_child'].send('okay!')
                             rv = ret['return_value']
-                            e: str = ret['error']
+                            e: Union[None, str] = ret['error']
+                            console_lines: Union[None, List[dict]] = ret['console_lines']
+                            if console_lines is not None:
+                                j._set_console_lines(console_lines)
                             if e is None:
                                 j._set_finished(rv)
                                 p['pjh_status'] = 'finished'
@@ -119,20 +122,17 @@ class ParallelJobHandler(JobHandler):
                     num_running = num_running + 1
 
 def _pjh_run_job(pipe_to_parent: Connection, function_wrapper: FunctionWrapper, kwargs: Dict[str, Any], config: ConfigEntry) -> None:
-    try:
-        return_value = _run_function(
-            function_wrapper=function_wrapper,
-            kwargs=kwargs,
-            use_container=config.use_container
-        )
-        error = None
-    except Exception as e:
-        error = e
-        return_value = None
+    return_value, error, console_lines = _run_function(
+        function_wrapper=function_wrapper,
+        kwargs=kwargs,
+        use_container=config.use_container,
+        show_console=config.show_console
+    )
 
     ret = dict(
         return_value=return_value,
-        error=str(error) if error is not None else None
+        error=str(error) if error is not None else None,
+        console_lines=console_lines
     )
 
     pipe_to_parent.send(ret)
