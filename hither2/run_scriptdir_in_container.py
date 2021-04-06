@@ -172,7 +172,6 @@ def _run_script_in_container_singularity(*,
 
     singularity exec \\
         {bind_opts} \\
-        -C \\
         --bind {input_dir}:/working/input \\
         --bind {output_dir}:/working/output \\
         docker://{image_name} \\
