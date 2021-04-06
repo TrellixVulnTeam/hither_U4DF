@@ -60,6 +60,7 @@ def run_scriptdir_in_container_2(*,
         mkdir -p /working/output
         echo "dummy" > /working/output/dummy
         cd /working
+        source ./env
         exec ./run
         '''
         entry_sh_path = tmpdir + '/entry.sh'
@@ -172,6 +173,7 @@ def _run_script_in_container_singularity(*,
 
     singularity exec \\
         {bind_opts} \\
+        -C \\
         --bind {input_dir}:/working/input \\
         --bind {output_dir}:/working/output \\
         docker://{image_name} \\
