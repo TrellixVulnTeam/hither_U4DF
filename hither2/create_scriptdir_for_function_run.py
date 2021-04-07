@@ -142,19 +142,21 @@ def create_scriptdir_for_function_run(
 
     def main(): 
         kwargs = hi._safe_unpickle(f'{{input_dir}}/kwargs.pkl')
-        with hi.ConsoleCapture(show_console={show_console}) as cc:
-            try:
-                return_value = {function_name}(**kwargs)
-                error = None
-            except Exception as e:
-                return_value = None
-                error = e
-                print(traceback.format_exc())
-            if return_value is not None:
-                hi._safe_pickle(f'{{output_dir}}/return_value.pkl', return_value)
-            if error is not None:
-                hi._safe_pickle(f'{{output_dir}}/error_message.pkl', str(error))
-            hi._safe_pickle(f'{{output_dir}}/console_lines.pkl', cc.lines)
+        
+        with hi.EndProcessWhenDirectoryDisappears(f'{{thisdir}}'):
+            with hi.ConsoleCapture(show_console={show_console}) as cc:
+                try:
+                    return_value = {function_name}(**kwargs)
+                    error = None
+                except Exception as e:
+                    return_value = None
+                    error = e
+                    print(traceback.format_exc())
+                if return_value is not None:
+                    hi._safe_pickle(f'{{output_dir}}/return_value.pkl', return_value)
+                if error is not None:
+                    hi._safe_pickle(f'{{output_dir}}/error_message.pkl', str(error))
+                hi._safe_pickle(f'{{output_dir}}/console_lines.pkl', cc.lines)
 
     if __name__ == '__main__':
         main()

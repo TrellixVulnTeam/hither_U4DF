@@ -2,6 +2,7 @@ import shutil
 import time
 from typing import Dict, List, Union
 import uuid
+import atexit
 import os
 from ._job_handler import JobHandler
 from ._job import Job
@@ -20,6 +21,8 @@ class SlurmJobHandler(JobHandler):
         self._allocations: List[SlurmAllocation] = []
         self._allocations_marked_for_stopping: Dict[str, Union[None, float]] = {}
         self._last_print_status_timestamp = 0
+        self._halted = False
+        _all_slurm_job_handlers.append(self)
 
     def cleanup(self):
         for b in self._allocations:
@@ -70,6 +73,9 @@ class SlurmJobHandler(JobHandler):
         # todo
     
     def iterate(self):
+        if self._halted:
+            return
+
         self._print_status()
 
         pending_job_ids = list(self._pending_jobs.keys())
@@ -91,6 +97,10 @@ class SlurmJobHandler(JobHandler):
                         b.stop()
                     else:
                         self._allocations_marked_for_stopping[bi] = time.time()
+        
+        if not os.path.isdir(self._directory):
+            print(f'Stopping slurm job handler because directory no longer exists: {self._directory}')
+            self.cleanup()
     
     def _print_status(self):
         elapsed = time.time() - self._last_print_status_timestamp
@@ -109,3 +119,11 @@ class SlurmJobHandler(JobHandler):
             print(txt)
         
 
+_all_slurm_job_handlers: List[SlurmJobHandler] = []
+def cleanup_all():
+    for sjh in _all_slurm_job_handlers:
+        if not sjh._halted:
+            print(f'Cleaning up slurm job handler for directory {sjh._directory}')
+            sjh.cleanup()
+
+atexit.register(cleanup_all)

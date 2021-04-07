@@ -42,6 +42,9 @@ class ScriptDirRunnerJob:
                 else:
                     print(f'WARNING: Unexpected return code in ScriptDirRunnerJob: {retcode}')
                     self._set_status('complete')
+            if not os.path.isdir(self._directory):
+                print(f'Stopping scriptdir script because directory does not exist: {self._directory}')
+                self._script.stop()
 
     def _set_status(self, status):
         if self._status == status:
