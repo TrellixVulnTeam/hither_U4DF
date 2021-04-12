@@ -1,3 +1,4 @@
+from hither2.dockerimage import DockerImage
 from .function import FunctionWrapper
 from typing import List, Dict, Any, Union
 import time
@@ -18,6 +19,9 @@ class ParallelJobHandler(JobHandler):
 
     def cleanup(self):
         self._halted = True
+        for p in self._processes:
+            x = p['process']
+            
     
     def is_remote(self) -> bool:
         return False
@@ -109,9 +113,11 @@ class ParallelJobHandler(JobHandler):
         for p in self._processes:
             if p['pjh_status'] == 'pending':
                 if num_running < self._num_workers:
-                    job = p['job']
+                    job: Job = p['job']
                     pipe_to_parent, pipe_to_child = multiprocessing.Pipe()
-                    process = multiprocessing.Process(target=_pjh_run_job, args=(pipe_to_parent, job.function_wrapper, job.get_resolved_kwargs(), job.config))
+                    kwargs = job.get_resolved_kwargs()
+                    image = job.resolve_image(kwargs) if job.config.use_container else None
+                    process = multiprocessing.Process(target=_pjh_run_job, args=(pipe_to_parent, job.function_wrapper, kwargs, image, job.config))
                     p['process'] = process
                     p['pipe_to_child'] = pipe_to_child
 
@@ -121,11 +127,11 @@ class ParallelJobHandler(JobHandler):
                     p['process'].start()
                     num_running = num_running + 1
 
-def _pjh_run_job(pipe_to_parent: Connection, function_wrapper: FunctionWrapper, kwargs: Dict[str, Any], config: ConfigEntry) -> None:
+def _pjh_run_job(pipe_to_parent: Connection, function_wrapper: FunctionWrapper, kwargs: Dict[str, Any], image: Union[DockerImage, None], config: ConfigEntry) -> None:
     return_value, error, console_lines = _run_function(
         function_wrapper=function_wrapper,
+        image=image,
         kwargs=kwargs,
-        use_container=config.use_container,
         show_console=config.show_console
     )
 

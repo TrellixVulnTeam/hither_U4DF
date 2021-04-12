@@ -7,21 +7,7 @@ import tarfile
 
 from numpy import source
 from .dockerimage import DockerImage, RemoteDockerImage
-
-class BindMount:
-    def __init__(self, source: str, target: str, read_only: bool):
-        self.source = source
-        self.target = target
-        self.read_only = read_only
-    def serialize(self):
-        return {
-            'source': self.source,
-            'target': self.target,
-            'read_only': self.read_only
-        }
-    @staticmethod
-    def deserialize(x: dict):
-        return BindMount(**x)
+from ._bindmount import BindMount
 
 def run_scriptdir_in_container(*,
     scriptdir: str,
@@ -58,6 +44,8 @@ def run_scriptdir_in_container_2(*,
         # do not buffer the stdout
         export PYTHONUNBUFFERED=1
 
+        export HITHER_RUNNING_FILE=/running/running.txt
+
         mkdir -p /working/output
         echo "dummy" > /working/output/dummy
         cd /working
@@ -75,6 +63,12 @@ def run_scriptdir_in_container_2(*,
         ]
         for bm in bind_mounts:
             all_bind_mounts.append(bm)
+        
+        running_dir = tmpdir + '/running'
+        os.mkdir(running_dir)
+        with open(running_dir + '/running.txt', 'w') as f:
+            f.write('Process will end when this file is deleted')
+        all_bind_mounts.append(BindMount(target='/running', source=running_dir, read_only=False))
         
         use_singularity = os.getenv('HITHER_USE_SINGULARITY', None)
         if use_singularity in [None, 'FALSE', '0']:

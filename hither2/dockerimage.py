@@ -1,10 +1,13 @@
 from abc import abstractmethod
 import os
-from typing import Union
+from typing import Dict, List, Union
+
+from ._bindmount import BindMount
 
 class DockerImage:
-    def __init__(self):
-        pass
+    def __init__(self, bind_mounts: List[BindMount]=[], environment: Dict[str, str]={}):
+        self._bind_mounts = bind_mounts
+        self._environment = environment
     @abstractmethod
     def prepare(self) -> None:
         pass
@@ -17,6 +20,10 @@ class DockerImage:
     @abstractmethod
     def get_tag(self) -> str:
         pass
+    def get_bind_mounts(self) -> List[BindMount]:
+        return self._bind_mounts
+    def get_environment(self) -> Dict[str, str]:
+        return self._environment
 
 def _use_singularity():
     return os.getenv('HITHER_USE_SINGULARITY', None) in ['1', 'TRUE']

@@ -9,7 +9,7 @@ from copy import deepcopy
 from typing import Dict, List, Union
 import kachery_p2p as kp
 from ._safe_pickle import _safe_pickle
-from .run_scriptdir_in_container import BindMount
+from ._bindmount import BindMount
 
 def _update_bind_mounts_and_environment_for_kachery_support(
     bind_mounts: List[BindMount] = [],
@@ -42,8 +42,8 @@ def create_scriptdir_for_function_run(
     *,
     directory: str,
     function_wrapper: FunctionWrapper,
+    image: Union[DockerImage, None],
     kwargs: dict,
-    use_container: bool,
     show_console: bool,
     _bind_mounts: List[BindMount] = [],
     _environment: Dict[str, str] = {},
@@ -59,18 +59,19 @@ def create_scriptdir_for_function_run(
     if _kachery_support:
         _bind_mounts, _environment = _update_bind_mounts_and_environment_for_kachery_support(_bind_mounts, _environment)
 
-    image = function_wrapper.image
     modules = function_wrapper.modules
     
-    if (image is not None) and use_container:
+    if image is not None:
         if not image.is_prepared():
             raise Exception(f'Image must be prepared prior to running in container: {image.get_name()}:{image.get_tag()}')
+        _bind_mounts = _bind_mounts + image.get_bind_mounts()
+        _environment = {**_environment, **image.get_environment()}
         incontainer_scriptdir_path = f'{directory}/incontainer_scriptdir'
         create_scriptdir_for_function_run(
             directory=incontainer_scriptdir_path,
             function_wrapper=function_wrapper,
+            image=None,
             kwargs=kwargs,
-            use_container=False,
             show_console=show_console,
             _kachery_support = False,
             _environment=_environment
@@ -143,7 +144,7 @@ def create_scriptdir_for_function_run(
     def main(): 
         kwargs = hi._safe_unpickle(f'{{input_dir}}/kwargs.pkl')
         
-        with hi.EndProcessWhenDirectoryDisappears(f'{{thisdir}}'):
+        with hi.EndProcessWhenFileDisappears(os.getenv('HITHER_RUNNING_FILE', None)):
             with hi.ConsoleCapture(show_console={show_console}) as cc:
                 try:
                     return_value = {function_name}(**kwargs)

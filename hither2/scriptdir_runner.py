@@ -25,6 +25,9 @@ class ScriptDirRunnerJob:
 
         set -e
 
+        # if the run file disappears we will end the process
+        export HITHER_RUNNING_FILE="{self._directory}/run"
+
         cd {self._directory}
         {source_env_str}
         exec ./run

@@ -11,6 +11,7 @@ from .create_scriptdir_for_function_run import _update_bind_mounts_and_environme
 
 def run_function_in_container(
     function_wrapper: FunctionWrapper, *,
+    image: DockerImage,
     kwargs: dict,
     show_console: bool,
     _environment: Dict[str, str] = dict(),
@@ -26,8 +27,8 @@ def run_function_in_container(
         create_scriptdir_for_function_run(
             directory=tmpdir,
             function_wrapper=function_wrapper,
+            image=image,
             kwargs=kwargs,
-            use_container=True,
             show_console=show_console,
             _environment=_environment,
             _bind_mounts=_bind_mounts,

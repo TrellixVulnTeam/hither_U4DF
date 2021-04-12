@@ -78,13 +78,11 @@ class Job:
         self._result: Union[JobResult, None] = None
         self._result_is_from_cache: bool = False
         self._console_lines: Union[None, List[dict]] = None
-        if self._config.use_container:
-            if self._function_wrapper.image is not None:
-                self._function_wrapper.image.prepare()
+        self._resolved_image: Union[DockerImage, None] = None
 
         self._job_manager._add_job(self)
-        if self.log:
-            self.log._report_job_created(self)
+        if self._config.log:
+            self._config.log._report_job_created(self)
     @property
     def job_id(self):
         return self._job_id
@@ -103,9 +101,20 @@ class Job:
     @property
     def function_version(self):
         return self._function_wrapper.version
+    def _prepare(self):
+        if self._config.use_container:
+            if self._function_wrapper.image is not None:
+                self.resolve_image(self._kwargs).prepare()
     @property
-    def image(self) -> Union[DockerImage, None]:
+    def image(self) -> Union[DockerImage, Callable[..., DockerImage], None]:
         return self._function_wrapper.image
+    def resolve_image(self, kwargs: dict) -> Union[DockerImage, None]:
+        # important to do it this way so that the resolved image is created only one for this job
+        if self._resolved_image is not None:
+            return self._resolved_image
+        x = self._function_wrapper.resolve_image(kwargs)
+        self._resolved_image = x
+        return x
     def get_resolved_kwargs(self):
         x = _resolve_kwargs(self._kwargs)
         assert isinstance(x, dict)

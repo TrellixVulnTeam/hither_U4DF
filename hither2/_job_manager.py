@@ -43,17 +43,20 @@ class JobManager:
                     if job.cancel_pending:
                         job._set_error(Exception('Job cancelled while pending.'))
                     elif _job_is_ready_to_run(job):
+                        job._prepare()
                         jh = job.config.job_handler
                         if jh is not None:
                             # we have a job handler
                             jh.queue_job(job)
                             job._set_queued()
                         else:
+                            kwargs = job.get_resolved_kwargs()
+                            image = job.resolve_image(kwargs) if job.config.use_container else None
                             job._set_running()
                             return_value, error, console_lines = _run_function(
                                 function_wrapper=fw,
-                                kwargs=job.get_resolved_kwargs(),
-                                use_container=job.config.use_container,
+                                image=image,
+                                kwargs=kwargs,
                                 show_console=job.config.show_console
                             )
                             if console_lines is not None:

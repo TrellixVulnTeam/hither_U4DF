@@ -9,8 +9,8 @@ from .consolecapture import ConsoleCapture
 
 def _run_function(*,
     function_wrapper: FunctionWrapper,
+    image: Union[DockerImage, None],
     kwargs: dict,
-    use_container: bool,
     show_console: bool
 ) -> Tuple[Any, Union[None, Exception], Union[None, List[dict]]]:
     # fw = function_wrapper
@@ -21,9 +21,10 @@ def _run_function(*,
     #             print(f'Using cached result for {fw.name} ({fw.version})')
     #             return cache_result.return_value
 
-    if use_container and (function_wrapper.image is not None):
+    if image is not None:
         return run_function_in_container(
             function_wrapper=function_wrapper,
+            image=image,
             kwargs=kwargs,
             show_console=show_console,
             _environment={},

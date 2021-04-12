@@ -1,7 +1,7 @@
 import os
 import inspect
 from .run_scriptdir_in_container import DockerImage
-from typing import Callable, Dict, List, Union
+from typing import Any, Callable, Dict, List, Union
 from ._config import Config
 from ._job import Job
 from ._job import JobResult
@@ -20,10 +20,10 @@ class DuplicateFunctionException(Exception):
 
 class FunctionWrapper:
     def __init__(self, *,
-        f: Callable,
+        f: Callable[..., Any],
         name: str,
         version: str,
-        image: Union[DockerImage, None],
+        image: Union[DockerImage, Callable[..., DockerImage], None],
         modules: List[str],
         kachery_support: bool
     ) -> None:
@@ -54,7 +54,7 @@ class FunctionWrapper:
     def version(self) -> str:
         return self._version
     @property
-    def image(self) -> Union[DockerImage, None]:
+    def image(self) -> Union[DockerImage, Callable[..., DockerImage], None]:
         return self._image
     @property
     def modules(self) -> List[str]:
@@ -65,16 +65,21 @@ class FunctionWrapper:
     @property
     def function_source_path(self) -> str:
         return self._function_source_path
+    def resolve_image(self, kwargs: dict) -> Union[DockerImage, None]:
+        if isinstance(self._image, DockerImage) or (self._image is None):
+            return self._image
+        else:
+            return self._image(**kwargs)
 
 def function(
     name: str,
     version: str, *,
-    image: Union[DockerImage, None]=None,
+    image: Union[DockerImage, Callable[..., DockerImage], None]=None,
     modules: List[str]=[],
     kachery_support: bool=False,
     register_globally=False
 ):
-    def wrap(f):
+    def wrap(f: Callable[..., Any]):
         assert f.__name__ == name, f"Name does not match function name: {name} <> {f.__name__}"
         _function_wrapper = FunctionWrapper(
             f=f,

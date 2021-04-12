@@ -13,7 +13,7 @@ def cli():
 def start():
     jr = hi.ScriptDirRunner(os.getcwd())
     while True:
-        if os.path.isfile(os.getcwd() + '/stop'):
+        if not os.path.isfile(os.getcwd() + '/running'):
             print('Stopping scriptdir runner.')
             return
         jr.iterate()

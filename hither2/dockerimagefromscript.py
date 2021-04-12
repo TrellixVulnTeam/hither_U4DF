@@ -1,9 +1,12 @@
 import os
-from typing import Union
+from typing import Dict, List, Union
+
 from .dockerimage import DockerImage, _use_singularity
+from ._bindmount import BindMount
 
 class DockerImageFromScript(DockerImage):
-    def __init__(self, *, name: str, dockerfile: str):
+    def __init__(self, *, name: str, dockerfile: str, bind_mounts: List[BindMount]=[], environment: Dict[str, str]={}):
+        super().__init__(bind_mounts=bind_mounts, environment=environment)
         self._name = name
         self._dockerfile = dockerfile
         self._prepared = False

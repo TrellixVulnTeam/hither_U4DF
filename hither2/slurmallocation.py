@@ -28,6 +28,9 @@ class SlurmAllocation:
         config_path = f'{self._directory}/config.yaml'
         with open(config_path, 'w') as f:
             yaml.dump({}, f)
+        running_path = f'{self._directory}/running'
+        with open(running_path, 'w') as f:
+            f.write('Slurm allocation will stop if this file is deleted.')
         start_scriptdir_runner_script = kp.ShellScript(f'''
         #!/bin/bash
 
@@ -49,18 +52,21 @@ class SlurmAllocation:
     def stop(self):
         print('Stopping allocation')
         self._status = 'stopping'
-        with open(self._directory + '/stop', 'w') as f:
-            f.write('Please stop.')
+        running_path = self._directory + '/running'
+        if os.path.isfile(running_path):
+            os.unlink(running_path)
         self._script.wait()
         self._status = 'stopped'
     def add_job(self, job: Job):
         self._jobs[job.job_id] = job
         function_wrapper = job.function_wrapper
+        kwargs=job.get_resolved_kwargs()
+        image = job.resolve_image(kwargs) if job.config.use_container else None
         create_scriptdir_for_function_run(
             directory=f'{self._jobs_dir}/{job.job_id}',
             function_wrapper=function_wrapper,
-            kwargs=job.get_resolved_kwargs(),
-            use_container=job.config.use_container,
+            image=image,
+            kwargs=kwargs,
             show_console=job.config.show_console
         )
     @property

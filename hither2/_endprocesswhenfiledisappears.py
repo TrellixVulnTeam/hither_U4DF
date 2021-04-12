@@ -2,12 +2,13 @@ import time
 import os
 import threading
 import _thread
+from typing import Union
 
 class _Thread(threading.Thread):
-    def __init__(self, directory: str):
+    def __init__(self, path: str):
         super(_Thread, self).__init__()
         self._stop = threading.Event()
-        self._directory = directory
+        self._path = path
   
     def stop(self):
         self._stop.set()
@@ -19,18 +20,20 @@ class _Thread(threading.Thread):
         while True:
             if self.stopped():
                 return
-            if not os.path.exists(self._directory):
-                print(f'Ending process because directory no longer exists: {self._directory}')
+            if not os.path.exists(self._path):
+                print(f'Ending process because file no longer exists: {self._path}')
                 _thread.interrupt_main()
                 return
             time.sleep(2)
 
-class EndProcessWhenDirectoryDisappears(object):
-    def __init__(self, directory: str):
-        self._directory = directory
+class EndProcessWhenFileDisappears(object):
+    def __init__(self, path: Union[str, None]):
+        self._path = path
     def __enter__(self):
-        self._thread = _Thread(directory=self._directory)
-        self._thread.start()
+        if self._path is not None:
+            self._thread = _Thread(path=self._path)
+            self._thread.start()
     def __exit__(self, type, value, traceback):
-        self._thread.stop()
+        if self._path is not None:
+            self._thread.stop()
 
