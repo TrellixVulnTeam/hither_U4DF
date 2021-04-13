@@ -171,6 +171,7 @@ def _run_script_in_container_singularity(*,
         {bind_opts} \\
         --bind {input_dir}:/working/input \\
         --bind {output_dir}:/working/output \\
+        --nv \\
         docker://{image_name} \\
         {script_path}
     ''')
