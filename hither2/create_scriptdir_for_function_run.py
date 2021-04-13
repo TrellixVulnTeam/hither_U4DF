@@ -35,6 +35,9 @@ def _update_bind_mounts_and_environment_for_kachery_support(
     kachery_p2p_api_host = os.getenv('KACHERY_P2P_API_HOST', None)
     if kachery_p2p_api_host is not None:
         environment2['KACHERY_P2P_API_HOST'] = kachery_p2p_api_host
+    if os.getenv('KACHERY_P2P_KEEP_TEMP_FILES', None) is not None:
+        environment2['KACHERY_P2P_KEEP_TEMP_FILES'] = os.getenv('KACHERY_P2P_KEEP_TEMP_FILES', '')
+    
     return bind_mounts2, environment2
 
 
