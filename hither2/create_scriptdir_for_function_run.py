@@ -50,7 +50,8 @@ def create_scriptdir_for_function_run(
     show_console: bool,
     _bind_mounts: List[BindMount] = [],
     _environment: Dict[str, str] = {},
-    _kachery_support: Union[None, bool] = None
+    _kachery_support: Union[None, bool] = None,
+    _nvidia_support: Union[None, bool] = None
 ):
     import kachery_p2p as kp
 
@@ -61,6 +62,9 @@ def create_scriptdir_for_function_run(
         _kachery_support = function_wrapper.kachery_support
     if _kachery_support:
         _bind_mounts, _environment = _update_bind_mounts_and_environment_for_kachery_support(_bind_mounts, _environment)
+    
+    if _nvidia_support is None:
+        _nvidia_support = function_wrapper.nvidia_support
 
     modules = function_wrapper.modules
     
@@ -77,6 +81,7 @@ def create_scriptdir_for_function_run(
             kwargs=kwargs,
             show_console=show_console,
             _kachery_support = False,
+            _nvidia_support = _nvidia_support,
             _environment=_environment
         )
         bind_mounts_path = f'{directory}/bind_mounts.json'
@@ -84,6 +89,7 @@ def create_scriptdir_for_function_run(
             json.dump([x.serialize() for x in _bind_mounts], f)
         output_path = f'{directory}/output'
         os.mkdir(output_path)
+        nvidia_opts = '--nvidia-support' if _nvidia_support else ''
         run_script = kp.ShellScript(f'''
         #!/bin/bash
 
@@ -91,7 +97,7 @@ def create_scriptdir_for_function_run(
 
         export PYTHONUNBUFFERED=1
 
-        exec hither-scriptdir-runner run-scriptdir-in-container --scriptdir {incontainer_scriptdir_path} --bind-mounts {bind_mounts_path} --output-dir {output_path} --image {image.get_name()}:{image.get_tag()}
+        exec hither-scriptdir-runner run-scriptdir-in-container --scriptdir {incontainer_scriptdir_path} --bind-mounts {bind_mounts_path} --output-dir {output_path} --image {image.get_name()}:{image.get_tag()} {nvidia_opts}
         ''')
         run_script.write(f'{directory}/run')
         return

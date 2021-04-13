@@ -13,19 +13,21 @@ def run_scriptdir_in_container(*,
     scriptdir: str,
     image_name: str,
     bind_mounts_path: str,
-    output_dir: str
+    output_dir: str,
+    nvidia_support: bool
 ):
     with open(bind_mounts_path, 'r') as f:
         x = json.load(f)
         bind_mounts = [BindMount.deserialize(a) for a in x]
     
-    run_scriptdir_in_container_2(scriptdir=scriptdir, image_name=image_name, bind_mounts=bind_mounts, output_dir=output_dir)
+    run_scriptdir_in_container_2(scriptdir=scriptdir, image_name=image_name, bind_mounts=bind_mounts, output_dir=output_dir, nvidia_support=nvidia_support)
 
 def run_scriptdir_in_container_2(*,
     scriptdir: str,
     image_name: str,
     bind_mounts: List[BindMount],
-    output_dir: str
+    output_dir: str,
+    nvidia_support: bool
 ):
     import kachery_p2p as kp
 
@@ -87,7 +89,8 @@ def run_scriptdir_in_container_2(*,
                 input_dir=input_dir,
                 output_dir=output_dir,
                 tmpdir=tmpdir,
-                script_path='/hither-entry.sh'
+                script_path='/hither-entry.sh',
+                nvidia_support=nvidia_support
             )
         else:
             raise Exception('Unexpected value of HITHER_USE_SINGULARITY environment variable')
@@ -154,7 +157,8 @@ def _run_script_in_container_singularity(*,
     input_dir: Union[str, None], # corresponds to /input in the container
     output_dir: Union[str, None], # corresponds to /output in the container
     tmpdir: str,
-    script_path: str # path of script inside the container
+    script_path: str, # path of script inside the container
+    nvidia_support: bool
 ):
     import kachery_p2p as kp
 
@@ -163,15 +167,16 @@ def _run_script_in_container_singularity(*,
         for bm in all_bind_mounts
     ])
 
+    nv_opts = '--nv' if nvidia_support else ''
+
     ss = kp.ShellScript(f'''
     #!/bin/bash
 
     # we really should have the -C option here, but it seems to be causing trouble
     singularity exec \\
-        {bind_opts} \\
+        {bind_opts} {nv_opts} \\
         --bind {input_dir}:/working/input \\
         --bind {output_dir}:/working/output \\
-        --nv \\
         docker://{image_name} \\
         {script_path}
     ''')

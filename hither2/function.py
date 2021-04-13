@@ -25,7 +25,8 @@ class FunctionWrapper:
         version: str,
         image: Union[DockerImage, Callable[..., DockerImage], None],
         modules: List[str],
-        kachery_support: bool
+        kachery_support: bool,
+        nvidia_support: bool
     ) -> None:
         self._f = f
         self._name = name
@@ -33,6 +34,7 @@ class FunctionWrapper:
         self._image = image
         self._modules = modules
         self._kachery_support = kachery_support
+        self._nvidia_support = nvidia_support
 
         function_name = self._name
         try:
@@ -63,6 +65,9 @@ class FunctionWrapper:
     def kachery_support(self) -> bool:
         return self._kachery_support
     @property
+    def nvidia_support(self) -> bool:
+        return self._nvidia_support
+    @property
     def function_source_path(self) -> str:
         return self._function_source_path
     def resolve_image(self, kwargs: dict) -> Union[DockerImage, None]:
@@ -77,6 +82,7 @@ def function(
     image: Union[DockerImage, Callable[..., DockerImage], None]=None,
     modules: List[str]=[],
     kachery_support: bool=False,
+    nvidia_support: bool=False,
     register_globally=False
 ):
     def wrap(f: Callable[..., Any]):
@@ -87,7 +93,8 @@ def function(
             version=version,
             image=image,
             modules=modules,
-            kachery_support=kachery_support
+            kachery_support=kachery_support,
+            nvidia_support=nvidia_support
         )
         setattr(f, '_hither_function_wrapper', _function_wrapper)
         # register the function

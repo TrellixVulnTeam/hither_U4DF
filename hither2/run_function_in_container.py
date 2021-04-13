@@ -16,13 +16,16 @@ def run_function_in_container(
     show_console: bool,
     _environment: Dict[str, str] = dict(),
     _bind_mounts: List[BindMount] = [],
-    _kachery_support: Union[None, bool] = None
+    _kachery_support: Union[None, bool] = None,
+    _nvidia_support: Union[None, bool] = None
 ) -> Tuple[Any, Union[None, Exception], Union[None, List[dict]]]:
     import kachery_p2p as kp
     if _kachery_support is None:
         _kachery_support = function_wrapper.kachery_support
     if _kachery_support:
         _bind_mounts, _environment = _update_bind_mounts_and_environment_for_kachery_support(_bind_mounts, _environment)
+    if _nvidia_support is None:
+        _nvidia_support = function_wrapper.nvidia_support
     with kp.TemporaryDirectory(remove=True) as tmpdir:
         create_scriptdir_for_function_run(
             directory=tmpdir,
@@ -32,7 +35,8 @@ def run_function_in_container(
             show_console=show_console,
             _environment=_environment,
             _bind_mounts=_bind_mounts,
-            _kachery_support=False
+            _kachery_support=False,
+            _nvidia_support=_nvidia_support
         )
         output_dir = f'{tmpdir}/output'
         j = run_scriptdir(scriptdir=tmpdir)

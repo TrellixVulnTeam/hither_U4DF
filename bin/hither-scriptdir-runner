@@ -29,8 +29,9 @@ def run_scriptdir(scriptdir: str):
 @click.option('--image', help='The name of the image')
 @click.option('--bind-mounts', help='Path of bind_mounts.json')
 @click.option('--output-dir', help='Path of output directory on the host')
-def run_scriptdir_in_container(scriptdir: str, image: str, bind_mounts: str, output_dir: str):
-    hi.run_scriptdir_in_container(scriptdir=scriptdir, image_name=image, bind_mounts_path=bind_mounts, output_dir=output_dir)
+@click.option('--nvidia-support', is_flag=True)
+def run_scriptdir_in_container(scriptdir: str, image: str, bind_mounts: str, output_dir: str, nvidia_support: bool):
+    hi.run_scriptdir_in_container(scriptdir=scriptdir, image_name=image, bind_mounts_path=bind_mounts, output_dir=output_dir, nvidia_support=nvidia_support)
 
 cli.add_command(start)
 cli.add_command(run_scriptdir)

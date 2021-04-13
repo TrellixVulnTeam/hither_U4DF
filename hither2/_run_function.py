@@ -29,7 +29,8 @@ def _run_function(*,
             show_console=show_console,
             _environment={},
             _bind_mounts=[],
-            _kachery_support=function_wrapper.kachery_support
+            _kachery_support=function_wrapper.kachery_support,
+            _nvidia_support=function_wrapper.nvidia_support
         )
     else:
         with ConsoleCapture(show_console=show_console) as cc:
