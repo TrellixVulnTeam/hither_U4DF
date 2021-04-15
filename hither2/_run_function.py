@@ -31,12 +31,6 @@ def _run_function(*,
         new_image = precontainer_context.image
         assert isinstance(new_image, DockerImage)
 
-        # prerun
-        prerun_context = PreRunContext(kwargs=new_kwargs)
-        for h in function_wrapper._runtime_hooks:
-            h.prerun(prerun_context)
-        new_kwargs = prerun_context.kwargs
-
         # run
         return_value, exc, console_lines = run_function_in_container(
             function_wrapper=function_wrapper,
@@ -51,14 +45,7 @@ def _run_function(*,
 
         # postcontainer
         if exc is None:
-            # postrun
-            postrun_context = PostRunContext(kwargs=kwargs, return_value=return_value)
-            for h in function_wrapper._runtime_hooks:
-                h.postrun(postrun_context)
-            new_return_value = postrun_context.return_value
-            error = None
-
-            postcontainer_context = PostContainerContext(kwargs=kwargs, image=new_image, return_value=new_return_value)
+            postcontainer_context = PostContainerContext(kwargs=kwargs, image=new_image, return_value=return_value)
             for h in function_wrapper._runtime_hooks:
                 h.postcontainer(postcontainer_context)
             new_return_value = postcontainer_context.return_value

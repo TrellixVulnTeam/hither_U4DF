@@ -155,16 +155,19 @@ def create_scriptdir_for_function_run(
         
         with hi.EndProcessWhenFileDisappears(os.getenv('HITHER_RUNNING_FILE', None)):
             with hi.ConsoleCapture(show_console={show_console}) as cc:
+                function_wrapper = hi._get_hither_function_wrapper({function_name})
                 try:
-                    return_value = {function_name}(**kwargs)
+                    return_value, exc, console_lines = hi._run_function(function_wrapper=function_wrapper, kwargs=kwargs, show_console=True, image=None)
+                    if exc:
+                        raise exc
                     error = None
                 except Exception as e:
                     return_value = None
                     error = e
                     print(traceback.format_exc())
-                if return_value is not None:
+                if error is None:
                     hi._safe_pickle(f'{{output_dir}}/return_value.pkl', return_value)
-                if error is not None:
+                else:
                     hi._safe_pickle(f'{{output_dir}}/error_message.pkl', str(error))
                 hi._safe_pickle(f'{{output_dir}}/console_lines.pkl', cc.lines)
 

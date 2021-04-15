@@ -28,7 +28,7 @@ def test_id(x):
 
 def test2():
     a = np.array([1, 2, 3, 4, 5])
-    with hi.Config(use_container=True):
+    with hi.Config(use_container=True, show_console=True):
         j = hi.Job(test_numpy_serialization, dict(x=a))
         j2 = hi.Job(test_id, dict(x=j))
         print('*******************************************')
