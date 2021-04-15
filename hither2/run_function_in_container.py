@@ -67,7 +67,7 @@ def run_function_in_container(
         
         # postcontainer
         if error is None:
-            postcontainer_context = PostContainerContext(kwargs=kwargs, image=new_image, return_value=return_value)
+            postcontainer_context = PostContainerContext(kwargs=kwargs, image=image, return_value=return_value)
             for h in function_wrapper._runtime_hooks:
                 h.postcontainer(postcontainer_context)
             new_return_value = postcontainer_context.return_value
