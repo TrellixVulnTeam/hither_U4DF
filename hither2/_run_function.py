@@ -10,7 +10,7 @@ from .runtimehook import PostContainerContext, PreContainerContext, RuntimeHook,
 
 def _run_function(*,
     function_wrapper: FunctionWrapper,
-    image: Union[DockerImage, None],
+    image: Union[DockerImage, bool, None],
     kwargs: dict,
     show_console: bool
 ) -> Tuple[Any, Union[None, Exception], Union[None, List[dict]]]:
@@ -23,36 +23,19 @@ def _run_function(*,
     #             return cache_result.return_value
 
     if image:
-        # precontainer
-        precontainer_context = PreContainerContext(kwargs=kwargs, image=image)
-        for h in function_wrapper._runtime_hooks:
-            h.precontainer(precontainer_context)
-        new_kwargs = precontainer_context.kwargs
-        new_image = precontainer_context.image
-        assert isinstance(new_image, DockerImage)
-
         # run
         return_value, exc, console_lines = run_function_in_container(
             function_wrapper=function_wrapper,
-            image=new_image,
-            kwargs=new_kwargs,
+            image=image,
+            kwargs=kwargs,
             show_console=show_console,
             _environment={},
-            _bind_mounts=[] + precontainer_context._bind_mounts,
+            _bind_mounts=[],
             _kachery_support=function_wrapper.kachery_support,
             _nvidia_support=function_wrapper.nvidia_support
         )
 
-        # postcontainer
-        if exc is None:
-            postcontainer_context = PostContainerContext(kwargs=kwargs, image=new_image, return_value=return_value)
-            for h in function_wrapper._runtime_hooks:
-                h.postcontainer(postcontainer_context)
-            new_return_value = postcontainer_context.return_value
-        else:
-            new_return_value = return_value
-
-        return new_return_value, exc, console_lines
+        return return_value, exc, console_lines
     else:
         with ConsoleCapture(show_console=show_console) as cc:
             try:

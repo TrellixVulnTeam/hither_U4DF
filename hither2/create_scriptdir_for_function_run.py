@@ -1,4 +1,5 @@
 import fnmatch
+from hither2.runtimehook import PreContainerContext
 from .function import FunctionWrapper
 from .dockerimage import DockerImage
 import importlib
@@ -45,7 +46,7 @@ def create_scriptdir_for_function_run(
     *,
     directory: str,
     function_wrapper: FunctionWrapper,
-    image: Union[DockerImage, None],
+    image: Union[DockerImage, bool, None],
     kwargs: dict,
     show_console: bool,
     _bind_mounts: List[BindMount] = [],
@@ -68,17 +69,26 @@ def create_scriptdir_for_function_run(
 
     modules = function_wrapper.modules
     
-    if image is not None:
-        if not image.is_prepared():
-            raise Exception(f'Image must be prepared prior to running in container: {image.get_name()}:{image.get_tag()}')
-        _bind_mounts = _bind_mounts + image.get_bind_mounts()
-        _environment = {**_environment, **image.get_environment()}
+    if image:
+        # precontainer
+        precontainer_context = PreContainerContext(kwargs=kwargs, image=image)
+        for h in function_wrapper._runtime_hooks:
+            h.precontainer(precontainer_context)
+        new_kwargs = precontainer_context.kwargs
+        new_image = precontainer_context.image
+        additional_bind_mounts = precontainer_context._bind_mounts
+        assert isinstance(new_image, DockerImage)
+
+        if not new_image.is_prepared():
+            raise Exception(f'Image must be prepared prior to running in container: {new_image.get_name()}:{new_image.get_tag()}')
+        _bind_mounts = _bind_mounts + new_image.get_bind_mounts() + additional_bind_mounts
+        _environment = {**_environment, **new_image.get_environment()}
         incontainer_scriptdir_path = f'{directory}/incontainer_scriptdir'
         create_scriptdir_for_function_run(
             directory=incontainer_scriptdir_path,
             function_wrapper=function_wrapper,
             image=None,
-            kwargs=kwargs,
+            kwargs=new_kwargs,
             show_console=show_console,
             _kachery_support = False,
             _nvidia_support = _nvidia_support,
@@ -97,7 +107,7 @@ def create_scriptdir_for_function_run(
 
         export PYTHONUNBUFFERED=1
 
-        exec hither-scriptdir-runner run-scriptdir-in-container --scriptdir {incontainer_scriptdir_path} --bind-mounts {bind_mounts_path} --output-dir {output_path} --image {image.get_name()}:{image.get_tag()} {nvidia_opts}
+        exec hither-scriptdir-runner run-scriptdir-in-container --scriptdir {incontainer_scriptdir_path} --bind-mounts {bind_mounts_path} --output-dir {output_path} --image {new_image.get_name()}:{new_image.get_tag()} {nvidia_opts}
         ''')
         run_script.write(f'{directory}/run')
         return

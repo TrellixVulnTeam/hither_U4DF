@@ -24,7 +24,6 @@ class Hook1(hi.RuntimeHook):
     def postrun(self, context: hi.PostRunContext):
         # this gets run immediately after the function run, and we have a chance to mutate the return value
         context.return_value = context.return_value + ['postrun-test']
-        pass
 
 @hi.function(
     'runtime_hook_example', '0.1.0',
@@ -35,7 +34,10 @@ def runtime_hook_example(input_directory: str, num: int):
     return [x for x in os.listdir(input_directory)] + [f'num={num}']
 
 if __name__ == '__main__':
-    with hi.Config(use_container=True, show_console=True):
+    # jh = hi.SlurmJobHandler(num_jobs_per_allocation=4, max_simultaneous_allocations=4, srun_command='')
+    # jh = hi.ParallelJobHandler(num_workers=4)
+    jh = None
+    with hi.Config(use_container=True, show_console=True, job_handler=jh):
         with kp.TemporaryDirectory() as tmpdir:
             with open(f'{tmpdir}/testfile1.txt', 'w') as f:
                 f.write('testcontent')

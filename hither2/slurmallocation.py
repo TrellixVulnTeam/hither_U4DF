@@ -1,3 +1,4 @@
+from hither2.runtimehook import PostContainerContext
 import os
 import json
 import time
@@ -61,7 +62,7 @@ class SlurmAllocation:
         self._jobs[job.job_id] = job
         function_wrapper = job.function_wrapper
         kwargs=job.get_resolved_kwargs()
-        image = job.get_image(kwargs) if job.config.use_container else None
+        image = job.image if job.config.use_container else None
         create_scriptdir_for_function_run(
             directory=f'{self._jobs_dir}/{job.job_id}',
             function_wrapper=function_wrapper,
@@ -129,7 +130,19 @@ class SlurmAllocation:
                     error_message_path = f'{self._jobs_dir}/{job_id}/output/error_message.pkl'
                     if os.path.isfile(return_value_path):
                         return_value = _safe_unpickle(return_value_path)
-                        j._set_finished(return_value)
+
+                        # postcontainer
+                        kwargs=j.get_resolved_kwargs()
+                        image = j.image if j.config.use_container else None
+                        if image:
+                            postcontainer_context = PostContainerContext(kwargs=kwargs, image=image, return_value=return_value)
+                            for h in j.function_wrapper._runtime_hooks:
+                                h.postcontainer(postcontainer_context)
+                            new_return_value = postcontainer_context.return_value
+                        else:
+                            new_return_value = return_value
+                
+                        j._set_finished(new_return_value)
                     elif os.path.isfile(error_message_path):
                         error_message = _safe_unpickle(error_message_path)
                         j._set_error(Exception(error_message))

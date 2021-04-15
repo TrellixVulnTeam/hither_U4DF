@@ -1,3 +1,4 @@
+from .runtimehook import PreContainerContext, PostContainerContext
 from .function import FunctionWrapper
 from .run_scriptdir import run_scriptdir
 from .create_scriptdir_for_function_run import create_scriptdir_for_function_run
@@ -11,7 +12,7 @@ from .create_scriptdir_for_function_run import _update_bind_mounts_and_environme
 
 def run_function_in_container(
     function_wrapper: FunctionWrapper, *,
-    image: DockerImage,
+    image: Union[DockerImage, bool],
     kwargs: dict,
     show_console: bool,
     _environment: Dict[str, str] = dict(),
@@ -26,6 +27,7 @@ def run_function_in_container(
         _bind_mounts, _environment = _update_bind_mounts_and_environment_for_kachery_support(_bind_mounts, _environment)
     if _nvidia_support is None:
         _nvidia_support = function_wrapper.nvidia_support
+
     with kp.TemporaryDirectory(remove=True) as tmpdir:
         create_scriptdir_for_function_run(
             directory=tmpdir,
@@ -62,7 +64,17 @@ def run_function_in_container(
             console_lines = _safe_unpickle(console_lines_path)
         else:
             console_lines = None
-        return return_value, error, console_lines
+        
+        # postcontainer
+        if error is None:
+            postcontainer_context = PostContainerContext(kwargs=kwargs, image=new_image, return_value=return_value)
+            for h in function_wrapper._runtime_hooks:
+                h.postcontainer(postcontainer_context)
+            new_return_value = postcontainer_context.return_value
+        else:
+            new_return_value = return_value
+
+        return new_return_value, error, console_lines
 
 def _copy_py_module_dir(src_path: str, dst_path: str):
     patterns = ['*.py']
