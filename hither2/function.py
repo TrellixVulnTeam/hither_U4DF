@@ -1,11 +1,12 @@
 import os
 import inspect
 from .run_scriptdir_in_container import DockerImage
-from typing import Any, Callable, Dict, List, Union
+from typing import Any, Callable, Dict, List, Type, Union
 from ._config import Config
 from ._job import Job
 from ._job import JobResult
 from ._job_cache import JobCache
+from .runtimehook import RuntimeHook, PreContainerContext
 
 _global_registered_functions_by_name: Dict[str, Callable] = {}
 
@@ -23,10 +24,11 @@ class FunctionWrapper:
         f: Callable[..., Any],
         name: str,
         version: str,
-        image: Union[DockerImage, Callable[..., DockerImage], None],
+        image: Union[DockerImage, bool, None],
         modules: List[str],
         kachery_support: bool,
-        nvidia_support: bool
+        nvidia_support: bool,
+        runtime_hooks: List[RuntimeHook]
     ) -> None:
         self._f = f
         self._name = name
@@ -35,6 +37,7 @@ class FunctionWrapper:
         self._modules = modules
         self._kachery_support = kachery_support
         self._nvidia_support = nvidia_support
+        self._runtime_hooks = runtime_hooks
 
         function_name = self._name
         try:
@@ -56,7 +59,7 @@ class FunctionWrapper:
     def version(self) -> str:
         return self._version
     @property
-    def image(self) -> Union[DockerImage, Callable[..., DockerImage], None]:
+    def image(self) -> Union[DockerImage, bool, None]:
         return self._image
     @property
     def modules(self) -> List[str]:
@@ -70,20 +73,16 @@ class FunctionWrapper:
     @property
     def function_source_path(self) -> str:
         return self._function_source_path
-    def resolve_image(self, kwargs: dict) -> Union[DockerImage, None]:
-        if isinstance(self._image, DockerImage) or (self._image is None):
-            return self._image
-        else:
-            return self._image(**kwargs)
 
 def function(
     name: str,
     version: str, *,
-    image: Union[DockerImage, Callable[..., DockerImage], None]=None,
+    image: Union[DockerImage, bool, None]=None,
     modules: List[str]=[],
     kachery_support: bool=False,
     nvidia_support: bool=False,
-    register_globally=False
+    register_globally=False,
+    runtime_hooks: List[RuntimeHook]=[]
 ):
     def wrap(f: Callable[..., Any]):
         assert f.__name__ == name, f"Name does not match function name: {name} <> {f.__name__}"
@@ -94,7 +93,8 @@ def function(
             image=image,
             modules=modules,
             kachery_support=kachery_support,
-            nvidia_support=nvidia_support
+            nvidia_support=nvidia_support,
+            runtime_hooks=runtime_hooks
         )
         setattr(f, '_hither_function_wrapper', _function_wrapper)
         # register the function

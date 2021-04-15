@@ -19,5 +19,6 @@ from .log import Log, LogReader
 from .consolecapture import ConsoleCapture
 from ._endprocesswhenfiledisappears import EndProcessWhenFileDisappears
 from ._bindmount import BindMount
+from .runtimehook import RuntimeHook, PreContainerContext, PostContainerContext, PreRunContext, PostRunContext
 
 # from kachery_p2p import TemporaryDirectory, ShellScript

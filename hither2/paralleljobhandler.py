@@ -116,7 +116,7 @@ class ParallelJobHandler(JobHandler):
                     job: Job = p['job']
                     pipe_to_parent, pipe_to_child = multiprocessing.Pipe()
                     kwargs = job.get_resolved_kwargs()
-                    image = job.resolve_image(kwargs) if job.config.use_container else None
+                    image = job.get_image(kwargs) if job.config.use_container else None
                     process = multiprocessing.Process(target=_pjh_run_job, args=(pipe_to_parent, job.function_wrapper, kwargs, image, job.config))
                     p['process'] = process
                     p['pipe_to_child'] = pipe_to_child

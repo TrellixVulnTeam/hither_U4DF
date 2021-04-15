@@ -61,7 +61,7 @@ class SlurmAllocation:
         self._jobs[job.job_id] = job
         function_wrapper = job.function_wrapper
         kwargs=job.get_resolved_kwargs()
-        image = job.resolve_image(kwargs) if job.config.use_container else None
+        image = job.get_image(kwargs) if job.config.use_container else None
         create_scriptdir_for_function_run(
             directory=f'{self._jobs_dir}/{job.job_id}',
             function_wrapper=function_wrapper,

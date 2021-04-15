@@ -5,6 +5,7 @@ from ._job_cache import JobCache
 from ._check_job_cache import _check_job_cache
 from .run_function_in_container import run_function_in_container
 from .consolecapture import ConsoleCapture
+from .runtimehook import PostContainerContext, PreContainerContext, RuntimeHook, PreRunContext, PostRunContext
 
 
 def _run_function(*,
@@ -21,23 +22,69 @@ def _run_function(*,
     #             print(f'Using cached result for {fw.name} ({fw.version})')
     #             return cache_result.return_value
 
-    if image is not None:
-        return run_function_in_container(
+    if image:
+        # precontainer
+        precontainer_context = PreContainerContext(kwargs=kwargs, image=image)
+        for h in function_wrapper._runtime_hooks:
+            h.precontainer(precontainer_context)
+        new_kwargs = precontainer_context.kwargs
+        new_image = precontainer_context.image
+        assert isinstance(new_image, DockerImage)
+
+        # prerun
+        prerun_context = PreRunContext(kwargs=new_kwargs)
+        for h in function_wrapper._runtime_hooks:
+            h.prerun(prerun_context)
+        new_kwargs = prerun_context.kwargs
+
+        # run
+        return_value, exc, console_lines = run_function_in_container(
             function_wrapper=function_wrapper,
-            image=image,
-            kwargs=kwargs,
+            image=new_image,
+            kwargs=new_kwargs,
             show_console=show_console,
             _environment={},
-            _bind_mounts=[],
+            _bind_mounts=[] + precontainer_context._bind_mounts,
             _kachery_support=function_wrapper.kachery_support,
             _nvidia_support=function_wrapper.nvidia_support
         )
+
+        # postcontainer
+        if exc is None:
+            # postrun
+            postrun_context = PostRunContext(kwargs=kwargs, return_value=return_value)
+            for h in function_wrapper._runtime_hooks:
+                h.postrun(postrun_context)
+            new_return_value = postrun_context.return_value
+            error = None
+
+            postcontainer_context = PostContainerContext(kwargs=kwargs, image=new_image, return_value=new_return_value)
+            for h in function_wrapper._runtime_hooks:
+                h.postcontainer(postcontainer_context)
+            new_return_value = postcontainer_context.return_value
+        else:
+            new_return_value = return_value
+
+        return new_return_value, exc, console_lines
     else:
         with ConsoleCapture(show_console=show_console) as cc:
             try:
-                return_value = function_wrapper.f(**kwargs)
+                # prerun
+                prerun_context = PreRunContext(kwargs=kwargs)
+                for h in function_wrapper._runtime_hooks:
+                    h.prerun(prerun_context)
+                new_kwargs = prerun_context.kwargs
+
+                # run
+                return_value = function_wrapper.f(**new_kwargs)
+                
+                # postrun
+                postrun_context = PostRunContext(kwargs=kwargs, return_value=return_value)
+                for h in function_wrapper._runtime_hooks:
+                    h.postrun(postrun_context)
+                new_return_value = postrun_context.return_value
                 error = None
             except Exception as e:
-                return_value = None
+                new_return_value = None
                 error = e
-            return return_value, error, cc.lines
+            return new_return_value, error, cc.lines
