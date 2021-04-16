@@ -29,7 +29,10 @@ def _use_singularity():
     return os.getenv('HITHER_USE_SINGULARITY', None) in ['1', 'TRUE']
 
 class LocalDockerImage(DockerImage):
-    def __init__(self, name: str, *, tag: Union[str, None]=None):
+    def __init__(self, name: str, *, tag: Union[str, None]=None, bind_mounts: List[BindMount]=[], environment: Dict[str, str]={}):
+        super().__init__(bind_mounts=bind_mounts, environment=environment)
+        if name.startswith('docker://'):
+            raise Exception(f'Invalid docker image name (do not include docker:// in the name of the docker image): {name}')
         if tag is not None:
             if ':' in name: raise Exception('Cannot provide tag argument if name already contains a tag')
             self._name = name
