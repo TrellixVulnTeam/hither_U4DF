@@ -7,6 +7,7 @@ class PreContainerContext:
         self._kwargs = {**kwargs}
         self._image = image
         self._bind_mounts: List[BindMount] = []
+        self._environment: Dict[str, str] = {}
     @property
     def kwargs(self):
         return self._kwargs
@@ -18,6 +19,8 @@ class PreContainerContext:
         self._image = val
     def add_bind_mount(self, bind_mount: BindMount):
         self._bind_mounts.append(bind_mount)
+    def set_env(self, key: str, value: str):
+        self._environment[key] = value
 
 class PostContainerContext:
     def __init__(self, *, kwargs: Dict[str, Any], image: Union[DockerImage, bool], return_value: Any):

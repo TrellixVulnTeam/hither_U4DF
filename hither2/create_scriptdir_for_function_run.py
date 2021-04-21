@@ -77,12 +77,13 @@ def create_scriptdir_for_function_run(
         new_kwargs = precontainer_context.kwargs
         new_image = precontainer_context.image
         additional_bind_mounts = precontainer_context._bind_mounts
+        additional_environment = precontainer_context._environment
         assert isinstance(new_image, DockerImage)
 
         if not new_image.is_prepared():
             raise Exception(f'Image must be prepared prior to running in container: {new_image.get_name()}:{new_image.get_tag()}')
         _bind_mounts = _bind_mounts + new_image.get_bind_mounts() + additional_bind_mounts
-        _environment = {**_environment, **new_image.get_environment()}
+        _environment = {**_environment, **new_image.get_environment(), **additional_environment}
         incontainer_scriptdir_path = f'{directory}/incontainer_scriptdir'
         create_scriptdir_for_function_run(
             directory=incontainer_scriptdir_path,
