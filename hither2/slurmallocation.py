@@ -1,3 +1,4 @@
+import shutil
 from hither2.runtimehook import PostContainerContext
 import os
 import json
@@ -70,6 +71,15 @@ class SlurmAllocation:
             kwargs=kwargs,
             show_console=job.config.show_console
         )
+    def has_job(self, job_id: str):
+        return job_id in self._jobs
+    def cancel_job(self, job_id: str, reason: str):
+        if job_id not in self._jobs: return
+        j = self._jobs[job_id]
+        j._set_error(Exception(f'Job cancelled (slurmallocation): {reason}'))
+        directory = f'{self._jobs_dir}/{job_id}'
+        shutil.rmtree(directory)
+        del self._jobs[job_id]
     @property
     def is_running(self):
         return (self._status == 'running')
@@ -112,43 +122,44 @@ class SlurmAllocation:
             return
         for job_id, job_state in state['jobs'].items():
             s = job_state['status']
-            j = self._jobs[job_id]
-            if s == 'pending':
-                raise Exception('Unexpected pending status for job in slurm allocation')
-            elif s == 'queued':
-                pass
-            elif s == 'running':
-                if j.status != 'running':
-                    j._set_running()
-            elif s == 'complete':
-                if j.status not in ['finished', 'error']:
-                    console_lines_path = f'{self._jobs_dir}/{job_id}/output/console_lines.pkl'
-                    if os.path.isfile(console_lines_path):
-                        console_lines = _safe_unpickle(console_lines_path)
-                        j._set_console_lines(console_lines)
-                    return_value_path = f'{self._jobs_dir}/{job_id}/output/return_value.pkl'
-                    error_message_path = f'{self._jobs_dir}/{job_id}/output/error_message.pkl'
-                    if os.path.isfile(return_value_path):
-                        return_value = _safe_unpickle(return_value_path)
+            if job_id in self._jobs:
+                j = self._jobs[job_id]
+                if s == 'pending':
+                    raise Exception('Unexpected pending status for job in slurm allocation')
+                elif s == 'queued':
+                    pass
+                elif s == 'running':
+                    if j.status != 'running':
+                        j._set_running()
+                elif s == 'complete':
+                    if j.status not in ['finished', 'error']:
+                        console_lines_path = f'{self._jobs_dir}/{job_id}/output/console_lines.pkl'
+                        if os.path.isfile(console_lines_path):
+                            console_lines = _safe_unpickle(console_lines_path)
+                            j._set_console_lines(console_lines)
+                        return_value_path = f'{self._jobs_dir}/{job_id}/output/return_value.pkl'
+                        error_message_path = f'{self._jobs_dir}/{job_id}/output/error_message.pkl'
+                        if os.path.isfile(return_value_path):
+                            return_value = _safe_unpickle(return_value_path)
 
-                        # postcontainer
-                        kwargs=j.get_resolved_kwargs()
-                        image = j.image if j.config.use_container else None
-                        if image:
-                            postcontainer_context = PostContainerContext(kwargs=kwargs, image=image, return_value=return_value)
-                            for h in j.function_wrapper._runtime_hooks:
-                                h.postcontainer(postcontainer_context)
-                            new_return_value = postcontainer_context.return_value
+                            # postcontainer
+                            kwargs=j.get_resolved_kwargs()
+                            image = j.image if j.config.use_container else None
+                            if image:
+                                postcontainer_context = PostContainerContext(kwargs=kwargs, image=image, return_value=return_value)
+                                for h in j.function_wrapper._runtime_hooks:
+                                    h.postcontainer(postcontainer_context)
+                                new_return_value = postcontainer_context.return_value
+                            else:
+                                new_return_value = return_value
+                    
+                            j._set_finished(new_return_value)
+                        elif os.path.isfile(error_message_path):
+                            error_message = _safe_unpickle(error_message_path)
+                            j._set_error(Exception(error_message))
                         else:
-                            new_return_value = return_value
-                
-                        j._set_finished(new_return_value)
-                    elif os.path.isfile(error_message_path):
-                        error_message = _safe_unpickle(error_message_path)
-                        j._set_error(Exception(error_message))
-                    else:
-                        error_message = 'No error_message.pkl found'
-                        j._set_error(Exception(error_message))
+                            error_message = 'No error_message.pkl found'
+                            j._set_error(Exception(error_message))
     def get_num_incomplete_jobs(self):
         ret = 0
         for job_id, job in self._jobs.items():

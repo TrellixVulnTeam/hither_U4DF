@@ -73,7 +73,9 @@ class Job:
         self._function_wrapper = fw
         self._kwargs = kwargs
         self._job_id = 'j-' + str(uuid.uuid4())[-12:]
-        self._timestamp_created = time.time()
+        self._timestamp_created: float = time.time() - 0
+        self._timestamp_started: Union[float, None] = None
+        self._timestamp_completed: Union[float, None] = None
         self._status = 'pending'
         self._cancel_pending = False
         self._result: Union[JobResult, None] = None
@@ -104,6 +106,12 @@ class Job:
     @property
     def image(self) -> Union[DockerImage, bool, None]:
         return self._function_wrapper.image
+    @property
+    def timestamp_started(self):
+        return self._timestamp_started
+    @property
+    def timestamp_completed(self):
+        return self._timestamp_completed
     def _prepare(self, kwargs: Dict[str, Any]):
         image = self.get_image(kwargs)
         if image is not None:
@@ -151,16 +159,19 @@ class Job:
         if self.log:
             self.log._report_job_queued(self)
     def _set_running(self):
+        self._timestamp_started = time.time() - 0
         self._status = 'running'
         if self.log:
             self.log._report_job_running(self)
     def _set_finished(self, return_value: Any, result_is_from_cache: bool=False):
+        self._timestamp_completed = time.time() - 0
         self._status = 'finished'
         self._result = JobResult(return_value=return_value, status='finished', console_lines=self._console_lines if self._console_lines is not None else [])
         self._result_is_from_cache = result_is_from_cache
         if self.log:
             self.log._report_job_finished(self)
     def _set_error(self, error: Exception):
+        self._timestamp_completed = time.time() - 0
         self._status = 'error'
         self._result = JobResult(error=error, status='error', console_lines=self._console_lines if self._console_lines is not None else [])
         if self.log:

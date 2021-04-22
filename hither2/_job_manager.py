@@ -53,6 +53,8 @@ class JobManager:
                             kwargs = job.get_resolved_kwargs()
                             image = job.image if job.config.use_container else None
                             job._set_running()
+                            if job.config._job_timeout_sec is not None:
+                                print(f'WARNING: job timeout has no effect without job handler for job: {fw.name}')
                             return_value, error, console_lines = _run_function(
                                 function_wrapper=fw,
                                 image=job.get_image(kwargs),
@@ -76,7 +78,16 @@ class JobManager:
                     if job.cancel_pending:
                         jh = job.config.job_handler
                         if jh is not None:
-                            jh.cancel_job(job.job_id)
+                            jh.cancel_job(job.job_id, 'Canceled')
+                if job.status == 'running':
+                    if job.config._job_timeout_sec is not None:
+                        ts_started = job.timestamp_started
+                        assert ts_started is not None
+                        elapsed = time.time() - ts_started
+                        if elapsed > job.config._job_timeout_sec:
+                            jh = job.config.job_handler
+                            if jh is not None:
+                                jh.cancel_job(job.job_id, f'Job timeout - elapsed {elapsed} > {job.config._job_timeout_sec} sec')
         
         with Timer('manage-finished-jobs'):
             for job_id, job in self._jobs.items():

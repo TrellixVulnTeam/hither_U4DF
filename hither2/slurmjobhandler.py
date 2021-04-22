@@ -68,9 +68,15 @@ class SlurmJobHandler(JobHandler):
         self._allocations.append(b)
         b.start()
     
-    def cancel_job(self, job_id: str):
-        pass
-        # todo
+    def cancel_job(self, job_id: str, reason: str):
+        if job_id in self._pending_jobs:
+            j = self._pending_jobs[job_id]
+            j._set_error(Exception(f'Job canceled (slurm job handler): {reason}'))
+            del self._pending_jobs[job_id]
+        else:
+            for a in self._allocations:
+                if a.has_job(job_id):
+                    a.cancel_job(job_id, reason)
     
     def iterate(self):
         if self._halted:

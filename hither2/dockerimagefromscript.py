@@ -46,7 +46,10 @@ class DockerImageFromScript(DockerImage):
                     import docker
                 except:
                     raise Exception('docker python package not installed.')
-                docker_client = docker.from_env()
+                try:
+                    docker_client = docker.from_env()
+                except Exception as e:
+                    raise Exception(f'Problem creating docker client. Is docker installed?')
                 try:
                     docker_client.images.get(self._name + ':' + self._tag)
                     found_image = True

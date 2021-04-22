@@ -11,9 +11,10 @@ def cli():
 
 @click.command(help='Start running jobs from current working directory')
 def start():
-    jr = hi.ScriptDirRunner(os.getcwd())
+    cwd = os.getcwd()
+    jr = hi.ScriptDirRunner(cwd)
     while True:
-        if not os.path.isfile(os.getcwd() + '/running'):
+        if not os.path.isfile(cwd + '/running'):
             print('Stopping scriptdir runner.')
             return
         jr.iterate()

@@ -12,7 +12,7 @@ class JobHandler:
     def iterate(self):
         pass
     @abstractmethod
-    def cancel_job(self, job_id: str):
+    def cancel_job(self, job_id: str, reason: str):
         pass
     @abstractmethod
     def is_remote(self) -> bool:

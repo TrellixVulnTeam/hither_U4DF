@@ -5,6 +5,7 @@ import time
 import multiprocessing
 from multiprocessing.connection import Connection
 import time
+import atexit
 from ._config import ConfigEntry
 from ._job_handler import JobHandler
 from ._job import Job
@@ -16,12 +17,18 @@ class ParallelJobHandler(JobHandler):
         self._num_workers = num_workers
         self._processes: List[dict] = []
         self._halted = False
+        _all_parallel_job_handlers.append(self)
 
     def cleanup(self):
         self._halted = True
         for p in self._processes:
-            x = p['process']
-            
+            pp = p['process']
+            if pp is not None:
+                pp.terminate()
+                try:
+                    pp.join()
+                except:
+                    print('WARNING: unable to join process in cleanup')
     
     def is_remote(self) -> bool:
         return False
@@ -34,7 +41,7 @@ class ParallelJobHandler(JobHandler):
             pjh_status='pending'
         ))
     
-    def cancel_job(self, job_id: str):
+    def cancel_job(self, job_id: str, reason: str):
         for p in self._processes:
             if p['job']._job_id == job_id:
                 if p['pjh_status'] == 'running':
@@ -46,12 +53,12 @@ class ParallelJobHandler(JobHandler):
                     except:
                         print('WARNING: unable to join process for job being cancelled')
                     j: Job = p['job']
-                    j._set_error(Exception('job cancelled'))
+                    j._set_error(Exception(f'job cancelled: {reason}'))
                     p['pjh_status'] = 'error'
                 else:
                     # TODO: Consider if existing ERROR or FINISHED status should change this behavior
                     j: Job = p['job']
-                    j._set_error(Exception('Job cancelled prior to running'))
+                    j._set_error(Exception(f'Job cancelled prior to running: {reason}'))
                     p['pjh_status'] = 'error'
     
     def iterate(self):
@@ -148,3 +155,12 @@ def _pjh_run_job(pipe_to_parent: Connection, function_wrapper: FunctionWrapper, 
             pipe_to_parent.recv()
             return
         time.sleep(0.02)
+
+_all_parallel_job_handlers: List[ParallelJobHandler] = []
+def cleanup_all():
+    for pjh in _all_parallel_job_handlers:
+        if not pjh._halted:
+            print(f'Cleaning up parallel job handler')
+            pjh.cleanup()
+
+atexit.register(cleanup_all)
