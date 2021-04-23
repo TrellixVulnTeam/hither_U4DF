@@ -1,3 +1,4 @@
+from multiprocessing.context import Process
 from hither2.dockerimage import DockerImage
 from .function import FunctionWrapper
 from typing import List, Dict, Any, Union
@@ -22,13 +23,14 @@ class ParallelJobHandler(JobHandler):
     def cleanup(self):
         self._halted = True
         for p in self._processes:
-            pp = p['process']
+            pp: Process = p['process']
             if pp is not None:
-                pp.terminate()
-                try:
-                    pp.join()
-                except:
-                    print('WARNING: unable to join process in cleanup')
+                if pp.is_alive():
+                    pp.terminate()
+                    try:
+                        pp.join()
+                    except:
+                        print('WARNING: unable to join process in cleanup')
     
     def is_remote(self) -> bool:
         return False
@@ -46,12 +48,13 @@ class ParallelJobHandler(JobHandler):
             if p['job']._job_id == job_id:
                 if p['pjh_status'] == 'running':
                     print(f'ParallelJobHandler: Terminating job.')
-                    pp = p['process']
-                    pp.terminate()
-                    try:
-                        pp.join()
-                    except:
-                        print('WARNING: unable to join process for job being cancelled')
+                    pp: Process = p['process']
+                    if pp.is_alive():
+                        pp.terminate()
+                        try:
+                            pp.join()
+                        except:
+                            print('WARNING: unable to join process for job being cancelled')
                     j: Job = p['job']
                     j._set_error(Exception(f'job cancelled: {reason}'))
                     p['pjh_status'] = 'error'
