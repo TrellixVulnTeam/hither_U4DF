@@ -165,22 +165,22 @@ def create_scriptdir_for_function_run(
         kwargs = hi._safe_unpickle(f'{{input_dir}}/kwargs.pkl')
         
         with hi.EndProcessWhenFileDisappears(os.getenv('HITHER_RUNNING_FILE', None)):
-            with hi.ConsoleCapture(show_console={show_console}) as cc:
-                function_wrapper = hi._get_hither_function_wrapper({function_name})
-                try:
-                    return_value, exc, console_lines = hi._run_function(function_wrapper=function_wrapper, kwargs=kwargs, show_console=True, image=None)
-                    if exc:
-                        raise exc
-                    error = None
-                except Exception as e:
-                    return_value = None
-                    error = e
-                    print(traceback.format_exc())
-                if error is None:
-                    hi._safe_pickle(f'{{output_dir}}/return_value.pkl', return_value)
-                else:
-                    hi._safe_pickle(f'{{output_dir}}/error_message.pkl', str(error))
-                hi._safe_pickle(f'{{output_dir}}/console_lines.pkl', cc.lines)
+            function_wrapper = hi._get_hither_function_wrapper({function_name})
+            console_lines = []
+            try:
+                return_value, exc, console_lines = hi._run_function(function_wrapper=function_wrapper, kwargs=kwargs, show_console={show_console}, image=None)
+                if exc:
+                    raise exc
+                error = None
+            except Exception as e:
+                return_value = None
+                error = e
+                print(traceback.format_exc())
+            if error is None:
+                hi._safe_pickle(f'{{output_dir}}/return_value.pkl', return_value)
+            else:
+                hi._safe_pickle(f'{{output_dir}}/error_message.pkl', str(error))
+            hi._safe_pickle(f'{{output_dir}}/console_lines.pkl', console_lines)
 
     if __name__ == '__main__':
         main()

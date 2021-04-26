@@ -25,8 +25,11 @@ class ParallelJobHandler(JobHandler):
         for p in self._processes:
             pp: Process = p['process']
             if pp is not None:
-                if pp.is_alive():
-                    pp.terminate()
+                if _safe_is_alive(pp):
+                    try:
+                        pp.terminate()
+                    except:
+                        print('WARNING: unable to terminate process in cleanup')
                     try:
                         pp.join()
                     except:
@@ -49,12 +52,15 @@ class ParallelJobHandler(JobHandler):
                 if p['pjh_status'] == 'running':
                     print(f'ParallelJobHandler: Terminating job.')
                     pp: Process = p['process']
-                    if pp.is_alive():
-                        pp.terminate()
+                    if _safe_is_alive(pp):
+                        try:
+                            pp.terminate()
+                        except:
+                            print('WARNING: unable to terminate process in cleanup *')
                         try:
                             pp.join()
                         except:
-                            print('WARNING: unable to join process for job being cancelled')
+                            print('WARNING: unable to join process for job being cancelled *')
                     j: Job = p['job']
                     j._set_error(Exception(f'job cancelled: {reason}'))
                     p['pjh_status'] = 'error'
@@ -136,6 +142,12 @@ class ParallelJobHandler(JobHandler):
                     j._set_running()
                     p['process'].start()
                     num_running = num_running + 1
+
+def _safe_is_alive(p: Process):
+    try:
+        return p.is_alive()
+    except:
+        return False
 
 def _pjh_run_job(pipe_to_parent: Connection, function_wrapper: FunctionWrapper, kwargs: Dict[str, Any], image: Union[DockerImage, None], config: ConfigEntry) -> None:
     return_value, error, console_lines = _run_function(
