@@ -162,7 +162,9 @@ class SlurmAllocation:
                             j._set_error(Exception(error_message))
     def get_num_incomplete_jobs(self):
         ret = 0
-        for job_id, job in self._jobs.items():
+        job_ids = list(self._jobs.keys())
+        for job_id in job_ids:
+            job = self._jobs[job_id]
             if job.status not in ['finished', 'error']:
                 ret += 1
         return ret

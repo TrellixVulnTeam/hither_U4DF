@@ -78,7 +78,9 @@ class ScriptDirRunner:
                 if job_id not in self._jobs:
                     if os.path.isfile(f'{job_path}/run') and (not os.path.isfile(f'{job_path}/status')):
                         self._jobs[job_id] = ScriptDirRunnerJob(job_path)
-        for job_id, job in self._jobs.items():
+        job_ids = list(self._jobs.keys())
+        for job_id in job_ids:
+            job = self._jobs[job_id]
             if job.status == 'pending':
                 job.start()
             elif job.status == 'running':
@@ -94,7 +96,9 @@ class ScriptDirRunner:
             },
             'jobs': {}
         }
-        for job_id, job in self._jobs.items():
+        job_ids = list(self._jobs.keys())
+        for job_id in job_ids:
+            job = self._jobs[job_id]
             state['job_counts'][job.status] += 1
             state['jobs'][job_id] = {
                 'status': job.status

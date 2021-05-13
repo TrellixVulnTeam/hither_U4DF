@@ -32,7 +32,9 @@ class JobManager:
                 _batch_check_job_cache(jobs_to_check)
 
         with Timer('manage-pending-jobs'):
-            for job_id, job in self._jobs.items():
+            job_ids = list(self._jobs.keys())
+            for job_id in job_ids:
+                job = self._jobs[job_id]
                 if job.status == 'pending':
                     if job.log is not None:
                         self._current_log = job.log
@@ -73,7 +75,9 @@ class JobManager:
                             job._set_error(e)
         
         with Timer('manage-queued-or-running-jobs'):
-            for job_id, job in self._jobs.items():
+            job_ids = list(self._jobs.keys())
+            for job_id in job_ids:
+                job = self._jobs[job_id]
                 if job.status in ['queued', 'running']:
                     if job.cancel_pending:
                         jh = job.config.job_handler
@@ -90,7 +94,9 @@ class JobManager:
                                 jh.cancel_job(job.job_id, f'Job timeout - elapsed {elapsed} > {job.config._job_timeout_sec} sec')
         
         with Timer('manage-finished-jobs'):
-            for job_id, job in self._jobs.items():
+            job_ids = list(self._jobs.keys())
+            for job_id in job_ids:
+                job = self._jobs[job_id]
                 if job.status == 'finished':
                     f = job.function
                     fw = _get_hither_function_wrapper(f)
@@ -105,7 +111,9 @@ class JobManager:
                     deletion_job_ids.append(job_id)
         
         with Timer('manage-error-jobs'):
-            for job_id, job in self._jobs.items():
+            job_ids = list(self._jobs.keys())
+            for job_id in job_ids:
+                job = self._jobs[job_id]
                 if job.status == 'error':
                     deletion_job_ids.append(job_id)
         
@@ -123,7 +131,9 @@ class JobManager:
 
         with Timer(label='iterate-job-handlers'):
             job_handlers_to_iterate: Dict[str, JobHandler] = dict()
-            for job_id, job in self._jobs.items():
+            job_ids = list(self._jobs.keys())
+            for job_id in job_ids:
+                job = self._jobs[job_id]
                 if job.status in ['queued', 'running']:
                     jh = job.config.job_handler
                     if jh is not None:

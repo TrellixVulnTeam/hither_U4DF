@@ -150,6 +150,8 @@ def _run_script_in_container_docker(*,
             tar.extractall(tmpdir)
         for fname in os.listdir(tmpdir + '/output'):
             shutil.move(tmpdir + '/output/' + fname, output_dir + '/' + fname)
+    
+    container.remove()
 
 def _run_script_in_container_singularity(*,
     all_bind_mounts: List[BindMount],
@@ -180,6 +182,5 @@ def _run_script_in_container_singularity(*,
         docker://{image_name} \\
         {script_path}
     ''')
-    print(ss._script)
     ss.start()
     ss.wait()

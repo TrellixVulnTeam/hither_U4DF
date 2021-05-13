@@ -182,9 +182,32 @@ def create_scriptdir_for_function_run(
                 hi._safe_pickle(f'{{output_dir}}/error_message.pkl', str(error))
             hi._safe_pickle(f'{{output_dir}}/console_lines.pkl', console_lines)
 
+    def _get_child_pids(pid):
+        x = os.popen(f"pgrep -P {{pid}}").read().split('\\n')
+        return [int(a) for a in x if a is not '']
+    
+    def _kill_children_of(pid):
+        child_pids = _get_child_pids(pid)
+        for pid2 in child_pids:
+            _kill_children_of(pid2)
+            try:
+                os.kill(pid2, signal.SIGTERM)
+            except:
+                pass
+        child_pids = _get_child_pids(pid)
+        for pid2 in child_pids:
+            try:
+                os.kill(pid2, signal.SIGKILL)
+            except:
+                pass
+
     if __name__ == '__main__':
         main()
+        import signal
+
+        _kill_children_of(os.getpid())
     '''
+    
 
     env_path = f'{directory}/env'
     env_lines: List[str] = []
