@@ -76,7 +76,8 @@ class LocalDockerImage(DockerImage):
         return self._tag
 
 class RemoteDockerImage(DockerImage):
-    def __init__(self, name: str, *, tag: Union[str, None]=None):
+    def __init__(self, name: str, *, tag: Union[str, None]=None, bind_mounts: List[BindMount]=[], environment: Dict[str, str]={}):
+        super().__init__(bind_mounts=bind_mounts, environment=environment)
         if name.startswith('docker://'):
             name = name[len('docker://'):]
         if tag is not None:
@@ -110,7 +111,7 @@ class RemoteDockerImage(DockerImage):
                 ss = kp.ShellScript(f'''
                 #!/bin/bash
 
-                docker pull {self._name}
+                docker pull {self._name}:{self._tag}
                 ''')
                 ss.start()
                 ss.wait()
