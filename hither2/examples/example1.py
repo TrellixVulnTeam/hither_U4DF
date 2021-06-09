@@ -1,9 +1,8 @@
 import time
 from typing import List
-from hither.job import Job
 import hither2 as hi
 import numpy as np
-from example_functions.test_numpy_serialization import test_numpy_serialization
+from .example_functions.test_numpy_serialization import test_numpy_serialization
 
 def main():
     test1()

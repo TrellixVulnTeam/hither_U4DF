@@ -1,6 +1,6 @@
 # integrate_bessel.py
 
-import hither as hi
+import hither2 as hi
 
 @hi.function('integrate_bessel', '0.1.0')
 @hi.container('docker://jsoules/simplescipy:latest')

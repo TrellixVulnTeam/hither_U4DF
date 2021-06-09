@@ -1,6 +1,5 @@
 import time
 from typing import List
-from hither.job import Job
 import hither2 as hi
 import numpy as np
 

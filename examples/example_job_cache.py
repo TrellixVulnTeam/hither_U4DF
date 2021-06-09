@@ -1,5 +1,5 @@
-import hither as hi
-from expensive_calculation import expensive_calculation
+import hither2 as hi
+from .expensive_calculation import expensive_calculation
 
 # Create a job cache that uses /tmp
 # You can also use a different location

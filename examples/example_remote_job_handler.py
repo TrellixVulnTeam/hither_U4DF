@@ -1,6 +1,6 @@
 import os
-import hither as hi
-from integrate_bessel import integrate_bessel
+import hither2 as hi
+from .integrate_bessel import integrate_bessel
 
 # Adjust as needed
 compute_resource_uri = os.environ['COMPUTE_RESOURCE_URI']

@@ -1,6 +1,6 @@
 from os import read
 
-import hither as hi
+import hither2 as hi
 import kachery_client as kc
 
 

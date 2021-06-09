@@ -1,6 +1,6 @@
-import hither as hi
-from expensive_calculation import expensive_calculation
-from arraysum import arraysum
+import hither2 as hi
+from .expensive_calculation import expensive_calculation
+from .arraysum import arraysum
 
 # Create a job handler than runs 4 jobs simultaneously
 jh = hi.ParallelJobHandler(num_workers=4)

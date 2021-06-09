@@ -1,6 +1,6 @@
 # expensive_calculation.py
 
-import hither as hi
+import hither2 as hi
 import time as time
 
 @hi.function('expensive_calculation', '0.1.0')

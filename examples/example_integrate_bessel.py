@@ -1,5 +1,5 @@
-import hither as hi
-from integrate_bessel import integrate_bessel
+import hither2 as hi
+from .integrate_bessel import integrate_bessel
 
 # call function directly
 val1 = integrate_bessel(v=2.5, a=0, b=4.5)
