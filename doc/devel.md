@@ -28,7 +28,7 @@ Note that when your `.bashrc` file changes in this way, you may need to restart 
 
 Clone the source and open in Visual Studio Code:
 
-```
+```bash
 git clone [this-repo-url]
 cd hither
 code .
@@ -49,11 +49,13 @@ The first thing to try would be the [unit and integration tests]('./tests.md).
 Proposal
 
 Use the following pattern for versioning
+
 * `x.x.x-alpha.x` - don't deploy these to PyPI, except for the unique case of `0.2.0-alpha.x`
 * `x.x.x-beta.x` - don't deploy these either, except for `0.2.0-beta.x`
 * `x.x.x` - deploy these
 
 To release a new version, use the following flow (subject to change):
+
 * Make sure master branch is what you want to release
 * Change to release branch `git checkout release`
 * Merge the changes from master `git merge master`

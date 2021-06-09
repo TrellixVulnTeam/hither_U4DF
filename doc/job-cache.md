@@ -14,7 +14,7 @@ See also:
 Configure the hither environment to use a job cache as follows:
 
 ```python
-import Hither as hi
+import hither2 as hi
 
 # Set up a job cache in the temporary directory
 jc = hi.JobCache(use_tempdir=True)

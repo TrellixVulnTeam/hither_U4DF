@@ -2,7 +2,7 @@
 
 Talk about security.
 
-### How to define and run a hither function
+## How to define and run a hither function
 
 A hither function is just a regular Python function with decorators. For example:
 
@@ -31,39 +31,40 @@ the imports may not be available until the code is
 running inside the container. But we still need
 to import the function on the host.
 
-### How to run a function in a container
+## How to run a function in a container
 
 Explain
 
-### How to use a job cache
+## How to use a job cache
 
 Explain
 
-### How to run a pipeline
+## How to run a pipeline
 
+TK
 
-### How to run jobs in parallel
+## How to run jobs in parallel
 
 (What about dask? How is hither different, why needed?)
 
 For example, parallel job handler -- run multiple jobs in parallel
 
-### How to use a remote compute resource
+## How to use a remote compute resource
 
-### How to run a hither compute resource server
+## How to run a hither compute resource server
 
-### Job handlers
+## Job handlers
 
 Job handlers determine when, where, and how hither jobs are run. There are three built-in job handlers:
 
 * DefaultJobHandler
-    - Runs jobs synchronously on the local machine
+  * Runs jobs synchronously on the local machine
 * ParallelJobHandler
-    - Runs jobs in parallel on the local machine
+  * Runs jobs in parallel on the local machine
 * RemoteJobHandler
-    - Sends jobs in parallel to a remote compute resource
+  * Sends jobs in parallel to a remote compute resource
 * SlurmJobHandler
-    - Sends job in parallel to a Slurm compute cluster
+  * Sends job in parallel to a Slurm compute cluster
 
 ### Local modules
 

@@ -2,7 +2,16 @@
 
 ## What is hither?
 
-hither is a flexible, platform-agnostic job manager that allows researchers to easily deploy code across local, remote, and cluster environments with minimal changes. It ensures that different scientific tools can be run through a consistent pipeline, even when they have different configurations or conflicting dependencies. This works through universal containerization. Because jobs are run through a universal interface, code becomes much more portable between labs; the same pipelines can be run locally, or even on a cluster environment. In this way, development on small datasets can take place on your laptop, with the confidence that the code will work on large datasets in the cluster with minimal modifications.
+hither is a flexible, platform-agnostic job manager that allows researchers
+to easily deploy code across local, remote, and cluster environments with
+minimal changes. It ensures that different scientific tools can be run
+through a consistent pipeline, even when they have different configurations
+or conflicting dependencies. This works through universal containerization.
+Because jobs are run through a universal interface, code becomes much more
+portable between labs; the same pipelines can be run locally, or even on a
+cluster environment. In this way, development on small datasets can take
+place on your laptop, with the confidence that the code will work on large
+datasets in the cluster with minimal modifications.
 
 ## Why use hither?
 
@@ -13,23 +22,23 @@ by giving scientific code a well-defined, portable environment in which to
 execute, hither makes it easy to leverage multiple-core or multiple-machine
 resources to run data processing pipelines in parallel.
 
- - **Portability**. Code in a well-defined container will run the same
+- **Portability**. Code in a well-defined container will run the same
  way everywhere that container runs. An execution environment only needs
  a correctly configured instance of the Docker or Singularity container
  manager, rather than whatever complex requirements are mandated by
  the actual code to be executed.
 
- - **Performance**. Because every function runs in its own container,
+- **Performance**. Because every function runs in its own container,
  and hither manages setting up and running the containers, it is trivial
  to add more compute resources and achieve faster clock-time performance.
 
- - **Reliability**. Container systems are defined in human-readable descriptor
+- **Reliability**. Container systems are defined in human-readable descriptor
  files that operate the same way regardless of the underlying system. If
  code works correctly on your laptop, it will work correctly on your
  cluster (or on your reviewers' cluster); if it works correctly today,
  it will also work correctly for future researchers building off of it.
 
- - **Simplicity**. hither is designed to deliver these benefits while
+- **Simplicity**. hither is designed to deliver these benefits while
  requiring as little re-engineering as possible for the underlying methods.
  Whether you are using methods developed in your lab, your collaborators',
  or even elsewhere, you can create hither-based pipelines without having
@@ -86,9 +95,9 @@ on the same system can now be called from within the same program!
 
 There's no shortage of tools in python for speeding up code by making it run in
 parallel. However, hither is operating at a higher level of abstraction than most
-of these tools. 
+of these tools.
 
- - **[`concurrent.futures`](https://docs.python.org/3/library/concurrent.futures.html) &
+- **[`concurrent.futures`](https://docs.python.org/3/library/concurrent.futures.html) &
  [`multiprocessing`](https://docs.python.org/3/library/multiprocessing.html)**
  are native Python libraries that allow a developer to write code using low-level
  multiprocessing or parallel-processing features, like spawning child processes,
@@ -101,7 +110,7 @@ of these tools.
  in scientific data processing. hither aims to provide performance improvements without
  requiring developers to dive into the complex internals of multiprocess coordination.
 
- - **[dask](https://dask.org/)** has attracted a great deal of attention as a means of
+- **[dask](https://dask.org/)** has attracted a great deal of attention as a means of
  bringing the performance improvements of distributed processing to pipelines built
  around standard data science tools like `numpy`, `pandas`, and `sklearn`. The dask
  package offers drop-in replacements for basic matrix/array/dataframe data structures
@@ -114,7 +123,7 @@ of these tools.
  and use hither to coordinate multiple runs of that processing step simultaneously
  with different data sets.
 
- - **[Celery](https://github.com/celery/celery)** is a task scheduler and manager.
+- **[Celery](https://github.com/celery/celery)** is a task scheduler and manager.
 Parts of hither's interprocess communication use a similar idea of adding
 tasks to a queue; however, hither is simpler to use and provides an entire
 framework for containerized execution of jobs. Celery's use cases focus on
@@ -123,7 +132,7 @@ while hither, again, is dealing with parallelism by distributing different data
 over similar pipelines--like a more flexible version of the SIMD approach used
 in graphics processing units.
 
- - **[Apache Airflow](https://airflow.apache.org/)**, much like Celery, is
+- **[Apache Airflow](https://airflow.apache.org/)**, much like Celery, is
  more about task management. Building data science pipelines in Airflow is a
  common use case. But this tool is quite complex and is certainly overkill when one wants to simply run many non-interacting jobs simultaneously. Hither has a much lower barrier to entry and has a simpler interface with minimal overhead.
 

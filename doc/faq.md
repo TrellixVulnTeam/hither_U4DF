@@ -17,6 +17,7 @@
 A hither function is a Python function that has been decorated using `@hi.function()`. The function should be a *pure function* in that it produces no side effects and the return value is uniquely determined from the input arguments. The input arguments and return value are expected to conform to [certain requirements](#what-are-the-allowed-types-for-input-arguments-and-return-values-for-hither-functions-why).
 
 Some examples would include the following:
+
 ```python
     @hi.function('ones', '0.1.0')
     def ones(shape):
@@ -45,6 +46,7 @@ container image). There are also mechanisms for including any
 [local dependencies](#how-does-hither-manage-dependencies-on-python-modules-or-other-code-outside-my-function).
 
 ### What are the allowed types for input arguments and return values for hither functions? Why?
+
 A value `x` is a hither-allowed input value if any of the following are true:
 
 * `x` is a jsonable item
@@ -59,6 +61,7 @@ Because the types allowed for the output of a hither function are the same as th
 input, during execution one hither function can also be used as input for another. This allows creation
 of pipelines.
 For example, using the functions defined above:
+
 ```python
     with hi.Config(job_handler=jh):
         a = ones.run(shape=(4, 3))
@@ -66,6 +69,7 @@ For example, using the functions defined above:
     b = add.run(x=a, y=a)
     # b now has a Numpy array representing a 4x3 matrix of '2' values
 ```
+
 in which the `ones` function will be stored in `a`, and `a` can be used as input for both parameters of
 the `add` function. In the example above, with proper configuration, the `ones` function will actually
 only be executed once; because its output is uniquely determined from its inputs, its result value
@@ -97,7 +101,7 @@ to see varying possible results returned, it is possible to
 The `.run()` method returns a `Job`, which we can wait on. For example:
 
 ```python
-import hither as hi
+import hither2 as hi
 
 @hi.function('get_the_answer', '0.1.0')
 def get_the_answer():
@@ -121,11 +125,12 @@ are rerun when their definitions may have changed). Any named hither function ca
 following syntax, by calling `.run(FUNCTION_NAME)` on the hither package directly:
 
 ```python
-    import hither as hi
+    import hither2 as hi
 
     x = hi.run('add', x=1, y=2).wait()
     assert x is 3
 ```
+
 `hi.run(FUNCTION_NAME)` returns a `Job`, just like calling `function.run()` directly; to get the
 result, you will need to call `.wait()` on that `Job`.
 
@@ -166,10 +171,9 @@ python modules that live outside the hither function's directory. Any directorie
 in this parameter will be included in the hither function's code environment, just like
 the hither function's own directory.
 
-
 ### What is the additional_files parameter in a hither function?
 
-The `additional_files` parameter is used to identify dependency files that 
+The `additional_files` parameter is used to identify dependency files that
 don't end in `.py`. For example, your function might have required configuration
 files that need to be included for the code to run correctly. Their names should
 be added to this parameter.
@@ -184,7 +188,6 @@ will be included.
 The `additional_files` patterns are applied only to files in the hither function's
 directory subtree; they are not applied to directories imported because of their
 inclusion in `local_modules`.
-
 
 <!--- Containerization --->
 
@@ -209,7 +212,6 @@ down to potentially specifying machine provisioning, this is not required for co
 which access hardware and file systems through controlled calls to the host operating system.
 Containers provide, for abritrary software, the kind of independence and reproducibility that
 a conda environment would provide for Python.
-
 
 ### What is the relationship between docker and singularity?
 
@@ -282,10 +284,10 @@ Docker supports a rich array of features which are beyond the scope of this docu
 For an example, see [parallel_example.py](./parallel_example.py) or the
 [introduction to parallel computing with hither](./parallel-computing.md).
 
-
 ### What is a simple example of a hither pipeline?
 
 Consider this example:
+
 ```python
 import numpy as np
 
@@ -323,6 +325,7 @@ with hi.Config(job_handler=jh):
 
     assert np.allclose(x, product)
 ```
+
 Here we define three functions for standard mathematical operations, and
 do some basic matrix algebra. The Job created by invoking `invert` on
 the matrix A is fed as input to the Job which computes the dot product of
@@ -335,10 +338,9 @@ hither is aware that a pipeline has been formed in which the output of
 `invert` is needed as input to the call to `dot`, so the `dot`
 Job's execution will be delayed until that result is available.
 
-
 ### How can I use hither to submit jobs to a Slurm cluster?
 
-__Use a SlurmJobHandler! (This deserves more thorough treatment)__
+A: __Use a SlurmJobHandler! (This deserves more thorough treatment)__
 
 ### What is the difference between a hither function and a hither job?
 
@@ -373,7 +375,6 @@ Also, if the job cache has been configured, hither will ensure that any other
 Job which depends on `sum` will receive its result value (8) directly, rather
 than recomputing this value.
 
-
 ### How is hither different from dask?
 
 [dask](https://dask.org/) is a tool which facilitates easy and seamless
@@ -391,7 +392,7 @@ completed before execution of the code which consumes their results.
 
 hither (and its toolkit ecosystem), by contrast, is focused on reproducibility
 through containerization and data file centralization. Happily, this provides
-performance benefits by facilitating the use of 
+performance benefits by facilitating the use of
 more powerful computing resources and pipeline-level parallelism.
 hither also improves pipeline performance through memoization.
 Ultimately, though, hither operates in a completely algorithm-agnostic
@@ -446,6 +447,7 @@ The job cache is only used if `job_cache` has been configured in the hither cont
 TODO: figure out where the `force_run=True` can be set.
 
 ### What information does hither use to form the job hash for purposes of job caching?
+
 Jobs in the job cache are identified by a hash value. This is the result of
 applying the `sha1` hashing algorithm to an input string composed of the hither
 function name and version, and its arguments.
@@ -476,7 +478,7 @@ for your data files--easy to store and uniquely associated with your input
 * Consumers of the file data do not need
 to make any assumptions about directory structure in order to locate the
 files needed to rerun a pipeline
-* The distributed kachery p2p network allows tools
+* The distributed kachery network allows tools
 to request file inputs from any environment
 
 ### What files are stored in the KACHERY_STORAGE_DIR directory?
@@ -509,14 +511,15 @@ Next, [configure a named compute
 resource](#how-can-i-host-my-own-hither-compute-resource-server).
 Make sure to record the kachery URI associated with the remote compute
 resource you would like to use. Then, on the client, you need to
-run a `kachery-p2p-daemon` that is joined to at least one channel
+run a `kachery-daemon` that is joined to at least one channel
 that the compute resource is also part of.
 
 Now, consider this example:
+
 ```python
 import os
 import numpy as np
-import hither as hi
+import hither2 as hi
 
 @hi.function('sumsqr', '0.1.0')
 @hi.container('docker://jsoules/simplescipy:latest')
@@ -547,7 +550,7 @@ listens for its name and initiates execution of any Job assigned to it.
 
 It is also possible to run jobs against multiple
 remote compute resources, even in the same pipeline. They just all need
-to belong to a common channel on the kachery-p2p network.
+to belong to a common channel on the kachery network.
 
 ### How can I host my own hither compute resource server?
 
@@ -570,7 +573,7 @@ SlurmJobHandler (if it is a cluster which makes use of Slurm).
 
 Output files are stored on the computer where the computation was performed. However, the peer-to-peer kachery network allows all files
 to be accessed on demand from any computer that has a running daemon
-that belongs to a common kachery-p2p channel.
+that belongs to a common kachery channel.
 
 ### How does hither decide when to upload/download files when using a remote compute resource?
 
@@ -585,7 +588,7 @@ pipeline, then it will not be downloaded. Also, files are never transferred if t
 ### How does hither handle large numpy arrays?
 
 Large numpy arrays are serialized to the filesystem and stored in
-kachery when they would otherwise need to be shipped over the network. 
+kachery when they would otherwise need to be shipped over the network.
 
 When hither runs a Job on a remote compute resource, it first
 [converts the job to a format that can be transmitted over a network
@@ -621,8 +624,8 @@ I access the Job._runtime_info field?
 
 ### How can I monitor the status of a running hither job?
 
-__Don't know__
+TK: __Don't know__
 
 ### How can I retrieve runtime information for a hither job that has already run?
 
-__Don't know__
+TK: __Don't know__

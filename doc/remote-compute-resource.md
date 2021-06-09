@@ -26,7 +26,6 @@ it would also be burdensome to attempt those computations on an underpowered
 machine, or to require scaling a virtual resource up and down in order to
 handle occasional processing jobs.
 
-
 ## Architecture
 
 ![Remote Compute Resource Architecture Diagram](remote-compute-components.png)
@@ -73,9 +72,10 @@ have rights to run python and Docker on the resource.
 ## What runs on the Remote Compute Resource?
 
 The remote compute resource will run at least the following:
-- A running kachery-p2p daemon
+
+- A running kachery daemon
 - An instance of the compute resource server, which communicates with the
-over the kachery p2p network to coordinate Job dispatch and return results;
+over the kachery network to coordinate Job dispatch and return results;
 - A `ParallelJobHandler` or `SlurmJobHandler` (usually) which actually manages execution
 of individual Jobs on the compute resource; and
 - A container execution environment (Docker or Singularity).
@@ -92,12 +92,10 @@ resource itself. The local machine--the one running the
 `RemoteJobHandler`--does not directly configure the remote compute
 resource used remotely.
 
-__TODO: Allow implement user configuration of the job cache on the remote resource__
+TODO: __Allow implement user configuration of the job cache on the remote resource__
 
 It is recommended that if multiple
 compute resources (local or remote) are used with the same pipeline, they all
 point to the same job cache.
 
 TODO: need to discuss recommendations regarding multiple compute resources.
-
-

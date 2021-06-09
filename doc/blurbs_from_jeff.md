@@ -1,3 +1,5 @@
+# Blurbs
+
 ## What is hither?
 
 Hither is a flexible, platform-agnostic job manager that allows researchers to easily deploy code across local, remote, and cluster environments with minimal changes. It ensures that different scientific tools can be run through a consistent pipeline, even when they have different configurations or conflicting dependencies. This works through universal containerization: if you would like to call a python function from a particular package, we provide a set of decorators for that function which allow the user to describe the required environment, which we can then package and deliver to any system that supports Docker or, for the more security-conscious, Singularity.

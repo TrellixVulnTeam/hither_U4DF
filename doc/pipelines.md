@@ -74,6 +74,4 @@ this analysis to a suite of Javascript tools which will create visualizations.
 Since every step can operate in its own environment, your overall
 pipeline can integrate all these different tools with minimal changes.
 
-__TODO: EXAMPLE OF MULTIPLE-LANGUAGE HITHER USE__
-
-
+TODO: __EXAMPLE OF MULTIPLE-LANGUAGE HITHER USE__

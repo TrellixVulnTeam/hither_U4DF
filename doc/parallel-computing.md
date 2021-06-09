@@ -6,7 +6,7 @@ parallelism, which can be used in many different pipelines.
 
 ## Definition
 
-In computing, [parallelism](https://en.wikipedia.org/wiki/Parallel_computing) is 
+In computing, [parallelism](https://en.wikipedia.org/wiki/Parallel_computing) is
 structuring a task so that multiple useful computations can be carried out
 simultaneously. Implementations can range from having multiple processor
 cores with their own instruction pipelines, to the
@@ -23,7 +23,7 @@ of performance improvements in computer processing since the early 2000s
 have been due to increased use of parallel processing.
 
 Parallel approaches are not applicable for every problem. It is difficult
-to parallelize different stages of a pipeline 
+to parallelize different stages of a pipeline
 where the later stages depend on the results of earlier steps,
 or where results must be evaluated to choose the next step.
 
@@ -31,7 +31,6 @@ Instead, parallelism is easiest to achieve when the same set of operations can b
 applied to different data simultaneously: like a group of students completing
 a homework assignment faster by assigning one problem to each student and
 sharing the results. This is known as *data-*, *job-*, or *task-level* parallelism.
-
 
 ## Support with hither
 
@@ -47,7 +46,7 @@ as the `ParallelJobHandler`, `RemoteJobHandler`, or `SlurmJobHandler`).
 Moreover, because hither does not change the contents of your functions,
 if you do make a hither function from code that already executes
 in parallel, this should be supported in most cases. The exception is
-code that is intended to run on a cluster environment and spawn 
+code that is intended to run on a cluster environment and spawn
 subprocesses; **hither does not currently have a way to ensure that
 child processes will also be spawned in their own containers on
 separate nodes. [IS THIS TRUE?]**
@@ -58,7 +57,7 @@ Here is an example that runs `8` jobs with `4` parallel workers
 (see [parallel_example.py](./parallel_example.py))
 
 ```python
-import hither as hi
+import hither2 as hi
 import time
 
 # Define a hither function that squares the input
@@ -92,5 +91,3 @@ with hi.Config(job_handler=job_handler):
 print('Results:', [y.get_result() for y in results])
 print(f'Elapsed time: {time.time() - timer} sec')
 ```
-
-
