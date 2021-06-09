@@ -29,14 +29,14 @@ def run_scriptdir_in_container_2(*,
     output_dir: str,
     nvidia_support: bool
 ):
-    import kachery_p2p as kp
+    import kachery_client as kc
 
     run_path = f'{scriptdir}/run'
     env_path = f'{scriptdir}/env'
     input_dir = f'{scriptdir}/input'
 
     remove = False if os.getenv('HITHER_CONTAINER_DEBUG', None) in ['TRUE', '1'] else True
-    with kp.TemporaryDirectory(remove=remove) as tmpdir:
+    with kc.TemporaryDirectory(remove=remove) as tmpdir:
         # entrypoint script to run inside the container
         entry_sh_script = f'''
         #!/bin/bash
@@ -55,7 +55,7 @@ def run_scriptdir_in_container_2(*,
         exec ./run
         '''
         entry_sh_path = tmpdir + '/entry.sh'
-        kp.ShellScript(entry_sh_script).write(entry_sh_path)
+        kc.ShellScript(entry_sh_script).write(entry_sh_path)
 
         ##############################################
         all_bind_mounts: List[BindMount] = [
@@ -162,7 +162,7 @@ def _run_script_in_container_singularity(*,
     script_path: str, # path of script inside the container
     nvidia_support: bool
 ):
-    import kachery_p2p as kp
+    import kachery_client as kc
 
     bind_opts = ' '.join([
         f'--bind {bm.source}:{bm.target}'
@@ -171,7 +171,7 @@ def _run_script_in_container_singularity(*,
 
     nv_opts = '--nv' if nvidia_support else ''
 
-    ss = kp.ShellScript(f'''
+    ss = kc.ShellScript(f'''
     #!/bin/bash
 
     # we really should have the -C option here, but it seems to be causing trouble

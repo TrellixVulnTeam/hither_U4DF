@@ -21,5 +21,3 @@ from ._endprocesswhenfiledisappears import EndProcessWhenFileDisappears
 from ._bindmount import BindMount
 from .runtimehook import RuntimeHook, PreContainerContext, PostContainerContext, PreRunContext, PostRunContext
 from ._run_function import _run_function
-
-# from kachery_p2p import TemporaryDirectory, ShellScript

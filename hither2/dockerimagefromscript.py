@@ -24,14 +24,14 @@ class DockerImageFromScript(DockerImage):
             raise Exception('Dockerfile must have "LABEL version=..."')
         return version
     def prepare(self):
-        import kachery_p2p as kp
+        import kachery_client as kc
         if not self._prepared:
             self._tag = self._get_tag_from_dockerfile()
             dockerfile_dir = os.path.dirname(self._dockerfile)
             dockerfile_basename = os.path.basename(self._dockerfile)
 
             if _use_singularity():
-                ss = kp.ShellScript(f'''
+                ss = kc.ShellScript(f'''
                 #!/bin/bash
 
                 singularity pull docker://{self._name}:{self._tag}
@@ -66,7 +66,7 @@ class DockerImageFromScript(DockerImage):
                 # client = docker.from_env()
                 # image = client.images.build(tag=self._name, path=dockerfile_dir, dockerfile=dockerfile_basename)
                 
-                ss = kp.ShellScript(f'''
+                ss = kc.ShellScript(f'''
                 #!/bin/bash
 
                 cd {dockerfile_dir}

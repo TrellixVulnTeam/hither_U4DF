@@ -20,7 +20,7 @@ def run_function_in_container(
     _kachery_support: Union[None, bool] = None,
     _nvidia_support: Union[None, bool] = None
 ) -> Tuple[Any, Union[None, Exception], Union[None, List[dict]]]:
-    import kachery_p2p as kp
+    import kachery_client as kc
     if _kachery_support is None:
         _kachery_support = function_wrapper.kachery_support
     if _kachery_support:
@@ -28,7 +28,7 @@ def run_function_in_container(
     if _nvidia_support is None:
         _nvidia_support = function_wrapper.nvidia_support
 
-    with kp.TemporaryDirectory(remove=True) as tmpdir:
+    with kc.TemporaryDirectory(remove=True) as tmpdir:
         create_scriptdir_for_function_run(
             directory=tmpdir,
             function_wrapper=function_wrapper,

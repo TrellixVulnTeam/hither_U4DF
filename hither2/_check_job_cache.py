@@ -10,7 +10,7 @@ def _batch_check_job_cache(jobs: List[Job]):
         for i in range(0, len(jobs), batch_size):
             _batch_check_job_cache(jobs[i:i+batch_size])
         return
-    import kachery_p2p as kp
+    import kachery_client as kc
     watches = {}
     jobs_by_id: Dict[str, Job] = {}
     for job in jobs:
@@ -27,7 +27,7 @@ def _batch_check_job_cache(jobs: List[Job]):
     while True:
         got_something = False
         if len(watches.keys()) > 0:
-            new_messages = kp.watch_for_new_messages(watches, wait_msec=0)
+            new_messages = kc.watch_for_new_messages(watches, wait_msec=0)
         else:
             new_messages = {}
         for job_id, messages in new_messages.items():

@@ -1,6 +1,6 @@
 import os
 import hither2 as hi
-import kachery_p2p as kp
+import kachery_client as kc
 
 # this image should be defined at the top level (outside the precontainer hook)
 thisdir = os.path.dirname(os.path.realpath(__file__))
@@ -38,7 +38,7 @@ if __name__ == '__main__':
     # jh = hi.ParallelJobHandler(num_workers=4)
     jh = None
     with hi.Config(use_container=True, show_console=True, job_handler=jh):
-        with kp.TemporaryDirectory() as tmpdir:
+        with kc.TemporaryDirectory() as tmpdir:
             with open(f'{tmpdir}/testfile1.txt', 'w') as f:
                 f.write('testcontent')
             j = hi.Job(runtime_hook_example, {'input_directory': tmpdir, 'num': 5})

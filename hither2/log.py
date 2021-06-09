@@ -1,6 +1,6 @@
 from typing import Dict, List, Union, cast
 import uuid
-import kachery_p2p as kp
+import kachery_client as kc
 import time
 from ._job import Job, _print_console_lines
 
@@ -8,10 +8,10 @@ from ._job import Job, _print_console_lines
 class Log:
     def __init__(self):
         self._log_id = 'log-' + str(uuid.uuid4())[-12:]
-        feed = kp.load_feed('hither-logs', create=True)
-        logs_subfeed = feed.get_subfeed('logs')
+        feed = kc.load_feed('hither-logs', create=True)
+        logs_subfeed = feed.load_subfeed('logs')
         logs_subfeed.append_message({'log_id': self._log_id, 'timestamp': time.time() - 0})
-        self._subfeed = feed.get_subfeed({'log_id': self._log_id})
+        self._subfeed = feed.load_subfeed({'log_id': self._log_id})
     @property
     def log_id(self):
         return self._log_id
@@ -41,7 +41,7 @@ class Log:
             'type': 'jobFinished',
             'timestamp': time.time() - 0,
             'job_id': job.job_id,
-            'console_lines_uri': kp.store_json(job.result.console_lines) if job.result.console_lines is not None else None
+            'console_lines_uri': kc.store_json(job.result.console_lines) if job.result.console_lines is not None else None
         })
     def _report_job_error(self, job: Job):
         self._subfeed.append_message({
@@ -49,14 +49,14 @@ class Log:
             'timestamp': time.time() - 0,
             'job_id': job.job_id,
             'error_message': str(job.result.error),
-            'console_lines_uri': kp.store_json(job.result.console_lines) if job.result.console_lines is not None else None
+            'console_lines_uri': kc.store_json(job.result.console_lines) if job.result.console_lines is not None else None
         })
 
 class LogReader:
     def __init__(self, log_id: str) -> None:
         self._log_id = log_id
-        feed = kp.load_feed('hither-logs', create=True)
-        self._subfeed = feed.get_subfeed({'log_id': self._log_id})
+        feed = kc.load_feed('hither-logs', create=True)
+        self._subfeed = feed.load_subfeed({'log_id': self._log_id})
         self._jobs: Dict[str, LogReaderJob] = {}
     def print(self, *, print_console: bool=False, job_id: Union[None, str]):
         messages = self._subfeed.get_next_messages()
@@ -154,7 +154,7 @@ class LogReaderJob:
     @property
     def console_lines(self) -> Union[None, List[dict]]:
         if self._console_lines_uri is not None:
-            return cast(Union[None, List[dict]], kp.load_json(self._console_lines_uri))
+            return cast(Union[None, List[dict]], kc.load_json(self._console_lines_uri))
         else:
             return None
     @property

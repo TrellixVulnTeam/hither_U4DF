@@ -8,7 +8,7 @@ import shutil
 import json
 from copy import deepcopy
 from typing import Dict, List, Union
-import kachery_p2p as kp
+import kachery_client as kc
 from ._safe_pickle import _safe_pickle
 from ._bindmount import BindMount
 
@@ -19,10 +19,10 @@ def _update_bind_mounts_and_environment_for_kachery_support(
     bind_mounts2 = deepcopy(bind_mounts)
     environment2 = deepcopy(environment)
     
-    kachery_storage_dir = kp._kachery_storage_dir()
+    kachery_storage_dir = kc._kachery_storage_dir()
     if kachery_storage_dir is None:
         raise Exception('Unable to determine kachery storage directory.')
-    kachery_temp_dir = kp._kachery_temp_dir()
+    kachery_temp_dir = kc._kachery_temp_dir()
     bind_mounts2.append(
         BindMount(source=kachery_storage_dir, target=kachery_storage_dir, read_only=True)
     )
@@ -30,14 +30,14 @@ def _update_bind_mounts_and_environment_for_kachery_support(
         BindMount(source=kachery_temp_dir, target=kachery_temp_dir, read_only=False)
     )
     environment2['KACHERY_TEMP_DIR'] = kachery_temp_dir
-    kachery_p2p_api_port = os.getenv('KACHERY_P2P_API_PORT', None)
-    if kachery_p2p_api_port is not None:
-        environment2['KACHERY_P2P_API_PORT'] = kachery_p2p_api_port
-    kachery_p2p_api_host = os.getenv('KACHERY_P2P_API_HOST', None)
-    if kachery_p2p_api_host is not None:
-        environment2['KACHERY_P2P_API_HOST'] = kachery_p2p_api_host
-    if os.getenv('KACHERY_P2P_KEEP_TEMP_FILES', None) is not None:
-        environment2['KACHERY_P2P_KEEP_TEMP_FILES'] = os.getenv('KACHERY_P2P_KEEP_TEMP_FILES', '')
+    kachery_daemon_port = os.getenv('KACHERY_DAEMON_PORT', None)
+    if kachery_daemon_port is not None:
+        environment2['KACHERY_DAEMON_PORT'] = kachery_daemon_port
+    kachery_daemon_host = os.getenv('KACHERY_DAEMON_HOST', None)
+    if kachery_daemon_host is not None:
+        environment2['KACHERY_DAEMON_HOST'] = kachery_daemon_host
+    if os.getenv('KACHERY_KEEP_TEMP_FILES', None) is not None:
+        environment2['KACHERY_KEEP_TEMP_FILES'] = os.getenv('KACHERY_KEEP_TEMP_FILES', '')
     
     return bind_mounts2, environment2
 
@@ -54,7 +54,7 @@ def create_scriptdir_for_function_run(
     _kachery_support: Union[None, bool] = None,
     _nvidia_support: Union[None, bool] = None
 ):
-    import kachery_p2p as kp
+    import kachery_client as kc
 
     if not os.path.isdir(directory):
         os.mkdir(directory)
@@ -101,7 +101,7 @@ def create_scriptdir_for_function_run(
         output_path = f'{directory}/output'
         os.mkdir(output_path)
         nvidia_opts = '--nvidia-support' if _nvidia_support else ''
-        run_script = kp.ShellScript(f'''
+        run_script = kc.ShellScript(f'''
         #!/bin/bash
 
         set -e
@@ -140,7 +140,7 @@ def create_scriptdir_for_function_run(
 
     _safe_pickle(f'{input_dir}/kwargs.pkl', kwargs)
 
-    modules2 = modules + ['hither2', 'kachery_p2p']
+    modules2 = modules + ['hither2', 'kachery_client']
     for module in modules2:
         module_path = os.path.dirname(importlib.import_module(module).__file__)
         _copy_py_module_dir(module_path, f'{modules_dir}/{module}')
@@ -184,7 +184,7 @@ def create_scriptdir_for_function_run(
 
     def _get_child_pids(pid):
         x = os.popen(f"pgrep -P {{pid}}").read().split('\\n')
-        return [int(a) for a in x if a is not '']
+        return [int(a) for a in x if a != '']
     
     def _kill_children_of(pid):
         child_pids = _get_child_pids(pid)
@@ -219,7 +219,7 @@ def create_scriptdir_for_function_run(
 
     # make sure we do this at the very end in an atomic operation
     run_path = f'{directory}/run'
-    kp.ShellScript(script=script).write(run_path + '.tmp')
+    kc.ShellScript(script=script).write(run_path + '.tmp')
     shutil.move(run_path + '.tmp', run_path)
 
 def _copy_py_module_dir(src_path: str, dst_path: str):

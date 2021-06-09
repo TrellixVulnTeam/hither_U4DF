@@ -10,13 +10,13 @@ from .slurmallocation import SlurmAllocation
 
 class SlurmJobHandler(JobHandler):
     def __init__(self, *, num_jobs_per_allocation: int, max_simultaneous_allocations: Union[int, None], srun_command: str):
-        import kachery_p2p as kp
+        import kachery_client as kc
         super().__init__()
         self._num_jobs_per_allocation = num_jobs_per_allocation
         self._max_num_allocations = max_simultaneous_allocations
         self._srun_command = srun_command
         self._pending_jobs: Dict[str, Job] = {}
-        with kp.TemporaryDirectory(remove=False) as tmpdir:
+        with kc.TemporaryDirectory(remove=False) as tmpdir:
             self._directory = tmpdir
         self._allocations: List[SlurmAllocation] = []
         self._allocations_marked_for_stopping: Dict[str, Union[None, float]] = {}

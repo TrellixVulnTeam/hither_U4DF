@@ -7,18 +7,18 @@ job_cache_version = '0.1.1'
 
 class JobCache:
     def __init__(self, *, feed_name: Union[str, None]=None, feed_uri: Union[str, None]=None):
-        import kachery_p2p as kp
+        import kachery_client as kc
         if (feed_name is not None) and (feed_uri is not None):
             raise Exception('You cannot specify both feed_name and feed_id')
         if feed_name is not None:
-            feed = kp.load_feed(feed_name, create=True)
+            feed = kc.load_feed(feed_name, create=True)
         elif feed_uri is not None:
-            feed = kp.load_feed(feed_uri)
+            feed = kc.load_feed(feed_uri)
         else:
             raise Exception('You must specify a feed_name or a feed_uri')
         self._feed = feed
     def _cache_job_result(self, job_hash: str, job_result: JobResult):
-        import kachery_p2p as kp
+        import kachery_client as kc
         cached_result = {
             'jobCacheVersion': job_cache_version,
             'jobHash': job_hash,
@@ -26,12 +26,12 @@ class JobCache:
         }
 
         obj = cached_result
-        sf = self._feed.get_subfeed({'jobHash': job_hash})
+        sf = self._feed.load_subfeed({'jobHash': job_hash})
         sf.append_message(obj)
 
     def _fetch_cached_job_result(self, job_hash:str) -> Union[JobResult, None]:
-        import kachery_p2p as kp
-        sf = self._feed.get_subfeed({'jobHash': job_hash})
+        import kachery_client as kc
+        sf = self._feed.load_subfeed({'jobHash': job_hash})
         messages =  sf.get_next_messages(wait_msec=0)
         if len(messages) > 0:
             obj = messages[-1] # last message

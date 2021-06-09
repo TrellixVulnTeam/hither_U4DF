@@ -29,27 +29,27 @@ class JobResult:
     def status(self):
         return self._status
     def to_cache_dict(self):
-        import kachery_p2p as kp
+        import kachery_client as kc
         return {
-            'returnValueUri': kp.store_pkl(self._return_value) if self._return_value is not None else None,
+            'returnValueUri': kc.store_pkl(self._return_value) if self._return_value is not None else None,
             'errorMessage': str(self._error) if self._error is not None else None,
-            'consoleLinesUri': kp.store_json(self._console_lines),
+            'consoleLinesUri': kc.store_json(self._console_lines),
             'status': self._status
         }
     @staticmethod
     def from_cache_dict(x: dict):
-        import kachery_p2p as kp
+        import kachery_client as kc
         rv_uri = x.get('returnValueUri', None)
         e = x.get('errorMessage', None)
         cl_uri = x.get('consoleLinesUri', None)
         s = x.get('status', '')
         if rv_uri is None:
             raise Exception('No returnValueUri')
-        if kp.load_file(rv_uri) is None:
+        if kc.load_file(rv_uri) is None:
             raise Exception('Unable to load cached return value')
-        return_value = kp.load_pkl(rv_uri)
+        return_value = kc.load_pkl(rv_uri)
         if cl_uri is not None:
-            cl = cast(List[dict], kp.load_json(cl_uri))
+            cl = cast(List[dict], kc.load_json(cl_uri))
         else:
             cl = None
         return JobResult(

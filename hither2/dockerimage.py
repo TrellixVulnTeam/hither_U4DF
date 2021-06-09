@@ -49,12 +49,12 @@ class LocalDockerImage(DockerImage):
                 raise Exception(f'Invalid docker image name: {name}')
         self._prepared = False
     def prepare(self):
-        import kachery_p2p as kp
+        import kachery_client as kc
         if not self._prepared:
             if _use_singularity():
                 raise Exception('Cannot use LocalDockerImage in singularity mode')
             else:
-                ss = kp.ShellScript(f'''
+                ss = kc.ShellScript(f'''
                 #!/bin/bash
 
                 result=$( docker images -q {self._name} )
@@ -96,10 +96,10 @@ class RemoteDockerImage(DockerImage):
                 raise Exception(f'Invalid docker image name: {name}')
         self._prepared = False
     def prepare(self):
-        import kachery_p2p as kp
+        import kachery_client as kc
         if not self._prepared:
             if _use_singularity():
-                ss = kp.ShellScript(f'''
+                ss = kc.ShellScript(f'''
                 #!/bin/bash
 
                 singularity pull docker://{self._name}
@@ -108,7 +108,7 @@ class RemoteDockerImage(DockerImage):
                 ss.wait()
                 self._prepared = True
             else:
-                ss = kp.ShellScript(f'''
+                ss = kc.ShellScript(f'''
                 #!/bin/bash
 
                 docker pull {self._name}:{self._tag}

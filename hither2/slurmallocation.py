@@ -10,19 +10,19 @@ from ._safe_pickle import _safe_unpickle
 
 class SlurmAllocation:
     def __init__(self, *, directory: str, srun_command: str, allocation_id: str):
-        import kachery_p2p as kp
+        import kachery_client as kc
         self._directory = directory
         self._srun_command = srun_command
         self._allocation_id = allocation_id
         self._jobs: Dict[str, Job] = {}
         self._jobs_dir = f'{self._directory}/jobs'
-        self._script: Union[kp.ShellScript, None] = None
+        self._script: Union[kc.ShellScript, None] = None
         self._status: str = 'pending'
         self._timestamp_created = time.time()
         if not os.path.isdir(self._jobs_dir):
             os.mkdir(self._jobs_dir)
     def start(self):
-        import kachery_p2p as kp
+        import kachery_client as kc
         import yaml
         self._timestamp_started = time.time()
         if not os.path.exists(self._directory):
@@ -33,7 +33,7 @@ class SlurmAllocation:
         running_path = f'{self._directory}/running'
         with open(running_path, 'w') as f:
             f.write('Slurm allocation will stop if this file is deleted.')
-        start_scriptdir_runner_script = kp.ShellScript(f'''
+        start_scriptdir_runner_script = kc.ShellScript(f'''
         #!/bin/bash
 
         set -e
@@ -42,7 +42,7 @@ class SlurmAllocation:
         hither-scriptdir-runner start
         ''')
         start_scriptdir_runner_script.write(f'{self._directory}/start.sh')
-        self._script = kp.ShellScript(f'''
+        self._script = kc.ShellScript(f'''
         #!/bin/bash
 
         set -e

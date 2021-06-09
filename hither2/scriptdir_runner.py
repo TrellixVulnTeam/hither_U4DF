@@ -6,10 +6,10 @@ import json
 
 class ScriptDirRunnerJob:
     def __init__(self, directory):
-        import kachery_p2p as kp
+        import kachery_client as kc
         self._directory = directory
         self._status = ''
-        self._script: Union[None, kp.ShellScript] = None
+        self._script: Union[None, kc.ShellScript] = None
         self._set_status('pending')
 
     @property
@@ -17,10 +17,10 @@ class ScriptDirRunnerJob:
         return self._status
 
     def start(self):
-        import kachery_p2p as kp
+        import kachery_client as kc
         assert self._status == 'pending'
         source_env_str = 'source ./env' if os.path.isfile(f'{self._directory}/env') else ''
-        self._script = kp.ShellScript(f'''
+        self._script = kc.ShellScript(f'''
         #!/bin/bash
 
         set -e
