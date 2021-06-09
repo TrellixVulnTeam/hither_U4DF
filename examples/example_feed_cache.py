@@ -1,7 +1,7 @@
 from os import read
 
 import hither as hi
-import kachery_p2p as kp
+import kachery_client as kc
 
 
 # define an example hither function
@@ -24,10 +24,10 @@ def main():
 # A convenience method to create a new named feed if it does not already exist
 def create_feed_if_does_not_exist(feed_name):
     try:
-        f = kp.load_feed(feed_name)
+        f = kc.load_feed(feed_name)
         return f
     except:
-        return kp.create_feed(feed_name)
+        return kc.create_feed(feed_name)
 
 if __name__ == '__main__':
     main()
