@@ -20,7 +20,7 @@ def _batch_check_job_cache(jobs: List[Job]):
             job_hash = _compute_job_hash(function_name=job.function_name, function_version=job.function_version, kwargs=job.get_resolved_kwargs())
             jc._feed
             watches[job.job_id] = {
-                'feedId': jc._feed.get_feed_id(),
+                'feedId': jc._feed.feed_id,
                 'subfeedName': {'jobHash': job_hash},
                 'position': 0
             }

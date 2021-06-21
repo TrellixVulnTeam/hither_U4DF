@@ -1,12 +1,14 @@
 import time
 from typing import Any, Dict, List, Union
+
+from ._check_job_cache import (_batch_check_job_cache,
+                               _write_result_to_job_cache)
 from ._job import Job
 from ._job_handler import JobHandler
-from ._config import UseConfig
-from .function import _get_hither_function_wrapper
-from ._check_job_cache import _check_job_cache, _write_result_to_job_cache, _batch_check_job_cache
 from ._run_function import _run_function
+from .function import _get_hither_function_wrapper
 from .log import Log
+
 
 class JobManager:
     def __init__(self):

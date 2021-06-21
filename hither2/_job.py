@@ -191,10 +191,11 @@ class Job:
                 assert e is not None
                 raise Exception(f'Error in {self.function_name} ({self.function_version}): {str(e)}')
             else:
-                time.sleep(0.05)
+                if timeout_sec is None or timeout_sec > 0:
+                    time.sleep(0.05)
             if timeout_sec is not None:
-                elaped = time.time() - timer
-                if elaped > timeout_sec:
+                elapsed = time.time() - timer
+                if (elapsed > timeout_sec) or (timeout_sec == 0):
                     return None
     def print_console(self, label: Union[None, str]=None):
         if label is None:
