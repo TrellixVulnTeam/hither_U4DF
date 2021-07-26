@@ -58,7 +58,7 @@ Here is an example that runs `8` jobs with `4` parallel workers
 (see [parallel_example.py](./parallel_example.py))
 
 ```python
-import hither as hi
+import hither2 as hi
 import time
 
 # Define a hither function that squares the input

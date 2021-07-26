@@ -9,7 +9,6 @@ See also:
 * [What is the relationship between Docker and Singularity?](./faq.md#what-is-the-difference-between-docker-and-singularity)
 * [Are Docker and Singularity required in order to use hither?](./faq.md#are-docker-and-singularity-requires-in-order-to-use-hither)
 * [Can I use local docker images with hither, or do they need to be stored on Docker Hub?](can-i-use-local-docker-images-with-hither-or-do-they-need-to-be-stored-on-docker-hub)
-* [When using a remote compute resource, where are docker images downloaded to?](./faq.md#when-using-a-remote-compute-resource-where-are-docker-images-downloaded-to)
 * [How does Hither manage dependencies on Python modules or other code outside my function?](./faq.md#how-does-hither-manage-dependencies-on-python-modules-or-other-code-outside-my-function)
 * [How can I tell hither to use Singularity instead of Docker?](#using-singularity)
 
@@ -21,7 +20,7 @@ user who will be running hither.
 Then, when declaring a [hither function](./hither-functions.md), simply decorate it with a notation like the following:
 
 ```python
-import hither as hi
+import hither2 as hi
 
 @hi.function('my_function', '0.1.0')
 @hi.container('docker://image_url')

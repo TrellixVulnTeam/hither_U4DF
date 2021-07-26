@@ -7,7 +7,7 @@ Talk about security.
 A hither function is just a regular Python function with decorators. For example:
 
 ```python
-import hither as hi
+import hither2 as hi
 
 @hi.function('sumsqr', '0.1.0')
 def sumsqr(x):

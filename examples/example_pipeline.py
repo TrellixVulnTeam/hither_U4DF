@@ -1,4 +1,5 @@
-import hither as hi
+from typing import List
+import hither2 as hi
 from expensive_calculation import expensive_calculation
 from arraysum import arraysum
 
@@ -7,14 +8,14 @@ jh = hi.ParallelJobHandler(num_workers=4)
 
 with hi.Config(job_handler=jh):
     # Run 4 jobs in parallel
-    jobs = [
+    jobs: List[hi.Job] = [
         expensive_calculation.run(x=x)
         for x in [3, 3.3, 3.6, 4]
     ]
     # we don't need to wait for these
     # jobs to finish. Just pass them in
     # to the next function
-    sumjob = arraysum.run(x=jobs)
+    sumjob: hi.Job = arraysum.run(x=jobs)
     # wait for the arraysum job to finish
     result = sumjob.wait()
-    print('result:', result)
+    print('result:', result.return_value)

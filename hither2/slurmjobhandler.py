@@ -34,9 +34,6 @@ class SlurmJobHandler(JobHandler):
             print(f'Keeping directory because HITHER_SLURM_DEBUG=1: {self._directory}')
         self._halted = True
     
-    def is_remote(self) -> bool:
-        return False
-
     def queue_job(self, job: Job):
         self._pending_jobs[job.job_id] = job
     

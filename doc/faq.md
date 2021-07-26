@@ -4,7 +4,6 @@
 * [Containerization](#containerization)
 * [Parallelization](#parallelization-and-pipelining)
 * [Memoization](#memoization)
-* [Remote execution](#remote-execution)
 * [Reproducibility](#reproducibility)
 * [General](#general)
 
@@ -97,7 +96,7 @@ to see varying possible results returned, it is possible to
 The `.run()` method returns a `Job`, which we can wait on. For example:
 
 ```python
-import hither as hi
+import hither2 as hi
 
 @hi.function('get_the_answer', '0.1.0')
 def get_the_answer():
@@ -121,7 +120,7 @@ are rerun when their definitions may have changed). Any named hither function ca
 following syntax, by calling `.run(FUNCTION_NAME)` on the hither package directly:
 
 ```python
-    import hither as hi
+    import hither2 as hi
 
     x = hi.run('add', x=1, y=2).wait()
     assert x is 3
@@ -249,13 +248,6 @@ the container when the function is run.
 
 If python modules from non-local sources are required, they should be built into the container
 image.
-
-### When using a remote compute resource, where are docker images downloaded to?
-
-Docker images will be downloaded to the remote compute resource (which will be running
-a copy of hither). Their exact location will depend on the user account which invokes
-hither on that resource--container image download is achieved by executing a `docker pull`
-command.
 
 ### How can I create a docker image with the appropriate dependencies for my hither function?
 
@@ -416,15 +408,8 @@ The following job handlers are currently defined:
 beyond starting them.
 * `ParallelJobHandler` -- runs Jobs locally, either in or outside a container. Will run
 multiple jobs at the same time in their own separate threads. Supports cancelling Jobs.
-* `RemoteJobHandler` -- manages running Jobs on a remote compute resource, with or without
-containerization. Supports cancelling Jobs.
 * `SlurmJobHandler` -- runs Jobs in a cluster environment, with or without containerization.
 
-### Can I use both local and remote job handlers within the same pipeline?
-
-Sure. Every Job can be assigned its own job handler, determined
-by the surrounding `with hi.Config()` environment block as in the code example
-above.
 
 <!--- Memoization --->
 
@@ -494,89 +479,6 @@ and data integrity reasons, any numpy array which is the input to
 or output from a hither function will be serialized to disk and
 stored in kachery if it would otherwise be shipped across a server
 or Job boundary. __(QUERY: Is that part about job boundaries true?)__
-
-<!--- Remote execution --->
-
-## Remote execution
-
-### How can I use hither to run Python code on a remote machine?
-
-First, ensure that you are actually able to run Python code on
-the remote machine--hither can't help you run on servers to which
-you do not have access!
-
-Next, [configure a named compute
-resource](#how-can-i-host-my-own-hither-compute-resource-server).
-Make sure to record the kachery URI associated with the remote compute
-resource you would like to use. Then, on the client, you need to
-run a `kachery-p2p-daemon` that is joined to at least one channel
-that the compute resource is also part of.
-
-Now, consider this example:
-```python
-import os
-import numpy as np
-import hither as hi
-
-@hi.function('sumsqr', '0.1.0')
-@hi.container('docker://jsoules/simplescipy:latest')
-def sumsqr(x):
-    return np.sum(x**2)
-
-def main():
-    compute_resource_uri = os.environ['COMPUTE_RESOURCE_URI'] # Set this variable
-    with hi.RemoteJobHandler(uri=compute_resource_uri) as remote_job_handler:
-        with hi.Config(job_handler=remote_job_handler, container=True):
-            delay = 15
-            val1 = sumsqr.run(x=np.array([1]))
-            val2 = sumsqr.run(x=np.array([1,2]))
-            val3 = sumsqr.run(x=np.array([1,2,3]))
-            print(val1.wait(), val2.wait(), val3.wait())
-            assert val1.wait() == 1
-            assert val2.wait() == 5
-            assert val3.wait() == 14
-```
-
-This code
-specifies that the `RemoteJobHandler` should talk to a remote compute resource
-at the given URI. This communication is mediated by they peer-to-peer kachery network. The `RemoteJobHandler` serializes any Job to
-be run (the hither function, its arguments, etc) and passes this to the job resource
-bus, along with the ID of the remote compute resource which is intended to handle
-that Job. The remote compute resource manager running on the remote server
-listens for its name and initiates execution of any Job assigned to it.
-
-It is also possible to run jobs against multiple
-remote compute resources, even in the same pipeline. They just all need
-to belong to a common channel on the kachery-p2p network.
-
-### How can I host my own hither compute resource server?
-
-The recommended way to set up a remote compute resource is to use the
-`hither-compute-resource` tool distributed in the `bin` directory along with
-the hither package. [See here for full instructions.](./hosting_compute_resource.md)
-This tool will walk you through setting up a configuration file for the
-remote compute resource, and provides instructions for how to start the
-process that will handle incoming Jobs.
-
-For further information about how this operates behind the scenes,
-see [the remote compute resource documentation](./remote-compute-resource.md).
-
-### Which job handlers can be used by a compute resource server?
-
-A (remote) compute resource server can use the ParallelJobHandler or the
-SlurmJobHandler (if it is a cluster which makes use of Slurm).
-
-### When using a remote job handler, do results get cached locally or remotely?
-
-Output files are stored on the computer where the computation was performed. However, the peer-to-peer kachery network allows all files
-to be accessed on demand from any computer that has a running daemon
-that belongs to a common kachery-p2p channel.
-
-### How does hither decide when to upload/download files when using a remote compute resource?
-
-Hither only downloads/uploads files as needed. For example, if the output
-of a process that runs remotely is not explicitly requested on the local
-pipeline, then it will not be downloaded. Also, files are never transferred if they already exist at the desired location.
 
 <!--- General --->
 

@@ -35,9 +35,6 @@ class ParallelJobHandler(JobHandler):
                     except:
                         print('WARNING: unable to join process in cleanup')
     
-    def is_remote(self) -> bool:
-        return False
-
     def queue_job(self, job: Job):
         self._processes.append(dict(
             job=job,
