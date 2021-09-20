@@ -4,6 +4,7 @@ from .function import FunctionWrapper
 from typing import List, Dict, Any, Union
 import time
 import multiprocessing
+import threading
 from multiprocessing.connection import Connection
 import time
 import atexit
@@ -73,7 +74,8 @@ class ParallelJobHandler(JobHandler):
 
         for p in self._processes:
             if p['pjh_status'] == 'running':
-                pp: multiprocessing.Process = p['process']
+                # pp: multiprocessing.Process = p['process']
+                pp: threading.Thread = p['process']
                 j: Job = p['job']
                 if pp.is_alive():
                     if p['pipe_to_child'].poll():
@@ -94,11 +96,12 @@ class ParallelJobHandler(JobHandler):
                                 try:
                                     p['process'].join()
                                 except:
-                                    raise Exception('pjh: Problem joining finished job process')
-                                try:
-                                    p['process'].close()
-                                except:
-                                    raise Exception('pjh: Problem closing finished job process')
+                                    # raise Exception('pjh: Problem joining finished job process')
+                                    raise Exception('pjh: Problem joining finished job thread')
+                                # try:
+                                #     p['process'].close()
+                                # except:
+                                #     raise Exception('pjh: Problem closing finished job process')
                             else:
                                 j._set_error(Exception(f'Error running job (pjh): {e}'))
                                 p['pjh_status'] = 'error'
@@ -130,7 +133,8 @@ class ParallelJobHandler(JobHandler):
                     pipe_to_parent, pipe_to_child = multiprocessing.Pipe()
                     kwargs = job.get_resolved_kwargs()
                     image = job.get_image(kwargs) if job.config.use_container else None
-                    process = multiprocessing.Process(target=_pjh_run_job, args=(pipe_to_parent, job.function_wrapper, kwargs, image, job.config))
+                    # process = multiprocessing.Process(target=_pjh_run_job, args=(pipe_to_parent, job.function_wrapper, kwargs, image, job.config))
+                    process = threading.Thread(target=_pjh_run_job, args=(pipe_to_parent, job.function_wrapper, kwargs, image, job.config))
                     p['process'] = process
                     p['pipe_to_child'] = pipe_to_child
 
