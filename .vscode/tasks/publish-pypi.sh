@@ -16,7 +16,7 @@ fi
 jinjaroot verify
 
 # run pre-publish-tasks.sh
-.vscode/tasks/pre-publish-tasks.sh
+# .vscode/tasks/pre-publish-tasks.sh
 
 cd .
 
